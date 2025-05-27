@@ -61,13 +61,21 @@ UIToolPane::UIToolPane(QWidget *pParent, UIToolClass enmClass, UIActionPool *pAc
     , m_pActionPool(pActionPool)
     , m_fActive(false)
     , m_pLayout(0)
+    // Global tools
     , m_pPaneHome(0)
     , m_pPaneMachines(0)
     , m_pPaneExtensions(0)
     , m_pPaneMedia(0)
     , m_pPaneNetwork(0)
     , m_pPaneCloud(0)
-    , m_pPaneActivities(0)
+    , m_pPaneVMActivityOverview(0)
+    // Machine tools
+    , m_pPaneError(0)
+    , m_pPaneDetails(0)
+    , m_pPaneSnapshots(0)
+    , m_pPaneLogViewer(0)
+    , m_pPaneVMActivityTool(0)
+    , m_pPaneFileManager(0)
 {
     prepare();
 }
@@ -240,25 +248,25 @@ void UIToolPane::openTool(UIToolType enmType)
                 }
                 break;
             }
-            case UIToolType_ResourceDashboard:
+            case UIToolType_Resources:
             {
-                /* Create Resource Dashboard: */
-                m_pPaneActivities = new UIVMActivityOverviewWidget(EmbedTo_Stack, m_pActionPool, false /* show toolbar */);
-                AssertPtrReturnVoid(m_pPaneActivities);
+                /* Create VM Activity Overview: */
+                m_pPaneVMActivityOverview = new UIVMActivityOverviewWidget(EmbedTo_Stack, m_pActionPool, false /* show toolbar */);
+                AssertPtrReturnVoid(m_pPaneVMActivityOverview);
                 {
                     /* Configure pane: */
-                    m_pPaneActivities->setProperty("ToolType", QVariant::fromValue(UIToolType_ResourceDashboard));
-                    connect(m_pPaneActivities, &UIVMActivityOverviewWidget::sigSwitchToMachineActivityPane,
+                    m_pPaneVMActivityOverview->setProperty("ToolType", QVariant::fromValue(UIToolType_Resources));
+                    connect(m_pPaneVMActivityOverview, &UIVMActivityOverviewWidget::sigSwitchToMachineActivityPane,
                             this, &UIToolPane::sigSwitchToMachineActivityPane);
-                    m_pPaneActivities->setCloudMachineItems(m_cloudItems);
+                    m_pPaneVMActivityOverview->setCloudMachineItems(m_cloudItems);
 #ifndef VBOX_WS_MAC
                     const int iMargin = qApp->style()->pixelMetric(QStyle::PM_LayoutLeftMargin) / 4;
-                    m_pPaneActivities->setContentsMargins(iMargin, 0, iMargin, 0);
+                    m_pPaneVMActivityOverview->setContentsMargins(iMargin, 0, iMargin, 0);
 #endif
 
                     /* Add into layout: */
-                    m_pLayout->addWidget(m_pPaneActivities);
-                    m_pLayout->setCurrentWidget(m_pPaneActivities);
+                    m_pLayout->addWidget(m_pPaneVMActivityOverview);
+                    m_pLayout->setCurrentWidget(m_pPaneVMActivityOverview);
                 }
                 break;
             }
@@ -344,26 +352,26 @@ void UIToolPane::openTool(UIToolType enmType)
                 }
                 break;
             }
-            case UIToolType_VMResourceUse:
+            case UIToolType_ResourceUse:
             {
-                /* Create Activity pane: */
-                m_pPaneVMActivityMonitor = new UIVMActivityToolWidget(EmbedTo_Stack, m_pActionPool,
-                                                                      false /* Show toolbar */, 0 /* Parent */);
-                AssertPtrReturnVoid(m_pPaneVMActivityMonitor);
+                /* Create VM Activity Tool pane: */
+                m_pPaneVMActivityTool = new UIVMActivityToolWidget(EmbedTo_Stack, m_pActionPool,
+                                                                   false /* Show toolbar */, 0 /* Parent */);
+                AssertPtrReturnVoid(m_pPaneVMActivityTool);
                 {
                     /* Configure pane: */
-                    m_pPaneVMActivityMonitor->setProperty("ToolType", QVariant::fromValue(UIToolType_VMResourceUse));
-                    m_pPaneVMActivityMonitor->setSelectedVMListItems(m_items);
-                    connect(m_pPaneVMActivityMonitor, &UIVMActivityToolWidget::sigSwitchToActivityOverviewPane,
+                    m_pPaneVMActivityTool->setProperty("ToolType", QVariant::fromValue(UIToolType_ResourceUse));
+                    m_pPaneVMActivityTool->setSelectedVMListItems(m_items);
+                    connect(m_pPaneVMActivityTool, &UIVMActivityToolWidget::sigSwitchToActivityOverviewPane,
                             this, &UIToolPane::sigSwitchToActivityOverviewPane);
 #ifndef VBOX_WS_MAC
                     const int iMargin = qApp->style()->pixelMetric(QStyle::PM_LayoutLeftMargin) / 4;
-                    m_pPaneVMActivityMonitor->setContentsMargins(iMargin, 0, iMargin, 0);
+                    m_pPaneVMActivityTool->setContentsMargins(iMargin, 0, iMargin, 0);
 #endif
 
                     /* Add into layout: */
-                    m_pLayout->addWidget(m_pPaneVMActivityMonitor);
-                    m_pLayout->setCurrentWidget(m_pPaneVMActivityMonitor);
+                    m_pLayout->addWidget(m_pPaneVMActivityTool);
+                    m_pLayout->setCurrentWidget(m_pPaneVMActivityTool);
                 }
                 break;
             }
@@ -422,12 +430,12 @@ void UIToolPane::closeTool(UIToolType enmType)
             case UIToolType_Media:       m_pPaneMedia = 0; break;
             case UIToolType_Network:     m_pPaneNetwork = 0; break;
             case UIToolType_Cloud:       m_pPaneCloud = 0; break;
-            case UIToolType_ResourceDashboard:  m_pPaneActivities = 0; break;
+            case UIToolType_Resources:   m_pPaneVMActivityOverview = 0; break;
             case UIToolType_Error:       m_pPaneError = 0; break;
             case UIToolType_Details:     m_pPaneDetails = 0; break;
             case UIToolType_Snapshots:   m_pPaneSnapshots = 0; break;
             case UIToolType_Logs:        m_pPaneLogViewer = 0; break;
-            case UIToolType_VMResourceUse:  m_pPaneVMActivityMonitor = 0; break;
+            case UIToolType_ResourceUse: m_pPaneVMActivityTool = 0; break;
             case UIToolType_FileManager: m_pPaneFileManager = 0; break;
             default: break;
         }
@@ -464,8 +472,8 @@ QString UIToolPane::currentHelpKeyword() const
         case UIToolType_Cloud:
             pCurrentToolWidget = m_pPaneCloud;
             break;
-        case UIToolType_ResourceDashboard:
-            pCurrentToolWidget = m_pPaneActivities;
+        case UIToolType_Resources:
+            pCurrentToolWidget = m_pPaneVMActivityOverview;
             break;
         case UIToolType_Error:
             pCurrentToolWidget = m_pPaneError;
@@ -479,8 +487,8 @@ QString UIToolPane::currentHelpKeyword() const
         case UIToolType_Logs:
             pCurrentToolWidget = m_pPaneLogViewer;
             break;
-        case UIToolType_VMResourceUse:
-            pCurrentToolWidget = m_pPaneVMActivityMonitor;
+        case UIToolType_ResourceUse:
+            pCurrentToolWidget = m_pPaneVMActivityTool;
             break;
         case UIToolType_FileManager:
             pCurrentToolWidget = m_pPaneFileManager;
@@ -494,6 +502,19 @@ QString UIToolPane::currentHelpKeyword() const
 UIMachineToolsWidget *UIToolPane::machineToolsWidget() const
 {
     return m_pPaneMachines;
+}
+
+void UIToolPane::setCloudMachineItems(const QList<UIVirtualMachineItemCloud*> &cloudItems)
+{
+    /* Cache passed value: */
+    m_cloudItems = cloudItems;
+
+    /* Update VM Activity Overview pane if it is open: */
+    if (isToolOpened(UIToolType_Resources))
+    {
+        AssertPtrReturnVoid(m_pPaneVMActivityOverview);
+        m_pPaneVMActivityOverview->setCloudMachineItems(m_cloudItems);
+    }
 }
 
 void UIToolPane::setErrorDetails(const QString &strDetails)
@@ -526,11 +547,11 @@ void UIToolPane::setItems(const QList<UIVirtualMachineItem*> &items)
         AssertPtrReturnVoid(m_pPaneLogViewer);
         m_pPaneLogViewer->setSelectedVMListItems(m_items);
     }
-    /* Update performance monitor pane if it is open: */
-    if (isToolOpened(UIToolType_VMResourceUse))
+    /* Update VM activity tool pane if it is open: */
+    if (isToolOpened(UIToolType_ResourceUse))
     {
-        AssertPtrReturnVoid(m_pPaneVMActivityMonitor);
-        m_pPaneVMActivityMonitor->setSelectedVMListItems(m_items);
+        AssertPtrReturnVoid(m_pPaneVMActivityTool);
+        m_pPaneVMActivityTool->setSelectedVMListItems(m_items);
     }
     /* Update file manager pane if it is open: */
     if (isToolOpened(UIToolType_FileManager))
@@ -549,19 +570,6 @@ bool UIToolPane::isCurrentStateItemSelected() const
 QUuid UIToolPane::currentSnapshotId()
 {
     return m_pPaneSnapshots ? m_pPaneSnapshots->currentSnapshotId() : QUuid();
-}
-
-void UIToolPane::setCloudMachineItems(const QList<UIVirtualMachineItemCloud*> &cloudItems)
-{
-    /* Cache passed value: */
-    m_cloudItems = cloudItems;
-
-    /* Update activity overview pane if it is open: */
-    if (isToolOpened(UIToolType_ResourceDashboard))
-    {
-        AssertPtrReturnVoid(m_pPaneActivities);
-        m_pPaneActivities->setCloudMachineItems(m_cloudItems);
-    }
 }
 
 void UIToolPane::sltDetachToolPane()
@@ -616,7 +624,7 @@ void UIToolPane::cleanup()
 
 void UIToolPane::handleTokenChange()
 {
-    /* Determine whether resource monitor is currently active tool: */
-    if (m_pPaneActivities)
-        m_pPaneActivities->setIsCurrentTool(m_fActive && currentTool() == UIToolType_ResourceDashboard);
+    /* Determine whether VM Activity Overview pane should be currently active tool: */
+    if (m_pPaneVMActivityOverview)
+        m_pPaneVMActivityOverview->setIsCurrentTool(m_fActive && currentTool() == UIToolType_Resources);
 }

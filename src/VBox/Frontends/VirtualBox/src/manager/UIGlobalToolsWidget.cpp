@@ -170,11 +170,11 @@ void UIGlobalToolsWidget::sltHandleChooserPaneNavigationListChange()
 
 void UIGlobalToolsWidget::sltHandleCloudProfileStateChange(const QString &, const QString &)
 {
-    /* If Global Activities tool is currently chosen: */
+    /* If Global Resources tool is currently chosen: */
     AssertPtrReturnVoid(toolPane());
-    if (toolPane()->currentTool() == UIToolType_ResourceDashboard)
+    if (toolPane()->currentTool() == UIToolType_Resources)
     {
-        /* Propagate a set of cloud machine items to Management tool-pane: */
+        /* Propagate a set of cloud machine items to Global tool-pane: */
         toolPane()->setCloudMachineItems(chooser()->cloudMachineItems());
     }
 }
@@ -219,9 +219,9 @@ void UIGlobalToolsWidget::sltHandleToolsMenuIndexChange(UIToolType enmType)
         /* Switch tool-pane accordingly: */
         switchToolTo(enmType);
 
-        /* Special handling for Activities Global tool,
+        /* Special handling for Global Resources tool,
          * start unconditionally updating all cloud VMs: */
-        if (enmType == UIToolType_ResourceDashboard)
+        if (enmType == UIToolType_Resources)
         {
             chooser()->setKeepCloudNodesUpdated(true);
             toolPane()->setCloudMachineItems(chooser()->cloudMachineItems());
@@ -233,17 +233,17 @@ void UIGlobalToolsWidget::sltHandleToolsMenuIndexChange(UIToolType enmType)
     }
 }
 
-void UIGlobalToolsWidget::sltSwitchToVMActivityTool(const QUuid &uMachineId)
+void UIGlobalToolsWidget::sltSwitchToResourcesTool()
+{
+    setMenuToolType(UIToolType_Resources);
+}
+
+void UIGlobalToolsWidget::sltSwitchToResourceUseTool(const QUuid &uMachineId)
 {
     AssertPtrReturnVoid(chooser());
     chooser()->setCurrentMachine(uMachineId);
     setMenuToolType(UIToolType_Machines);
-    machineToolsWidget()->setMenuToolType(UIToolType_VMResourceUse);
-}
-
-void UIGlobalToolsWidget::sltSwitchToActivitiesTool()
-{
-    setMenuToolType(UIToolType_ResourceDashboard);
+    machineToolsWidget()->setMenuToolType(UIToolType_ResourceUse);
 }
 
 void UIGlobalToolsWidget::prepare()
@@ -310,9 +310,9 @@ void UIGlobalToolsWidget::prepareConnections()
     connect(this, &UIGlobalToolsWidget::sigToolMenuUpdate,
             this, &UIGlobalToolsWidget::sltHandleToolMenuUpdate);
     connect(toolPane(), &UIToolPane::sigSwitchToMachineActivityPane,
-            this, &UIGlobalToolsWidget::sltSwitchToVMActivityTool);
+            this, &UIGlobalToolsWidget::sltSwitchToResourceUseTool);
     connect(toolPaneMachine(), &UIToolPane::sigSwitchToActivityOverviewPane,
-            this, &UIGlobalToolsWidget::sltSwitchToActivitiesTool);
+            this, &UIGlobalToolsWidget::sltSwitchToResourcesTool);
 }
 
 void UIGlobalToolsWidget::loadSettings()
@@ -346,9 +346,9 @@ void UIGlobalToolsWidget::cleanupConnections()
     disconnect(this, &UIGlobalToolsWidget::sigToolMenuUpdate,
                this, &UIGlobalToolsWidget::sltHandleToolMenuUpdate);
     disconnect(toolPane(), &UIToolPane::sigSwitchToMachineActivityPane,
-               this, &UIGlobalToolsWidget::sltSwitchToVMActivityTool);
+               this, &UIGlobalToolsWidget::sltSwitchToResourceUseTool);
     disconnect(toolPaneMachine(), &UIToolPane::sigSwitchToActivityOverviewPane,
-               this, &UIGlobalToolsWidget::sltSwitchToActivitiesTool);
+               this, &UIGlobalToolsWidget::sltSwitchToResourcesTool);
 }
 
 UITools *UIGlobalToolsWidget::toolMenu() const

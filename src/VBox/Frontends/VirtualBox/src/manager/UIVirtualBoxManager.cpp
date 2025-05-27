@@ -3567,9 +3567,9 @@ void UIVirtualBoxManager::updateActionsVisibility()
     /* Determine whether Cloud menu should be visible: */
     const bool fCloudMenuShown = fGlobalToolShown && m_pWidget->currentGlobalTool() == UIToolType_Cloud;
     actionPool()->action(UIActionIndexMN_M_Cloud)->setVisible(fCloudMenuShown);
-    /* Determine whether Activities menu should be visible: */
-    const bool fResourcesMenuShown = fGlobalToolShown && m_pWidget->currentGlobalTool() == UIToolType_ResourceDashboard;
-    actionPool()->action(UIActionIndexMN_M_ResourceDashboard)->setVisible(fResourcesMenuShown);
+    /* Determine whether VM Activity Overview menu should be visible: */
+    const bool fVMActivityOverviewMenuShown = fGlobalToolShown && m_pWidget->currentGlobalTool() == UIToolType_Resources;
+    actionPool()->action(UIActionIndexMN_M_VMActivityOverview)->setVisible(fVMActivityOverviewMenuShown);
 
     /* Determine whether Snapshots menu should be visible: */
     const bool fSnapshotMenuShown = (fMachineMenuShown || fGroupMenuShown) &&
@@ -3579,10 +3579,10 @@ void UIVirtualBoxManager::updateActionsVisibility()
     const bool fLogViewerMenuShown = (fMachineMenuShown || fGroupMenuShown) &&
                                      m_pWidget->currentMachineTool() == UIToolType_Logs;
     actionPool()->action(UIActionIndex_M_Log)->setVisible(fLogViewerMenuShown);
-    /* Determine whether Performance menu should be visible: */
-    const bool fPerformanceMenuShown = (fMachineMenuShown || fGroupMenuShown) &&
-                                       m_pWidget->currentMachineTool() == UIToolType_VMResourceUse;
-    actionPool()->action(UIActionIndex_M_VMResourceUse)->setVisible(fPerformanceMenuShown);
+    /* Determine whether Activity menu should be visible: */
+    const bool fActivityMenuShown = (fMachineMenuShown || fGroupMenuShown) &&
+                                    m_pWidget->currentMachineTool() == UIToolType_ResourceUse;
+    actionPool()->action(UIActionIndex_M_Activity)->setVisible(fActivityMenuShown);
     /* Determine whether File Manager menu item should be visible: */
     const bool fFileManagerMenuShown = (fMachineMenuShown || fGroupMenuShown) &&
                                        m_pWidget->currentMachineTool() == UIToolType_FileManager;
@@ -3754,9 +3754,9 @@ void UIVirtualBoxManager::updateActionsAppearance()
                 actionPool()->action(UIActionIndexMN_M_File_M_Tools_T_CloudProfileManager)->setChecked(true);
                 break;
             }
-            case UIToolType_ResourceDashboard:
+            case UIToolType_Resources:
             {
-                actionPool()->action(UIActionIndexMN_M_File_M_Tools_T_ResourceDashboard)->setChecked(true);
+                actionPool()->action(UIActionIndexMN_M_File_M_Tools_T_VMActivityOverview)->setChecked(true);
                 break;
             }
             default:
@@ -3783,10 +3783,10 @@ void UIVirtualBoxManager::updateActionsAppearance()
                 actionPool()->action(UIActionIndexMN_M_Machine_M_Tools_T_Logs)->setChecked(true);
                 break;
             }
-            case UIToolType_VMResourceUse:
+            case UIToolType_ResourceUse:
             {
-                actionPool()->action(UIActionIndexMN_M_Group_M_Tools_T_VMResourceUse)->setChecked(true);
-                actionPool()->action(UIActionIndexMN_M_Machine_M_Tools_T_VMResourceUse)->setChecked(true);
+                actionPool()->action(UIActionIndexMN_M_Group_M_Tools_T_Activity)->setChecked(true);
+                actionPool()->action(UIActionIndexMN_M_Machine_M_Tools_T_Activity)->setChecked(true);
                 break;
             }
             case UIToolType_FileManager:
