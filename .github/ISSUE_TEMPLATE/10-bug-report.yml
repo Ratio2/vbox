@@ -106,7 +106,7 @@ body:
         - x86
     validations:
         required: true
-- type: input
+  - type: input
     id: guest_os_ver
     attributes:
       label: Guest OS name + version
