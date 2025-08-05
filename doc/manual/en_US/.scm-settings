@@ -30,3 +30,6 @@
 /oracle-support-en.xml:             --external-copyright --no-strip-trailing-blanks
 /oracle-diversity.xml:              --external-copyright --no-strip-trailing-blanks
 
+*.dita:    --treat-as xml --no-update-license --no-update-copyright-year --no-strip-trailing-blanks
+*.ditamap: --treat-as xml --no-update-license --no-update-copyright-year --no-strip-trailing-blanks
+
