@@ -26,5 +26,8 @@
 #
 
 
---filter-out-dirs  "/mesa-*/."
+/mesa-*/.gitlab-ci/*.sh: --no-update-license --external-copyright --no-convert-tabs
+/mesa-*/.gitlab-ci/*/*.sh: --no-update-license --external-copyright --no-convert-tabs
+/mesa-*/.gitlab-ci/*.py: --no-update-license --external-copyright
+/mesa-*/.gitlab-ci/*/*.py: --no-update-license --external-copyright
 
