@@ -26,8 +26,12 @@
 #
 
 
-/mesa-*/.gitlab-ci/*.sh: --no-update-license --external-copyright --no-convert-tabs
-/mesa-*/.gitlab-ci/*/*.sh: --no-update-license --external-copyright --no-convert-tabs
-/mesa-*/.gitlab-ci/*.py: --no-update-license --external-copyright
-/mesa-*/.gitlab-ci/*/*.py: --no-update-license --external-copyright
+--filter-out-dirs "/mesa-*/docs/header-stubs/."
+
+/mesa-*/.gitlab-ci/bare-metal/poe-off|/mesa-*/.gitlab-ci/bare-metal/poe-on: --treat-as shell --no-update-license --external-copyright --no-convert-tabs --no-strip-trailing-blanks --dont-set-svn-keywords
+/mesa-*/*.sh|/mesa-*/*.py: --no-update-license --external-copyright --no-convert-tabs --no-strip-trailing-blanks --dont-set-svn-keywords
+/mesa-*/*.txt|/mesa-*/README*|/mesa-*/*/README*|/mesa-*/*/TODO: --no-update-license --external-copyright --no-convert-tabs --no-strip-trailing-blanks --dont-set-svn-keywords
+/mesa-*/src/amd/vulkan/radix_sort/LICENSE: --no-update-license --external-copyright --no-convert-tabs --no-strip-trailing-blanks --dont-set-svn-keywords
+/mesa-*/*.h|/mesa-*/*.hpp: --no-update-license --external-copyright --dont-set-svn-keywords --no-pragma-once --no-fix-header-guards --no-convert-tabs --no-force-final-eol --no-strip-trailing-blanks --strip-no-trailing-lines
+/mesa-*/*.c|/mesa-*/*.cc|/mesa-*/*.cpp|/mesa-*/*.S|/mesa-*/*.asm|/mesa-*/*/Makefile|/mesa-*/*.def|/mesa-*/*.xml|/mesa-*/*.xsl: --no-update-license --external-copyright --dont-set-svn-keywords --no-convert-tabs --no-force-final-eol --no-strip-trailing-blanks --strip-no-trailing-lines --no-fix-todos --no-fix-flower-box-markers
 
