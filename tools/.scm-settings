@@ -36,4 +36,6 @@
 /envSub.cmd: --treat-as batch --del-action copyright-* --add-action copyright-c-style
 /pylintrc: --treat-as plaintext
 /bashrc:   --treat-as shell
+/parfait*.conf: --treat-as rc
+/parfait-vbox-baseline.conf|/parfait-vbox-exclude.conf: --no-update-license --external-copyright
 
