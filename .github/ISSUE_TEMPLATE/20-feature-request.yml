@@ -1,7 +1,7 @@
 name: Oracle VirtualBox Feature Request
 description: Request a feature or enhancement for Oracle VirtualBox.
 title: "[Req]: "
-labels: ["request"]
+labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
