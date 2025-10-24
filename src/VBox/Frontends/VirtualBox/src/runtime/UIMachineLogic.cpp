@@ -42,6 +42,7 @@
 
 /* GUI includes: */
 #include "QIFileDialog.h"
+#include "QIMessageBox.h"
 #include "UIActionPoolRuntime.h"
 #include "UIAddDiskEncryptionPasswordDialog.h"
 #include "UIAdvancedSettingsDialogSpecific.h"
@@ -3105,5 +3106,12 @@ void UIMachineLogic::checkUnattendedLeftOvers()
         break;
     }
     if (!comUnattendedVISO.isNull())
-        msgCenter().confirmUnattendedFilesRemoval();
+    {
+        printf("boo %d\n", msgCenter().confirmUnattendedFilesRemoval() & AlertButton_Ok);
+
+        UINotificationProgressMediumDeletingStorage *pNotification = new UINotificationProgressMediumDeletingStorage(comUnattendedVISO);
+        // connect(pNotification, &UINotificationProgressMediumDeletingStorage::sigMediumStorageDeleted,
+        //         this, &UIMediumItemHD::sltHandleMediumRemoveRequest);
+        gpNotificationCenter->append(pNotification);
+    }
 }
