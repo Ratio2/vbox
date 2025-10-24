@@ -1912,24 +1912,28 @@ static DECLCALLBACK(void) iemR3InfoTlbTrace(PVM pVM, PCDBGFINFOHLP pHlp, int cAr
                     pHlp->pfnPrintf(pHlp, "%u: %016RX64 flush %s rev=%#RX64%s\n", idx, pCur->rip,
                                     s_apszTlbType[pCur->bParam & 1], pCur->u64Param, pszSymbol);
                     break;
+# if IEMTLB_ENTRY_COUNT_FACTOR > 1
                 case kIemTlbTraceType_FlushGlobal:
                     pHlp->pfnPrintf(pHlp, "%u: %016RX64 flush %s rev=%#RX64 grev=%#RX64%s\n", idx, pCur->rip,
                                     s_apszTlbType[pCur->bParam & 1], pCur->u64Param, pCur->u64Param2, pszSymbol);
                     if (fStopAtGlobalFlush)
                         return;
                     break;
-                case kIemTlbTraceType_Load:
-# if IEMTLB_ENTRY_COUNT_FACTOR > 1
-                case kIemTlbTraceType_LoadGlobal:
 # endif
-                    pHlp->pfnPrintf(pHlp, "%u: %016RX64 %cload %s %RGv slot=" IEMTLB_SLOT_FMT " gcphys=%RGp fTlb=%#RX32%s\n",
-                                    idx, pCur->rip,
-                                    pCur->enmType == kIemTlbTraceType_LoadGlobal ? 'g' : 'l', s_apszTlbType[pCur->bParam & 1],
-                                    pCur->u64Param,
-                                      (uint32_t)IEMTLB_ADDR_TO_INDEX(pVCpu, pCur->u64Param)
-                                    | (pCur->enmType == kIemTlbTraceType_LoadGlobal),
+                case kIemTlbTraceType_Load:
+                    pHlp->pfnPrintf(pHlp, "%u: %016RX64 lload %s %RGv slot=" IEMTLB_SLOT_FMT " gcphys=%RGp fTlb=%#RX32%s\n",
+                                    idx, pCur->rip, s_apszTlbType[pCur->bParam & 1],
+                                    pCur->u64Param, (uint32_t)IEMTLB_ADDR_TO_INDEX(pVCpu, pCur->u64Param),
                                     (RTGCPTR)pCur->u64Param2, pCur->u32Param, pszSymbol);
                     break;
+# if IEMTLB_ENTRY_COUNT_FACTOR > 1
+                case kIemTlbTraceType_LoadGlobal:
+                    pHlp->pfnPrintf(pHlp, "%u: %016RX64 gload %s %RGv slot=" IEMTLB_SLOT_FMT " gcphys=%RGp fTlb=%#RX32%s\n",
+                                    idx, pCur->rip, s_apszTlbType[pCur->bParam & 1],
+                                    pCur->u64Param, (uint32_t)IEMTLB_ADDR_TO_INDEX(pVCpu, pCur->u64Param) | 1,
+                                    (RTGCPTR)pCur->u64Param2, pCur->u32Param, pszSymbol);
+                    break;
+# endif
 
                 case kIemTlbTraceType_Load_Cr0:
                     pHlp->pfnPrintf(pHlp, "%u: %016RX64 load cr0 %08RX64 (was %08RX64)%s\n",
@@ -1951,8 +1955,12 @@ static DECLCALLBACK(void) iemR3InfoTlbTrace(PVM pVM, PCDBGFINFOHLP pHlp, int cAr
                 case kIemTlbTraceType_Irq:
                     pHlp->pfnPrintf(pHlp, "%u: %016RX64 irq %#04x flags=%#x eflboth=%#RX64%s\n",
                                     idx, pCur->rip, pCur->bParam, pCur->u32Param,
-                                    pCur->u64Param & ((RT_BIT_64(CPUMX86EFLAGS_HW_BITS) - 1) | CPUMX86EFLAGS_INT_MASK_64),
-                                    pszSymbol);
+#ifdef RT_ARCH_AMD64
+                                    pCur->u64Param & ((RT_BIT_64(CPUMX86EFLAGS_HW_BITS) - 1) | CPUMX86EFLAGS_INT_MASK_64)
+#else
+                                    pCur->u64Param
+#endif
+                                    , pszSymbol);
                     break;
                 case kIemTlbTraceType_Xcpt:
                     if (pCur->u32Param & IEM_XCPT_FLAGS_CR2)
@@ -1979,8 +1987,8 @@ static DECLCALLBACK(void) iemR3InfoTlbTrace(PVM pVM, PCDBGFINFOHLP pHlp, int cAr
                                     idx, pCur->rip, pCur->u64Param, (uintptr_t)pCur->u64Param2, pCur->u32Param, pszSymbol);
                     break;
                 case kIemTlbTraceType_Tb_Exec_Native:
-                    pHlp->pfnPrintf(pHlp, "%u: %016RX64 tb n8ve GCPhysPc=%012RX64 tb=%p used=%u%s\n",
-                                    idx, pCur->rip, pCur->u64Param, (uintptr_t)pCur->u64Param2, pCur->u32Param, pszSymbol);
+                    pHlp->pfnPrintf(pHlp, "%u: %016RX64 tb n8ve GCPhysPc=%012RX64 used=%u%s rdi=%012RX64 rsi=%u\n",
+                                    idx, pCur->rip, pCur->u64Param, pCur->u32Param, pszSymbol, pCur->u64Param2, pCur->bParam);
                     break;
 
                 case kIemTlbTraceType_User0:

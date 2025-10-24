@@ -325,7 +325,11 @@ DECLINLINE(void) iemTlbTrace(PVMCPU pVCpu, IEMTLBTRACETYPE enmType, uint64_t u64
     pEntry->u32Param  = u32Param;
     pEntry->bParam    = bParam;
     pEntry->enmType   = enmType;
+#ifdef VBOX_VMM_TARGET_X86
     pEntry->rip       = pVCpu->cpum.GstCtx.rip + pVCpu->cpum.GstCtx.cs.u64Base;
+#elif defined(VBOX_VMM_TARGET_ARMV8)
+    pEntry->rip       = pVCpu->cpum.GstCtx.Pc.u64;
+#endif
 }
 #endif
 
