@@ -4608,7 +4608,9 @@ iemNativeSimdRegMoveAndFreeAndFlushAtCall(PIEMRECOMPILERSTATE pReNative, uint32_
                 case kIemNativeWhat_FixedTmp:
                 case kIemNativeWhat_pVCpuFixed:
                 case kIemNativeWhat_pCtxFixed:
+#ifdef IEMNATIVE_WITH_DELAYED_PC_UPDATING
                 case kIemNativeWhat_PcShadow:
+#endif
                 case kIemNativeWhat_Invalid:
                 case kIemNativeWhat_End:
                     AssertFailedStmt(IEMNATIVE_DO_LONGJMP(pReNative, VERR_IEM_REG_IPE_1));
@@ -4745,7 +4747,9 @@ AssertCompile(IEMNATIVE_CALL_VOLATILE_NOTMP_GREG_MASK == UINT32_C(0x37fff));
                 case kIemNativeWhat_FixedTmp:
                 case kIemNativeWhat_pVCpuFixed:
                 case kIemNativeWhat_pCtxFixed:
+#ifdef IEMNATIVE_WITH_DELAYED_PC_UPDATING
                 case kIemNativeWhat_PcShadow:
+#endif
                 case kIemNativeWhat_FixedReserved:
                 case kIemNativeWhat_Invalid:
                 case kIemNativeWhat_End:
