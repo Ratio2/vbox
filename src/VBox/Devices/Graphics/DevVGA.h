@@ -410,7 +410,7 @@ typedef struct VGAState
     uint8_t                     cbWriteVBEIndex;
     /** VBE Extra Data write address one byte buffer */
     uint8_t                     cbWriteVBEExtraAddress;
-    uint8_t                     Padding5;
+    uint8_t                     PaddingBwIo;
 #endif
 
     /** Retrace emulation state */
