@@ -389,10 +389,12 @@ DECL_FORCE_INLINE(void) iemNativeClearPostponedEFlags(PIEMRECOMPILERSTATE pReNat
 
 
 template<bool const a_fDoOp>
-DECL_INLINE_THROW(uint32_t) iemNativeEmitPostponedEFlagsCalcLogical(PIEMNATIVEINSTR pCodeBuf, uint32_t off, uint8_t cOpBits,
+DECL_INLINE_THROW(uint32_t) iemNativeEmitPostponedEFlagsCalcLogical(PIEMNATIVEINSTR pCodeBuf, uint32_t off, uint32_t fEflUpdate, uint8_t cOpBits,
                                                                     uint8_t idxRegResult, uint8_t idxRegEfl, uint8_t idxRegTmp)
 {
 #ifdef RT_ARCH_AMD64
+    Assert(fEflUpdate == X86_EFL_STATUS_BITS); /** @todo r=aeichner Port the bugfix from the ARMv8 bits over, see @bugref{10996} for details. */
+
     /* Do TEST idxRegResult, idxRegResult to set flags. */
     if RT_CONSTEXPR_IF(a_fDoOp)
         off = iemNativeEmitAmd64OneByteModRmInstrRREx(pCodeBuf, off, 0x84, 0x85, cOpBits, idxRegResult, idxRegResult);
@@ -488,32 +490,68 @@ DECL_INLINE_THROW(uint32_t) iemNativeEmitPostponedEFlagsCalcLogical(PIEMNATIVEIN
 
 #elif defined(RT_ARCH_ARM64)
     /*
-     * Calculate flags.
+     * Calculate flags, being careful to only update flags which are not up to date already.
+     *
+     * Note: CF and OF get cleared, AF is undefined but we clear it as well.
      */
-    /* Clear the status bits. ~0x8D5 (or ~0x8FD) can't be AND immediate, so use idxRegTmp for constant. */
-    off = iemNativeEmitLoadGpr32ImmExT<~X86_EFL_STATUS_BITS>(pCodeBuf, off, idxRegTmp);
-    off = iemNativeEmitAndGpr32ByGpr32Ex(pCodeBuf, off, idxRegEfl, idxRegTmp);
+    if (fEflUpdate & (X86_EFL_CF | X86_EFL_OF | X86_EFL_AF))
+    {
+        switch (fEflUpdate & (X86_EFL_CF | X86_EFL_OF | X86_EFL_AF))
+        {
+            case                           X86_EFL_CF: off = iemNativeEmitLoadGpr32ImmExT<~(                          X86_EFL_CF)>(pCodeBuf, off, idxRegTmp); break;
+            case              X86_EFL_AF:              off = iemNativeEmitLoadGpr32ImmExT<~(             X86_EFL_AF             )>(pCodeBuf, off, idxRegTmp); break;
+            case              X86_EFL_AF | X86_EFL_CF: off = iemNativeEmitLoadGpr32ImmExT<~(             X86_EFL_AF | X86_EFL_CF)>(pCodeBuf, off, idxRegTmp); break;
+            case X86_EFL_OF:                           off = iemNativeEmitLoadGpr32ImmExT<~(X86_EFL_OF                          )>(pCodeBuf, off, idxRegTmp); break;
+            case X86_EFL_OF              | X86_EFL_CF: off = iemNativeEmitLoadGpr32ImmExT<~(X86_EFL_OF              | X86_EFL_CF)>(pCodeBuf, off, idxRegTmp); break;
+            case X86_EFL_OF | X86_EFL_AF:              off = iemNativeEmitLoadGpr32ImmExT<~(X86_EFL_OF | X86_EFL_AF             )>(pCodeBuf, off, idxRegTmp); break;
+            case X86_EFL_OF | X86_EFL_AF | X86_EFL_CF: off = iemNativeEmitLoadGpr32ImmExT<~(X86_EFL_OF | X86_EFL_AF | X86_EFL_CF)>(pCodeBuf, off, idxRegTmp); break;
+            case 0:
+            default: AssertReleaseFailed();
+        }
 
-    /* N,Z -> SF,ZF */
-    if (cOpBits < 32)
-        pCodeBuf[off++] = Armv8A64MkInstrSetF8SetF16(idxRegResult, cOpBits > 8); /* sets NZ */
-    else if RT_CONSTEXPR_IF(a_fDoOp)
-        pCodeBuf[off++] = Armv8A64MkInstrAnds(ARMV8_A64_REG_XZR, idxRegResult, idxRegResult, cOpBits > 32 /*f64Bit*/);
-    pCodeBuf[off++] = Armv8A64MkInstrMrs(idxRegTmp, ARMV8_AARCH64_SYSREG_NZCV); /* Bits: 31=N; 30=Z; 29=C; 28=V; */
-    pCodeBuf[off++] = Armv8A64MkInstrLsrImm(idxRegTmp, idxRegTmp, 30);
-    pCodeBuf[off++] = Armv8A64MkInstrBfi(idxRegEfl, idxRegTmp, X86_EFL_ZF_BIT, 2, false /*f64Bit*/);
-    AssertCompile(X86_EFL_ZF_BIT + 1 == X86_EFL_SF_BIT);
+        off = iemNativeEmitAndGpr32ByGpr32Ex(pCodeBuf, off, idxRegEfl, idxRegTmp);
+    }
 
-    /* Calculate 8-bit parity of the result. */
-    pCodeBuf[off++] = Armv8A64MkInstrEor(idxRegTmp, idxRegResult, idxRegResult, false /*f64Bit*/,
-                                         4 /*offShift6*/, kArmv8A64InstrShift_Lsr);
-    pCodeBuf[off++] = Armv8A64MkInstrEor(idxRegTmp, idxRegTmp,    idxRegTmp,    false /*f64Bit*/,
-                                         2 /*offShift6*/, kArmv8A64InstrShift_Lsr);
-    pCodeBuf[off++] = Armv8A64MkInstrEor(idxRegTmp, idxRegTmp,    idxRegTmp,    false /*f64Bit*/,
-                                         1 /*offShift6*/, kArmv8A64InstrShift_Lsr);
-    Assert(Armv8A64ConvertImmRImmS2Mask32(0, 0) == 1);
-    pCodeBuf[off++] = Armv8A64MkInstrEorImm(idxRegTmp, idxRegTmp, 0, 0, false /*f64Bit*/);
-    pCodeBuf[off++] = Armv8A64MkInstrBfi(idxRegEfl, idxRegTmp, X86_EFL_PF_BIT, 1, false /*f64Bit*/);
+    if (fEflUpdate & (X86_EFL_ZF | X86_EFL_SF))
+    {
+        /* N,Z -> SF,ZF */
+        if (cOpBits < 32)
+            pCodeBuf[off++] = Armv8A64MkInstrSetF8SetF16(idxRegResult, cOpBits > 8); /* sets NZ */
+        else if RT_CONSTEXPR_IF(a_fDoOp)
+            pCodeBuf[off++] = Armv8A64MkInstrAnds(ARMV8_A64_REG_XZR, idxRegResult, idxRegResult, cOpBits > 32 /*f64Bit*/);
+        pCodeBuf[off++] = Armv8A64MkInstrMrs(idxRegTmp, ARMV8_AARCH64_SYSREG_NZCV); /* Bits: 31=N; 30=Z; 29=C; 28=V; */
+        pCodeBuf[off++] = Armv8A64MkInstrLsrImm(idxRegTmp, idxRegTmp, 30);
+        if ((fEflUpdate & (X86_EFL_ZF | X86_EFL_SF)) == (X86_EFL_ZF | X86_EFL_SF))
+        {
+            pCodeBuf[off++] = Armv8A64MkInstrBfi(idxRegEfl, idxRegTmp, X86_EFL_ZF_BIT, 2, false /*f64Bit*/);
+            AssertCompile(X86_EFL_ZF_BIT + 1 == X86_EFL_SF_BIT);
+        }
+        else
+        {
+            /* Need to be careful not to overwrite up to date flags. */
+            if (fEflUpdate & X86_EFL_ZF)
+                pCodeBuf[off++] = Armv8A64MkInstrBfi(idxRegEfl, idxRegTmp, X86_EFL_ZF_BIT, 1, false /*f64Bit*/);
+            if (fEflUpdate & X86_EFL_SF)
+            {
+                pCodeBuf[off++] = Armv8A64MkInstrLsrImm(idxRegTmp, idxRegTmp, 1); /* Get at N */
+                pCodeBuf[off++] = Armv8A64MkInstrBfi(idxRegEfl, idxRegTmp, X86_EFL_SF_BIT, 1, false /*f64Bit*/);
+            }
+        }
+    }
+
+    if (fEflUpdate & X86_EFL_PF)
+    {
+        /* Calculate 8-bit parity of the result. */
+        pCodeBuf[off++] = Armv8A64MkInstrEor(idxRegTmp, idxRegResult, idxRegResult, false /*f64Bit*/,
+                                             4 /*offShift6*/, kArmv8A64InstrShift_Lsr);
+        pCodeBuf[off++] = Armv8A64MkInstrEor(idxRegTmp, idxRegTmp,    idxRegTmp,    false /*f64Bit*/,
+                                             2 /*offShift6*/, kArmv8A64InstrShift_Lsr);
+        pCodeBuf[off++] = Armv8A64MkInstrEor(idxRegTmp, idxRegTmp,    idxRegTmp,    false /*f64Bit*/,
+                                             1 /*offShift6*/, kArmv8A64InstrShift_Lsr);
+        Assert(Armv8A64ConvertImmRImmS2Mask32(0, 0) == 1);
+        pCodeBuf[off++] = Armv8A64MkInstrEorImm(idxRegTmp, idxRegTmp, 0, 0, false /*f64Bit*/);
+        pCodeBuf[off++] = Armv8A64MkInstrBfi(idxRegEfl, idxRegTmp, X86_EFL_PF_BIT, 1, false /*f64Bit*/);
+    }
 
 #else
 # error "port me"
@@ -627,7 +665,7 @@ static uint32_t iemNativeDoPostponedEFlagsInternal(PIEMRECOMPILERSTATE pReNative
     {
         case kIemNativePostponedEflOp_Logical:
             Assert(pReNative->PostponedEfl.idxReg2 == UINT8_MAX);
-            off = iemNativeEmitPostponedEFlagsCalcLogical<true>(pCodeBuf, off, pReNative->PostponedEfl.cOpBits,
+            off = iemNativeEmitPostponedEFlagsCalcLogical<true>(pCodeBuf, off, pReNative->PostponedEfl.fEFlags, pReNative->PostponedEfl.cOpBits,
                                                                 pReNative->PostponedEfl.idxReg1, idxRegEfl, idxRegTmp);
             break;
 
@@ -768,7 +806,7 @@ iemNativeEmitEFlagsForLogical(PIEMRECOMPILERSTATE pReNative, uint32_t off, uint8
 #else
 # error "port me"
 #endif
-        off = iemNativeEmitPostponedEFlagsCalcLogical<a_fNeedToSetFlags>(pCodeBuf, off, cOpBits, idxRegResult,
+        off = iemNativeEmitPostponedEFlagsCalcLogical<a_fNeedToSetFlags>(pCodeBuf, off, X86_EFL_STATUS_BITS, cOpBits, idxRegResult,
                                                                          idxRegEfl, idxRegTmp);
         IEMNATIVE_ASSERT_INSTR_BUF_ENSURE(pReNative, off);
 
