@@ -115,7 +115,7 @@ class tdUnitTest1(vbox.TestDriver):
                                                         # supported on Solaris (VMCREATE_F_DRIVERLESS/SUPR3INIT_F_DRIVERLESS).
         },
         'solaris.amd64': {
-            'testcase/tstLdr-4': '',                    # failed: Failed to get bits for '/home/vbox/test/tmp/bin/testcase/tstLdrObjR0.r0'/0,
+            'testcase/tstLdr-4': '',        # failed: Failed to get bits for '/home/vbox/test/tmp/bin/testcase/tstLdrObjR0.r0'/0,
                                                         # rc=VERR_SYMBOL_VALUE_TOO_BIG. aborting test
             'tstVMMUnitTests-1': '',                    # Requires driverless mode not present on Solaris.
         },
