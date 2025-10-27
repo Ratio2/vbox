@@ -1477,7 +1477,8 @@ NTSTATUS APIENTRY DxgkDdiDXPatch(PVBOXMP_DEVEXT pDevExt, const DXGKARG_PATCH *pP
                 }
             }
             else if (   pAllocation->enmType == VBOXWDDM_ALLOC_TYPE_STD_SHADOWSURFACE
-                     || pAllocation->enmType == VBOXWDDM_ALLOC_TYPE_STD_STAGINGSURFACE)
+                     || pAllocation->enmType == VBOXWDDM_ALLOC_TYPE_STD_STAGINGSURFACE
+                     || pPatchListEntry->DriverId == VBOXDXPATCHID_VRAMOFFSET)
             {
                 uint32_t *poffVRAM = (uint32_t *)pPatchAddress;
                 *poffVRAM = pAllocationListEntry->PhysicalAddress.LowPart + pPatchListEntry->AllocationOffset;

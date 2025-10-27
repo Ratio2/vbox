@@ -2698,6 +2698,7 @@ DxgkDdiGetStandardAllocationDriverData(
         case D3DKMDT_STANDARDALLOCATION_STAGINGSURFACE:
         {
             LOGF(("D3DKMDT_STANDARDALLOCATION_STAGINGSURFACE"));
+#ifndef VBOX_WITH_VMSVGA3D_DX
             if(pGetStandardAllocationDriverData->pAllocationPrivateDriverData)
             {
                 pAllocInfo = (PVBOXWDDM_ALLOCINFO)pGetStandardAllocationDriverData->pAllocationPrivateDriverData;
@@ -2717,6 +2718,42 @@ DxgkDdiGetStandardAllocationDriverData(
                 pGetStandardAllocationDriverData->pCreateStagingSurfaceData->Pitch = pAllocInfo->SurfDesc.pitch;
             }
             pGetStandardAllocationDriverData->AllocationPrivateDriverDataSize = sizeof (VBOXWDDM_ALLOCINFO);
+#else /* VBOX_WITH_VMSVGA3D_DX */
+            if (pGetStandardAllocationDriverData->pAllocationPrivateDriverData)
+            {
+                VBOXDXALLOCATIONDESC *pDesc = (VBOXDXALLOCATIONDESC *)pGetStandardAllocationDriverData->pAllocationPrivateDriverData;
+                pDesc->surfaceInfo.surfaceFlags       = SVGA3D_SURFACE_HINT_TEXTURE
+                                                      | SVGA3D_SURFACE_HINT_RT_LOCKABLE
+                                                      | SVGA3D_SURFACE_HINT_INDIRECT_UPDATE
+                                                      | SVGA3D_SURFACE_BIND_RENDER_TARGET;
+                pDesc->surfaceInfo.format             = SVGA3D_X8R8G8B8;
+                pDesc->surfaceInfo.numMipLevels       = 1;
+                pDesc->surfaceInfo.multisampleCount   = 0;
+                pDesc->surfaceInfo.multisamplePattern = SVGA3D_MS_PATTERN_NONE;
+                pDesc->surfaceInfo.qualityLevel       = SVGA3D_MS_QUALITY_NONE;
+                pDesc->surfaceInfo.autogenFilter      = SVGA3D_TEX_FILTER_NONE;
+                pDesc->surfaceInfo.size.width         = pGetStandardAllocationDriverData->pCreateStagingSurfaceData->Width;
+                pDesc->surfaceInfo.size.height        = pGetStandardAllocationDriverData->pCreateStagingSurfaceData->Height;
+                pDesc->surfaceInfo.size.depth         = 1;
+                pDesc->surfaceInfo.arraySize          = 1;
+                pDesc->surfaceInfo.bufferByteStride   = 0;
+                pDesc->fPrimary                       = true;
+                RT_ZERO(pDesc->PrimaryDesc);
+                pDesc->enmDDIFormat                   = D3DDDIFMT_X8R8G8B8;
+                pDesc->resourceInfo.BindFlags         = 0;
+                pDesc->resourceInfo.MapFlags          = 0;
+                pDesc->resourceInfo.MiscFlags         = 0;
+                pDesc->resourceInfo.Format            = DXGI_FORMAT_B8G8R8A8_UNORM;
+                pDesc->resourceInfo.DecoderBufferType = 0;
+
+                pDesc->enmAllocationType = VBOXDXALLOCATIONTYPE_SURFACE;
+                pDesc->cbAllocation = pDesc->surfaceInfo.size.height * pDesc->surfaceInfo.size.width * 4;
+
+                pGetStandardAllocationDriverData->pCreateStagingSurfaceData->Pitch = pDesc->surfaceInfo.size.width * 4;
+            }
+
+            pGetStandardAllocationDriverData->AllocationPrivateDriverDataSize = sizeof(VBOXDXALLOCATIONDESC);
+#endif /* VBOX_WITH_VMSVGA3D_DX */
 
             pGetStandardAllocationDriverData->ResourcePrivateDriverDataSize = 0;
             break;

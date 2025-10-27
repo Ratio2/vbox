@@ -772,6 +772,118 @@ static NTSTATUS gaPresentBlt(DXGKARG_PRESENT *pPresent,
                 AssertFailed();
             }
         }
+#ifdef VBOX_WITH_VMSVGA3D_DX
+        else if (pDstAlloc->enmType == VBOXWDDM_ALLOC_TYPE_D3D)
+        {
+            if (pSrcAlloc->enmType == VBOXWDDM_ALLOC_TYPE_D3D)
+            {
+                uint32_t cbRequired = sizeof(SVGA3dCmdHeader) + sizeof(SVGA3dCmdDXPresentBlt);
+                if (pDstAlloc->dx.desc.surfaceInfo.surfaceFlags & SVGA3D_SURFACE_HINT_RT_LOCKABLE)
+                    cbRequired += sizeof(SVGA3dCmdHeader) + sizeof(SVGA3dCmdSurfaceDMA)
+                                + sizeof(SVGA3dCopyBox) + sizeof(SVGA3dCmdSurfaceDMASuffix);
+
+                if (cbTarget < cbRequired)
+                {
+                    Status = STATUS_GRAPHICS_INSUFFICIENT_DMA_BUFFER;
+                    break;
+                }
+
+                RECT const &dstRect = pPresent->pDstSubRects[iSubRect];
+
+                uint8_t *pu8Cmd = pu8Target;
+                SVGA3dCmdHeader *pHdr;
+
+                /* Issue a PRESENTBLT. */
+                pHdr = (SVGA3dCmdHeader *)pu8Cmd;
+                pHdr->id   = SVGA_3D_CMD_DX_PRESENTBLT;
+                pHdr->size = sizeof(SVGA3dCmdDXPresentBlt);
+                pu8Cmd += sizeof(*pHdr);
+
+                {
+                SVGA3dCmdDXPresentBlt *pCmd = (SVGA3dCmdDXPresentBlt *)pu8Cmd;
+                pCmd->srcSid = pSrcAlloc->dx.sid;
+                pCmd->srcSubResource = 0;
+                pCmd->dstSid = pDstAlloc->dx.sid;
+                pCmd->destSubResource = 0;
+                pCmd->boxDest.x = dstRect.left;
+                pCmd->boxDest.y = dstRect.top;
+                pCmd->boxDest.z = 0;
+                pCmd->boxDest.w = dstRect.right - dstRect.left;
+                pCmd->boxDest.h = dstRect.bottom - dstRect.top;
+                pCmd->boxDest.d = 1;
+                /// @todo scaling
+                pCmd->boxSrc.x = pCmd->boxDest.x + dx;
+                pCmd->boxSrc.y = pCmd->boxDest.y + dy;
+                pCmd->boxSrc.z = 0;
+                pCmd->boxSrc.w = pCmd->boxDest.w;
+                pCmd->boxSrc.h = pCmd->boxDest.h;
+                pCmd->boxSrc.d = 1;
+                pCmd->mode = 0;
+                pu8Cmd += sizeof(*pCmd);
+                }
+
+                /* If this surface must be CPU readable then copy its content to the VRAM. */
+                if (pDstAlloc->dx.desc.surfaceInfo.surfaceFlags & SVGA3D_SURFACE_HINT_RT_LOCKABLE)
+                {
+                    /* Issue SURFACEDMA */
+                    pHdr = (SVGA3dCmdHeader *)pu8Cmd;
+                    pHdr->id   = SVGA_3D_CMD_SURFACE_DMA;
+                    pHdr->size = sizeof(SVGA3dCmdSurfaceDMA)
+                               + sizeof(SVGA3dCopyBox)
+                               + sizeof(SVGA3dCmdSurfaceDMASuffix);
+                    pu8Cmd += sizeof(*pHdr);
+
+                    SVGA3dCmdSurfaceDMA *pCmd = (SVGA3dCmdSurfaceDMA *)pu8Cmd;
+                    pCmd->guest.ptr.gmrId  = SVGA_GMR_FRAMEBUFFER;
+                    pCmd->guest.ptr.offset = pDst->SegmentId != 0 ? pDst->PhysicalAddress.LowPart : 0;
+                    pCmd->guest.pitch      = pDstAlloc->dx.desc.surfaceInfo.size.width * 4;
+                    pCmd->host.sid         = pDstAlloc->dx.sid;
+                    pCmd->host.face        = 0;
+                    pCmd->host.mipmap      = 0;
+                    pCmd->transfer         = SVGA3D_READ_HOST_VRAM;
+                    pu8Cmd += sizeof(*pCmd);
+
+                    SVGA3dCopyBox *pCopyBox = (SVGA3dCopyBox *)pu8Cmd;
+                    /* Host image coords. */
+                    pCopyBox->x    = dstRect.left;
+                    pCopyBox->y    = dstRect.top;
+                    pCopyBox->z    = 0;
+                    pCopyBox->w    = dstRect.right - dstRect.left;
+                    pCopyBox->h    = dstRect.bottom - dstRect.top;
+                    pCopyBox->d    = 1;
+                    /* Guest image coords. */
+                    pCopyBox->srcx = pCopyBox->x;
+                    pCopyBox->srcy = pCopyBox->y;
+                    pCopyBox->srcz = 0;
+                    pu8Cmd += sizeof(*pCopyBox);
+
+                    SVGA3dCmdSurfaceDMASuffix *pSuffix = (SVGA3dCmdSurfaceDMASuffix *)pu8Cmd;
+                    pSuffix->suffixSize           = sizeof(SVGA3dCmdSurfaceDMASuffix);
+                    pSuffix->maximumOffset        = MAX_UINT32;
+                    pSuffix->flags.discard        = 0;
+                    pSuffix->flags.unsynchronized = 0;
+                    pSuffix->flags.reserved       = 0;
+                    pu8Cmd += sizeof(*pSuffix);
+
+                    /* Always tell WDDM that the SHADOWSURFACE must be "paged in". */
+                    UINT const PatchOffset = (uintptr_t)pCmd - (uintptr_t)pPresent->pDmaBuffer
+                                           + RT_UOFFSETOF(SVGA3dCmdSurfaceDMA, guest.ptr.offset);
+                    RT_ZERO(*pPresent->pPatchLocationListOut);
+                    pPresent->pPatchLocationListOut->AllocationIndex = DXGK_PRESENT_DESTINATION_INDEX;
+                    pPresent->pPatchLocationListOut->PatchOffset     = PatchOffset;
+                    pPresent->pPatchLocationListOut->DriverId        = VBOXDXPATCHID_VRAMOFFSET;
+                    ++pPresent->pPatchLocationListOut;
+                }
+
+                cbCmd = cbRequired;
+                Assert(cbCmd == (uintptr_t)pu8Cmd - (uintptr_t)pu8Target);
+            }
+            else
+            {
+                AssertFailed();
+            }
+        }
+#endif /* VBOX_WITH_VMSVGA3D_DX */
         else
             AssertFailed();
 
