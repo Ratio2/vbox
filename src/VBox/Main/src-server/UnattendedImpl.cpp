@@ -4422,6 +4422,12 @@ bool Unattended::i_getAvoidUpdatesOverNetwork() const
     return mfAvoidUpdatesOverNetwork;
 }
 
+VBOXOSTYPE Unattended::i_getGuestOsArch() const
+{
+    Assert(isReadLockedOnCurrentThread());
+    return (VBOXOSTYPE)(mEnmOsType & VBOXOSTYPE_ArchitectureMask);
+}
+
 HRESULT Unattended::i_attachImage(UnattendedInstallationDisk const *pImage, ComPtr<IMachine> const &rPtrSessionMachine,
                                   AutoMultiWriteLock2 &rLock)
 {

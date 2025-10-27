@@ -113,6 +113,7 @@ public:
     bool           i_isFirmwareEFI() const;
     Utf8Str const &i_getDetectedOSVersion();
     bool           i_getAvoidUpdatesOverNetwork() const;
+    VBOXOSTYPE     i_getGuestOsArch() const;
 
 private:
     ComPtr<VirtualBox> const mParent;       /**< Strong reference to the parent object (VirtualBox/IMachine). */

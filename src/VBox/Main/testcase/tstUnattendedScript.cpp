@@ -66,7 +66,7 @@ Unattended::Unattended()
     , mfIsDefaultAuxiliaryBasePath(true)
     , midxImage(0)
     , mfDoneDetectIsoOS(false)
-    , mEnmOsType(VBOXOSTYPE_Unknown)
+    , mEnmOsType(VBOXOSTYPE_x86)
     , mfAvoidUpdatesOverNetwork(false)
     , mfDoneSupportedGuestOSList(false)
 {
@@ -728,6 +728,10 @@ bool Unattended::i_getAvoidUpdatesOverNetwork() const
     return mfAvoidUpdatesOverNetwork;
 }
 
+VBOXOSTYPE Unattended::i_getGuestOsArch() const
+{
+    return (VBOXOSTYPE)(mEnmOsType & VBOXOSTYPE_ArchitectureMask);
+}
 
 /*********************************************************************************************************************************
 *   The Testcase                                                                                                                 *
