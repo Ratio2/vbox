@@ -42,7 +42,8 @@
 
 
 /** QAccessibleObject extension used as an accessibility interface for QITreeViewItem. */
-class QIAccessibilityInterfaceForQITreeViewItem : public QAccessibleObject
+class QIAccessibilityInterfaceForQITreeViewItem
+    : public QAccessibleObject
 {
 public:
 
@@ -62,6 +63,13 @@ public:
         : QAccessibleObject(pObject)
     {}
 
+    /** Returns the role. */
+    virtual QAccessible::Role role() const RT_OVERRIDE RT_FINAL
+    {
+        /* List if there are children, ListItem by default: */
+        return childCount() ? QAccessible::List : QAccessible::ListItem;
+    }
+
     /** Returns the parent. */
     virtual QAccessibleInterface *parent() const RT_OVERRIDE RT_FINAL
     {
@@ -72,6 +80,25 @@ public:
         return item()->parentItem() ?
                QAccessible::queryAccessibleInterface(item()->parentItem()) :
                QAccessible::queryAccessibleInterface(item()->parentTree());
+    }
+
+    /** Returns the rect. */
+    virtual QRect rect() const RT_OVERRIDE RT_FINAL
+    {
+        /* Sanity check: */
+        AssertPtrReturn(item(), QRect());
+        AssertPtrReturn(item()->parentTree(), QRect());
+        AssertPtrReturn(item()->parentTree()->viewport(), QRect());
+
+        /* Get the local rect: */
+        const QRect  itemRectInViewport = boundingRect();
+        const QSize  itemSize           = itemRectInViewport.size();
+        const QPoint itemPosInViewport  = itemRectInViewport.topLeft();
+        const QPoint itemPosInScreen    = item()->parentTree()->viewport()->mapToGlobal(itemPosInViewport);
+        const QRect  itemRectInScreen   = QRect(itemPosInScreen, itemSize);
+
+        /* Return the rect: */
+        return itemRectInScreen;
     }
 
     /** Returns the number of children. */
@@ -132,23 +159,11 @@ public:
         return -1;
     }
 
-    /** Returns the rect. */
-    virtual QRect rect() const RT_OVERRIDE RT_FINAL
+    /** Returns the state. */
+    virtual QAccessible::State state() const RT_OVERRIDE RT_FINAL
     {
-        /* Sanity check: */
-        AssertPtrReturn(item(), QRect());
-        AssertPtrReturn(item()->parentTree(), QRect());
-        AssertPtrReturn(item()->parentTree()->viewport(), QRect());
-
-        /* Get the local rect: */
-        const QRect  itemRectInViewport = boundingRect();
-        const QSize  itemSize           = itemRectInViewport.size();
-        const QPoint itemPosInViewport  = itemRectInViewport.topLeft();
-        const QPoint itemPosInScreen    = item()->parentTree()->viewport()->mapToGlobal(itemPosInViewport);
-        const QRect  itemRectInScreen   = QRect(itemPosInScreen, itemSize);
-
-        /* Return the rect: */
-        return itemRectInScreen;
+        /* Empty state by default: */
+        return QAccessible::State();
     }
 
     /** Returns a text for the passed @a enmTextRole. */
@@ -168,27 +183,7 @@ public:
         return QString();
     }
 
-    /** Returns the role. */
-    virtual QAccessible::Role role() const RT_OVERRIDE RT_FINAL
-    {
-        /* List if there are children, ListItem by default: */
-        return childCount() ? QAccessible::List : QAccessible::ListItem;
-    }
-
-    /** Returns the state. */
-    virtual QAccessible::State state() const RT_OVERRIDE RT_FINAL
-    {
-        /* Empty state by default: */
-        return QAccessible::State();
-    }
-
 private:
-
-    /** Returns corresponding QITreeViewItem. */
-    QITreeViewItem *item() const
-    {
-        return qobject_cast<QITreeViewItem*>(object());
-    }
 
     /** Returns item bounding rectangle including all the children. */
     QRect boundingRect() const
@@ -208,6 +203,9 @@ private:
         /* Return cumulative bounding rectangle: */
         return region.boundingRect();
     }
+
+    /** Returns corresponding QITreeViewItem. */
+    QITreeViewItem *item() const { return qobject_cast<QITreeViewItem*>(object()); }
 };
 
 
