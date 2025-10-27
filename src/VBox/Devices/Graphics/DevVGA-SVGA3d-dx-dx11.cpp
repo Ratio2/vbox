@@ -88,6 +88,7 @@ typedef struct D3D11BLITTER
 
     ID3D11VertexShader     *pVertexShader;
     ID3D11PixelShader      *pPixelShader;
+    ID3D11PixelShader      *pPixelShaderSRGB;
     ID3D11SamplerState     *pSamplerState;
     ID3D11RasterizerState1 *pRasterizerState;
     ID3D11BlendState1      *pBlendState;
@@ -2521,6 +2522,14 @@ static UINT dxBindFlags(SVGA3dSurfaceAllFlags surfaceFlags)
 #endif
 
     return BindFlags;
+}
+
+
+static bool dxIsFormatSRGB(DXGI_FORMAT dxgiFormat)
+{
+    return dxgiFormat == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
+        || dxgiFormat == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB
+        || dxgiFormat == DXGI_FORMAT_B8G8R8X8_UNORM_SRGB;
 }
 
 
@@ -9043,7 +9052,6 @@ static DECLCALLBACK(int) vmsvga3dBackDXPredCopy(PVGASTATECC pThisCC, PVMSVGA3DDX
 
 
 #include "shaders/d3d11blitter.hlsl.vs.h"
-#include "shaders/d3d11blitter.hlsl.ps.h"
 
 #define HTEST(stmt) \
     hr = stmt; \
@@ -9054,6 +9062,7 @@ static void BlitRelease(D3D11BLITTER *pBlitter)
 {
     D3D_RELEASE(pBlitter->pVertexShader);
     D3D_RELEASE(pBlitter->pPixelShader);
+    D3D_RELEASE(pBlitter->pPixelShaderSRGB);
     D3D_RELEASE(pBlitter->pSamplerState);
     D3D_RELEASE(pBlitter->pRasterizerState);
     D3D_RELEASE(pBlitter->pBlendState);
@@ -9071,7 +9080,8 @@ static HRESULT BlitInit(D3D11BLITTER *pBlitter, ID3D11Device1 *pDevice, ID3D11De
     pBlitter->pImmediateContext = pImmediateContext;
 
     HTEST(pBlitter->pDevice->CreateVertexShader(g_vs_blitter, sizeof(g_vs_blitter), NULL, &pBlitter->pVertexShader));
-    HTEST(pBlitter->pDevice->CreatePixelShader(g_ps_blitter, sizeof(g_ps_blitter), NULL, &pBlitter->pPixelShader));
+    HTEST(pBlitter->pDevice->CreatePixelShader(g_ps_screen, sizeof(g_ps_screen), NULL, &pBlitter->pPixelShader));
+    HTEST(pBlitter->pDevice->CreatePixelShader(g_ps_screen_SRGB, sizeof(g_ps_screen_SRGB), NULL, &pBlitter->pPixelShaderSRGB));
 
     D3D11_SAMPLER_DESC SamplerDesc;
     SamplerDesc.Filter         = D3D11_FILTER_ANISOTROPIC;
@@ -9127,7 +9137,7 @@ static HRESULT BlitInit(D3D11BLITTER *pBlitter, ID3D11Device1 *pDevice, ID3D11De
 
 static HRESULT BlitFromTexture(D3D11BLITTER *pBlitter, ID3D11RenderTargetView *pDstRenderTargetView,
                                float cDstWidth, float cDstHeight, D3D11_RECT const &rectDst,
-                               ID3D11ShaderResourceView *pSrcShaderResourceView)
+                               ID3D11ShaderResourceView *pSrcShaderResourceView, bool fSrcSRGB)
 {
     HRESULT hr;
 
@@ -9227,7 +9237,7 @@ static HRESULT BlitFromTexture(D3D11BLITTER *pBlitter, ID3D11RenderTargetView *p
     pBlitter->pImmediateContext->PSSetShaderResources(0, 1, &pSrcShaderResourceView);
 
     /* Pixel shader. */
-    pBlitter->pImmediateContext->PSSetShader(pBlitter->pPixelShader, NULL, 0);
+    pBlitter->pImmediateContext->PSSetShader(fSrcSRGB ? pBlitter->pPixelShaderSRGB : pBlitter->pPixelShader, NULL, 0);
 
     /* Sampler. */
     pBlitter->pImmediateContext->PSSetSamplers(0, 1, &pBlitter->pSamplerState);
@@ -9306,26 +9316,14 @@ static DECLCALLBACK(int) vmsvga3dBackDXPresentBlt(PVGASTATECC pThisCC, PVMSVGA3D
     AssertReturn(pDevice->pDevice, VERR_INVALID_STATE);
 
     PVMSVGA3DSURFACE pSrcSurface;
-    int rc = vmsvga3dSurfaceFromSid(pThisCC->svga.p3dState, srcSid, &pSrcSurface);
+    ID3D11Resource *pSrcResource;
+    int rc = dxEnsureResource(pThisCC, srcSid, &pSrcSurface, &pSrcResource);
     AssertRCReturn(rc, rc);
 
     PVMSVGA3DSURFACE pDstSurface;
-    rc = vmsvga3dSurfaceFromSid(pThisCC->svga.p3dState, dstSid, &pDstSurface);
+    ID3D11Resource *pDstResource;
+    rc = dxEnsureResource(pThisCC, dstSid, &pDstSurface, &pDstResource);
     AssertRCReturn(rc, rc);
-
-    if (pSrcSurface->pBackendSurface == NULL)
-    {
-        /* Create the resource. */
-        rc = vmsvga3dBackSurfaceCreateResource(pThisCC, pSrcSurface);
-        AssertRCReturn(rc, rc);
-    }
-
-    if (pDstSurface->pBackendSurface == NULL)
-    {
-        /* Create the resource. */
-        rc = vmsvga3dBackSurfaceCreateResource(pThisCC, pDstSurface);
-        AssertRCReturn(rc, rc);
-    }
 
 #ifdef DEBUG_sunlover
     if (pSrcSurface->surfaceDesc.multisampleCount > 1 || pDstSurface->surfaceDesc.multisampleCount > 1)
@@ -9360,9 +9358,6 @@ static DECLCALLBACK(int) vmsvga3dBackDXPresentBlt(PVGASTATECC pThisCC, PVMSVGA3D
     SVGA3dBox clipBoxDst = *pBoxDst;
     vmsvgaR3ClipBox(&pDstMipLevel->mipmapSize, &clipBoxDst);
 
-    ID3D11Resource *pDstResource = dxResource(pDstSurface);
-    ID3D11Resource *pSrcResource = dxResource(pSrcSurface);
-
     D3D11_RENDER_TARGET_VIEW_DESC RTVDesc;
     RT_ZERO(RTVDesc);
     RTVDesc.Format = vmsvgaDXSurfaceFormat2Dxgi(pDstSurface->format);;
@@ -9391,7 +9386,7 @@ static DECLCALLBACK(int) vmsvga3dBackDXPresentBlt(PVGASTATECC pThisCC, PVMSVGA3D
     rectDst.bottom = pBoxDst->y + pBoxDst->h;
 
     BlitFromTexture(&pDevice->Blitter, pDstRenderTargetView, (float)pDstMipLevel->mipmapSize.width, (float)pDstMipLevel->mipmapSize.height,
-                    rectDst, pSrcShaderResourceView);
+                    rectDst, pSrcShaderResourceView, dxIsFormatSRGB(pSrcSurface->pBackendSurface->enmDxgiFormat));
 
     D3D_RELEASE(pSrcShaderResourceView);
     D3D_RELEASE(pDstRenderTargetView);
