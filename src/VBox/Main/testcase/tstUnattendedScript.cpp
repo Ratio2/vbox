@@ -733,9 +733,11 @@ VBOXOSTYPE Unattended::i_getGuestOsArch() const
     return (VBOXOSTYPE)(mEnmOsType & VBOXOSTYPE_ArchitectureMask);
 }
 
+
 /*********************************************************************************************************************************
 *   The Testcase                                                                                                                 *
 *********************************************************************************************************************************/
+
 static bool loadFileAsString(const char *pszFilename, Utf8Str &rstrContent)
 {
     rstrContent.setNull();
