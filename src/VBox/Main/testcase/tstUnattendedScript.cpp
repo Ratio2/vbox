@@ -736,7 +736,6 @@ VBOXOSTYPE Unattended::i_getGuestOsArch() const
 /*********************************************************************************************************************************
 *   The Testcase                                                                                                                 *
 *********************************************************************************************************************************/
-
 static bool loadFileAsString(const char *pszFilename, Utf8Str &rstrContent)
 {
     rstrContent.setNull();
