@@ -63,32 +63,151 @@ public:
     {}
 
     /** Returns the parent. */
-    virtual QAccessibleInterface *parent() const RT_OVERRIDE RT_FINAL;
+    virtual QAccessibleInterface *parent() const RT_OVERRIDE RT_FINAL
+    {
+        /* Sanity check: */
+        AssertPtrReturn(item(), 0);
+
+        /* Return the parent: */
+        return item()->parentItem() ?
+               QAccessible::queryAccessibleInterface(item()->parentItem()) :
+               QAccessible::queryAccessibleInterface(item()->parentTree());
+    }
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE RT_FINAL;
+    virtual int childCount() const RT_OVERRIDE RT_FINAL
+    {
+        /* Sanity check: */
+        AssertPtrReturn(item(), 0);
+        AssertPtrReturn(item()->parentTree(), 0);
+        AssertPtrReturn(item()->parentTree()->model(), 0);
+
+        /* Acquire item model-index: */
+        const QModelIndex itemIndex = item()->modelIndex();
+
+        /* Return the number of children: */
+        return item()->parentTree()->model()->rowCount(itemIndex);
+    }
+
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE RT_FINAL;
+    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE RT_FINAL
+    {
+        /* Make sure item still alive: */
+        QITreeViewItem *pThisItem = item();
+        AssertPtrReturn(pThisItem, 0);
+        /* Make sure tree still alive: */
+        QITreeView *pTree = pThisItem->parentTree();
+        AssertPtrReturn(pTree, 0);
+        /* Make sure model still alive: */
+        QAbstractItemModel *pModel = pTree->model();
+        AssertPtrReturn(pModel, 0);
+        /* Make sure index is valid: */
+        AssertReturn(iIndex >= 0 && iIndex < childCount(), 0);
+
+        /* Acquire parent model-index: */
+        const QModelIndex parentIndex = pThisItem->modelIndex();
+
+        /* Acquire child-index: */
+        const QModelIndex childIndex = pModel->index(iIndex, 0, parentIndex);
+        /* Check whether we have proxy model set or source one otherwise: */
+        const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
+        /* Acquire source-model child-index (can be the same as original if there is no proxy model): */
+        const QModelIndex sourceChildIndex = pProxyModel ? pProxyModel->mapToSource(childIndex) : childIndex;
+
+        /* Acquire child item: */
+        QITreeViewItem *pItem = reinterpret_cast<QITreeViewItem*>(sourceChildIndex.internalPointer());
+        /* Return child item's accessibility interface: */
+        return QAccessible::queryAccessibleInterface(pItem);
+    }
+
     /** Returns the index of the passed @a pChild. */
-    virtual int indexOfChild(const QAccessibleInterface *pChild) const RT_OVERRIDE RT_FINAL;
+    virtual int indexOfChild(const QAccessibleInterface *pChild) const RT_OVERRIDE RT_FINAL
+    {
+        /* Search for corresponding child: */
+        for (int i = 0; i < childCount(); ++i)
+            if (child(i) == pChild)
+                return i;
+
+        /* -1 by default: */
+        return -1;
+    }
 
     /** Returns the rect. */
-    virtual QRect rect() const RT_OVERRIDE RT_FINAL;
+    virtual QRect rect() const RT_OVERRIDE RT_FINAL
+    {
+        /* Sanity check: */
+        AssertPtrReturn(item(), QRect());
+        AssertPtrReturn(item()->parentTree(), QRect());
+        AssertPtrReturn(item()->parentTree()->viewport(), QRect());
+
+        /* Get the local rect: */
+        const QRect  itemRectInViewport = boundingRect();
+        const QSize  itemSize           = itemRectInViewport.size();
+        const QPoint itemPosInViewport  = itemRectInViewport.topLeft();
+        const QPoint itemPosInScreen    = item()->parentTree()->viewport()->mapToGlobal(itemPosInViewport);
+        const QRect  itemRectInScreen   = QRect(itemPosInScreen, itemSize);
+
+        /* Return the rect: */
+        return itemRectInScreen;
+    }
+
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE RT_FINAL;
+    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE RT_FINAL
+    {
+        /* Sanity check: */
+        AssertPtrReturn(item(), QString());
+
+        /* Return a text for the passed enmTextRole: */
+        switch (enmTextRole)
+        {
+            case QAccessible::Name: return item()->text();
+            default: break;
+        }
+
+        /* Null-string by default: */
+        return QString();
+    }
 
     /** Returns the role. */
-    virtual QAccessible::Role role() const RT_OVERRIDE RT_FINAL;
+    virtual QAccessible::Role role() const RT_OVERRIDE RT_FINAL
+    {
+        /* List if there are children, ListItem by default: */
+        return childCount() ? QAccessible::List : QAccessible::ListItem;
+    }
+
     /** Returns the state. */
-    virtual QAccessible::State state() const RT_OVERRIDE RT_FINAL;
+    virtual QAccessible::State state() const RT_OVERRIDE RT_FINAL
+    {
+        /* Empty state by default: */
+        return QAccessible::State();
+    }
 
 private:
 
     /** Returns corresponding QITreeViewItem. */
-    QITreeViewItem *item() const { return qobject_cast<QITreeViewItem*>(object()); }
+    QITreeViewItem *item() const
+    {
+        return qobject_cast<QITreeViewItem*>(object());
+    }
 
     /** Returns item bounding rectangle including all the children. */
-    QRect boundingRect() const;
+    QRect boundingRect() const
+    {
+        /* Calculate cumulative region: */
+        QRegion region;
+        /* Append item rectangle itself: */
+        region += item()->rect();
+        /* Do the same for all the children: */
+        for (int i = 0; i < childCount(); ++i)
+        {
+            QIAccessibilityInterfaceForQITreeViewItem *pChild =
+                dynamic_cast<QIAccessibilityInterfaceForQITreeViewItem*>(child(i));
+            AssertPtrReturn(pChild, QRect());
+            region += pChild->boundingRect();
+        }
+        /* Return cumulative bounding rectangle: */
+        return region.boundingRect();
+    }
 };
 
 
@@ -114,246 +233,100 @@ public:
     {}
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE RT_FINAL;
+    virtual int childCount() const RT_OVERRIDE RT_FINAL
+    {
+        /* Make sure tree still alive: */
+        AssertPtrReturn(tree(), 0);
+        /* Make sure model still alive: */
+        AssertPtrReturn(tree()->model(), 0);
+
+        /* Acquire required model-index, that can be root-index if specified
+         * or null index otherwise, in that case we return the amount of top-level children: */
+        const QModelIndex rootIndex = tree()->rootIndex();
+        const QModelIndex requiredIndex = rootIndex.isValid() ? rootIndex : QModelIndex();
+
+        /* Return the number of children: */
+        return tree()->model()->rowCount(requiredIndex);
+    }
+
     /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE RT_FINAL;
+    virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE RT_FINAL
+    {
+        /* Make sure tree still alive: */
+        QITreeView *pTree = tree();
+        AssertPtrReturn(pTree, 0);
+        /* Make sure model still alive: */
+        QAbstractItemModel *pModel = pTree->model();
+        AssertPtrReturn(pModel, 0);
+        /* Make sure index is valid: */
+        AssertReturn(iIndex >= 0, 0);
+
+        /* Real index might be different: */
+        int iRealIndex = iIndex;
+
+        // WORKAROUND:
+        // For a tree-views Qt accessibility code has a hard-coded architecture which we do not like
+        // but have to live with, this architecture enumerates children of all levels as children of level 0,
+        // so Qt can try to address our interface with index which surely out of bounds by our laws.
+        // Let's assume that's exactly the case and try to enumerate children like they are a part of the list, not tree.
+        if (iRealIndex >= childCount())
+        {
+            // Split delimeter is overall column count:
+            const int iColumnCount = pModel->columnCount();
+
+            // Real row index:
+            iRealIndex = iRealIndex / iColumnCount;
+        }
+
+        /* Make sure index fits the bounds finally: */
+        if (iRealIndex >= childCount())
+            return 0;
+
+        /* Acquire parent model-index, that can be root-index if specified
+         * or null index otherwise, in that case we will return one of top-level children: */
+        const QModelIndex rootIndex = tree()->rootIndex();
+        const QModelIndex parentIndex = rootIndex.isValid() ? rootIndex : QModelIndex();
+
+        /* Acquire child-index: */
+        const QModelIndex childIndex = pModel->index(iRealIndex, 0, parentIndex);
+        /* Check whether we have proxy model set or source one otherwise: */
+        const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
+        /* Acquire source-model child-index (can be the same as original if there is no proxy model): */
+        const QModelIndex sourceChildIndex = pProxyModel ? pProxyModel->mapToSource(childIndex) : childIndex;
+
+        /* Acquire child item: */
+        QITreeViewItem *pItem = reinterpret_cast<QITreeViewItem*>(sourceChildIndex.internalPointer());
+        /* Return child item's accessibility interface: */
+        return QAccessible::queryAccessibleInterface(pItem);
+    }
+
     /** Returns the index of the passed @a pChild. */
-    virtual int indexOfChild(const QAccessibleInterface *pChild) const RT_OVERRIDE RT_FINAL;
+    virtual int indexOfChild(const QAccessibleInterface *pChild) const RT_OVERRIDE RT_FINAL
+    {
+        /* Search for corresponding child: */
+        for (int i = 0; i < childCount(); ++i)
+            if (child(i) == pChild)
+                return i;
+
+        /* -1 by default: */
+        return -1;
+    }
 
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE RT_FINAL;
+    virtual QString text(QAccessible::Text) const RT_OVERRIDE RT_FINAL
+    {
+        /* Sanity check: */
+        AssertPtrReturn(tree(), QString());
+
+        /* Return tree whats-this: */
+        return tree()->whatsThis();
+    }
 
 private:
 
     /** Returns corresponding QITreeView. */
     QITreeView *tree() const { return qobject_cast<QITreeView*>(widget()); }
 };
-
-
-/*********************************************************************************************************************************
-*   Class QIAccessibilityInterfaceForQITreeViewItem implementation.                                                              *
-*********************************************************************************************************************************/
-
-QAccessibleInterface *QIAccessibilityInterfaceForQITreeViewItem::parent() const
-{
-    /* Sanity check: */
-    AssertPtrReturn(item(), 0);
-
-    /* Return the parent: */
-    return item()->parentItem() ?
-           QAccessible::queryAccessibleInterface(item()->parentItem()) :
-           QAccessible::queryAccessibleInterface(item()->parentTree());
-}
-
-int QIAccessibilityInterfaceForQITreeViewItem::childCount() const
-{
-    /* Sanity check: */
-    AssertPtrReturn(item(), 0);
-    AssertPtrReturn(item()->parentTree(), 0);
-    AssertPtrReturn(item()->parentTree()->model(), 0);
-
-    /* Acquire item model-index: */
-    const QModelIndex itemIndex = item()->modelIndex();
-
-    /* Return the number of children: */
-    return item()->parentTree()->model()->rowCount(itemIndex);
-}
-
-QAccessibleInterface *QIAccessibilityInterfaceForQITreeViewItem::child(int iIndex) const /* override */
-{
-    /* Make sure item still alive: */
-    QITreeViewItem *pThisItem = item();
-    AssertPtrReturn(pThisItem, 0);
-    /* Make sure tree still alive: */
-    QITreeView *pTree = pThisItem->parentTree();
-    AssertPtrReturn(pTree, 0);
-    /* Make sure model still alive: */
-    QAbstractItemModel *pModel = pTree->model();
-    AssertPtrReturn(pModel, 0);
-    /* Make sure index is valid: */
-    AssertReturn(iIndex >= 0 && iIndex < childCount(), 0);
-
-    /* Acquire parent model-index: */
-    const QModelIndex parentIndex = pThisItem->modelIndex();
-
-    /* Acquire child-index: */
-    const QModelIndex childIndex = pModel->index(iIndex, 0, parentIndex);
-    /* Check whether we have proxy model set or source one otherwise: */
-    const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
-    /* Acquire source-model child-index (can be the same as original if there is no proxy model): */
-    const QModelIndex sourceChildIndex = pProxyModel ? pProxyModel->mapToSource(childIndex) : childIndex;
-
-    /* Acquire child item: */
-    QITreeViewItem *pItem = reinterpret_cast<QITreeViewItem*>(sourceChildIndex.internalPointer());
-    /* Return child item's accessibility interface: */
-    return QAccessible::queryAccessibleInterface(pItem);
-}
-
-int QIAccessibilityInterfaceForQITreeViewItem::indexOfChild(const QAccessibleInterface *pChild) const
-{
-    /* Search for corresponding child: */
-    for (int i = 0; i < childCount(); ++i)
-        if (child(i) == pChild)
-            return i;
-
-    /* -1 by default: */
-    return -1;
-}
-
-QRect QIAccessibilityInterfaceForQITreeViewItem::rect() const
-{
-    /* Sanity check: */
-    AssertPtrReturn(item(), QRect());
-    AssertPtrReturn(item()->parentTree(), QRect());
-    AssertPtrReturn(item()->parentTree()->viewport(), QRect());
-
-    /* Get the local rect: */
-    const QRect  itemRectInViewport = boundingRect();
-    const QSize  itemSize           = itemRectInViewport.size();
-    const QPoint itemPosInViewport  = itemRectInViewport.topLeft();
-    const QPoint itemPosInScreen    = item()->parentTree()->viewport()->mapToGlobal(itemPosInViewport);
-    const QRect  itemRectInScreen   = QRect(itemPosInScreen, itemSize);
-
-    /* Return the rect: */
-    return itemRectInScreen;
-}
-
-QString QIAccessibilityInterfaceForQITreeViewItem::text(QAccessible::Text enmTextRole) const
-{
-    /* Sanity check: */
-    AssertPtrReturn(item(), QString());
-
-    /* Return a text for the passed enmTextRole: */
-    switch (enmTextRole)
-    {
-        case QAccessible::Name: return item()->text();
-        default: break;
-    }
-
-    /* Null-string by default: */
-    return QString();
-}
-
-QAccessible::Role QIAccessibilityInterfaceForQITreeViewItem::role() const
-{
-    /* List if there are children, ListItem by default: */
-    return childCount() ? QAccessible::List : QAccessible::ListItem;
-}
-
-QAccessible::State QIAccessibilityInterfaceForQITreeViewItem::state() const
-{
-    /* Empty state by default: */
-    return QAccessible::State();
-}
-
-QRect QIAccessibilityInterfaceForQITreeViewItem::boundingRect() const
-{
-    /* Calculate cumulative region: */
-    QRegion region;
-    /* Append item rectangle itself: */
-    region += item()->rect();
-    /* Do the same for all the children: */
-    for (int i = 0; i < childCount(); ++i)
-    {
-        QIAccessibilityInterfaceForQITreeViewItem *pChild =
-            dynamic_cast<QIAccessibilityInterfaceForQITreeViewItem*>(child(i));
-        AssertPtrReturn(pChild, QRect());
-        region += pChild->boundingRect();
-    }
-    /* Return cumulative bounding rectangle: */
-    return region.boundingRect();
-}
-
-
-/*********************************************************************************************************************************
-*   Class QIAccessibilityInterfaceForQITreeView implementation.                                                                  *
-*********************************************************************************************************************************/
-
-int QIAccessibilityInterfaceForQITreeView::childCount() const
-{
-    /* Make sure tree still alive: */
-    AssertPtrReturn(tree(), 0);
-    /* Make sure model still alive: */
-    AssertPtrReturn(tree()->model(), 0);
-
-    /* Acquire required model-index, that can be root-index if specified
-     * or null index otherwise, in that case we return the amount of top-level children: */
-    const QModelIndex rootIndex = tree()->rootIndex();
-    const QModelIndex requiredIndex = rootIndex.isValid() ? rootIndex : QModelIndex();
-
-    /* Return the number of children: */
-    return tree()->model()->rowCount(requiredIndex);
-}
-
-QAccessibleInterface *QIAccessibilityInterfaceForQITreeView::child(int iIndex) const
-{
-    /* Make sure tree still alive: */
-    QITreeView *pTree = tree();
-    AssertPtrReturn(pTree, 0);
-    /* Make sure model still alive: */
-    QAbstractItemModel *pModel = pTree->model();
-    AssertPtrReturn(pModel, 0);
-    /* Make sure index is valid: */
-    AssertReturn(iIndex >= 0, 0);
-
-    /* Real index might be different: */
-    int iRealIndex = iIndex;
-
-    // WORKAROUND:
-    // For a tree-views Qt accessibility code has a hard-coded architecture which we do not like
-    // but have to live with, this architecture enumerates children of all levels as children of level 0,
-    // so Qt can try to address our interface with index which surely out of bounds by our laws.
-    // Let's assume that's exactly the case and try to enumerate children like they are a part of the list, not tree.
-    if (iRealIndex >= childCount())
-    {
-        // Split delimeter is overall column count:
-        const int iColumnCount = pModel->columnCount();
-
-        // Real row index:
-        iRealIndex = iRealIndex / iColumnCount;
-    }
-
-    /* Make sure index fits the bounds finally: */
-    if (iRealIndex >= childCount())
-        return 0;
-
-    /* Acquire parent model-index, that can be root-index if specified
-     * or null index otherwise, in that case we will return one of top-level children: */
-    const QModelIndex rootIndex = tree()->rootIndex();
-    const QModelIndex parentIndex = rootIndex.isValid() ? rootIndex : QModelIndex();
-
-    /* Acquire child-index: */
-    const QModelIndex childIndex = pModel->index(iRealIndex, 0, parentIndex);
-    /* Check whether we have proxy model set or source one otherwise: */
-    const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
-    /* Acquire source-model child-index (can be the same as original if there is no proxy model): */
-    const QModelIndex sourceChildIndex = pProxyModel ? pProxyModel->mapToSource(childIndex) : childIndex;
-
-    /* Acquire child item: */
-    QITreeViewItem *pItem = reinterpret_cast<QITreeViewItem*>(sourceChildIndex.internalPointer());
-    /* Return child item's accessibility interface: */
-    return QAccessible::queryAccessibleInterface(pItem);
-}
-
-int QIAccessibilityInterfaceForQITreeView::indexOfChild(const QAccessibleInterface *pChild) const
-{
-    /* Search for corresponding child: */
-    for (int i = 0; i < childCount(); ++i)
-        if (child(i) == pChild)
-            return i;
-
-    /* -1 by default: */
-    return -1;
-}
-
-QString QIAccessibilityInterfaceForQITreeView::text(QAccessible::Text /* enmTextRole */) const
-{
-    /* Sanity check: */
-    AssertPtrReturn(tree(), QString());
-
-    /* Return tree whats-this: */
-    return tree()->whatsThis();
-}
 
 
 /*********************************************************************************************************************************
