@@ -66,8 +66,16 @@ public:
     /** Returns the role. */
     virtual QAccessible::Role role() const RT_OVERRIDE RT_FINAL
     {
-        /* List if there are children, ListItem by default: */
-        return childCount() ? QAccessible::List : QAccessible::ListItem;
+#ifdef VBOX_WS_MAC
+            // WORKAROUND: macOS doesn't respect QAccessible::Tree/TreeItem roles.
+
+            /* Return List for item with children, ListItem otherwise: */
+            if (childCount() > 0)
+               return QAccessible::List;
+            return QAccessible::ListItem;
+#else
+            return QAccessible::TreeItem;
+#endif
     }
 
     /** Returns the parent. */
@@ -231,7 +239,12 @@ public:
 
     /** Constructs an accessibility interface passing @a pWidget to the base-class. */
     QIAccessibilityInterfaceForQITreeView(QWidget *pWidget)
+#ifdef VBOX_WS_MAC
+        // WORKAROUND: macOS doesn't respect QAccessible::Tree/TreeItem roles.
         : QAccessibleWidget(pWidget, QAccessible::List)
+#else
+        : QAccessibleWidget(pWidget, QAccessible::Tree)
+#endif
     {}
 
     /** Returns the number of children. */
