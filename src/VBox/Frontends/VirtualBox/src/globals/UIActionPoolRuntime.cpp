@@ -4084,7 +4084,7 @@ void UIActionPoolRuntime::updateMenuViewRemap(QMenu *pMenu)
             if (pAction)
             {
                 /* Configure exclusive 'remap' action: */
-                pAction->setEnabled(m_fGuestSupportsGraphics && fScreenEnabled);
+                pAction->setEnabled(fScreenEnabled);
                 pAction->setProperty("Guest Screen Index", iGuestScreenIndex);
                 pAction->setProperty("Host Screen Index", iHostScreenIndex);
                 pAction->setCheckable(true);
