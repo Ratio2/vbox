@@ -190,7 +190,7 @@ public:
     /** Returns a text for the passed @a enmTextRole. */
     virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE
     {
-        /* Make sure item still alive: */
+        /* Sanity check: */
         AssertPtrReturn(item(), QString());
 
         /* Return a text for the passed enmTextRole: */
