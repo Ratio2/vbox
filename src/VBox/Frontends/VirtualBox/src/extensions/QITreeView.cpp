@@ -76,10 +76,16 @@ public:
         /* Sanity check: */
         AssertPtrReturn(item(), 0);
 
-        /* Return the parent: */
-        return item()->parentItem() ?
-               QAccessible::queryAccessibleInterface(item()->parentItem()) :
-               QAccessible::queryAccessibleInterface(item()->parentTree());
+        /* Return parent-item interface if any: */
+        if (QITreeViewItem *pParentItem = item()->parentItem())
+            return QAccessible::queryAccessibleInterface(pParentItem);
+
+        /* Return parent-tree interface if any: */
+        if (QITreeView *pParentTree = item()->parentTree())
+            return QAccessible::queryAccessibleInterface(pParentTree);
+
+        /* Null by default: */
+        return 0;
     }
 
     /** Returns the rect. */
@@ -119,17 +125,14 @@ public:
     /** Returns the child with the passed @a iIndex. */
     virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE RT_FINAL
     {
-        /* Make sure item still alive: */
+        /* Sanity check: */
+        AssertReturn(iIndex >= 0 && iIndex < childCount(), 0);
         QITreeViewItem *pThisItem = item();
         AssertPtrReturn(pThisItem, 0);
-        /* Make sure tree still alive: */
         QITreeView *pTree = pThisItem->parentTree();
         AssertPtrReturn(pTree, 0);
-        /* Make sure model still alive: */
         QAbstractItemModel *pModel = pTree->model();
         AssertPtrReturn(pModel, 0);
-        /* Make sure index is valid: */
-        AssertReturn(iIndex >= 0 && iIndex < childCount(), 0);
 
         /* Acquire parent model-index: */
         const QModelIndex parentIndex = pThisItem->modelIndex();
@@ -210,7 +213,8 @@ private:
 
 
 /** QAccessibleWidget extension used as an accessibility interface for QITreeView. */
-class QIAccessibilityInterfaceForQITreeView : public QAccessibleWidget
+class QIAccessibilityInterfaceForQITreeView
+    : public QAccessibleWidget
 {
 public:
 
@@ -233,9 +237,8 @@ public:
     /** Returns the number of children. */
     virtual int childCount() const RT_OVERRIDE RT_FINAL
     {
-        /* Make sure tree still alive: */
+        /* Sanity check: */
         AssertPtrReturn(tree(), 0);
-        /* Make sure model still alive: */
         AssertPtrReturn(tree()->model(), 0);
 
         /* Acquire required model-index, that can be root-index if specified
@@ -250,14 +253,11 @@ public:
     /** Returns the child with the passed @a iIndex. */
     virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE RT_FINAL
     {
-        /* Make sure tree still alive: */
-        QITreeView *pTree = tree();
-        AssertPtrReturn(pTree, 0);
-        /* Make sure model still alive: */
-        QAbstractItemModel *pModel = pTree->model();
-        AssertPtrReturn(pModel, 0);
-        /* Make sure index is valid: */
+        /* Sanity check: */
         AssertReturn(iIndex >= 0, 0);
+        AssertPtrReturn(tree(), 0);
+        QAbstractItemModel *pModel = tree()->model();
+        AssertPtrReturn(pModel, 0);
 
         /* Real index might be different: */
         int iRealIndex = iIndex;
