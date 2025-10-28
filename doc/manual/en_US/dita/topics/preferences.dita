@@ -34,7 +34,7 @@
         <p>On the <uicontrol>Proxy</uicontrol> tab, configure an HTTP proxy server if you need one.</p>
       </li>
       <li>
-        <p>On the <uicontrol>Interface</uicontrol> tab, select a color theme for the VirtualBox Manager user interface. This option is available on Windows 10 only. Other OSs use system settings.</p>
+        <p>On the <uicontrol>Interface</uicontrol> tab, select the color theme to be used by <ph conkeyref="vbox-conkeyref-phrases/vbox-mgr"/>. This can only be changed on Windows 10 or Windows 11. Other OSs use system settings.</p>
       </li>
     </ol>
   </body>
