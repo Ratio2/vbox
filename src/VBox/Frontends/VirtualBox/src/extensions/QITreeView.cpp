@@ -33,6 +33,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QSortFilterProxyModel>
+#include <QStack>
 
 /* GUI includes: */
 #include "QITreeView.h"
@@ -104,8 +105,29 @@ public:
         AssertPtrReturn(item()->parentTree(), QRect());
         AssertPtrReturn(item()->parentTree()->viewport(), QRect());
 
+        /* Calculate overall region: */
+        QRegion region;
+        /* Compose a stack of items to enumerate: */
+        QStack<QITreeViewItem*> itemsToEnumerate;
+        /* Initially push only iterated item into that stack: */
+        itemsToEnumerate.push(item());
+        /* While there are items to enumerate inside that stack: */
+        while (!itemsToEnumerate.empty())
+        {
+            /* Take the top-most item from the stack: */
+            QITreeViewItem *pItemToEnumerate = itemsToEnumerate.pop();
+
+            /* Append that top-most item's rectangle to the region: */
+            region += pItemToEnumerate->rect();
+
+            /* Push that top-most item's children to the stack in
+             * reverse order to process them in the correct order afterwards: */
+            for (int i = pItemToEnumerate->childCount() - 1; i >= 0; --i)
+                itemsToEnumerate.push(pItemToEnumerate->childItem(i));
+        }
+
         /* Get the local rect: */
-        const QRect  itemRectInViewport = boundingRect();
+        const QRect  itemRectInViewport = region.boundingRect();
         const QSize  itemSize           = itemRectInViewport.size();
         const QPoint itemPosInViewport  = itemRectInViewport.topLeft();
         const QPoint itemPosInScreen    = item()->parentTree()->viewport()->mapToGlobal(itemPosInViewport);
@@ -223,25 +245,6 @@ public:
     }
 
 private:
-
-    /** Returns item bounding rectangle including all the children. */
-    QRect boundingRect() const
-    {
-        /* Calculate cumulative region: */
-        QRegion region;
-        /* Append item rectangle itself: */
-        region += item()->rect();
-        /* Do the same for all the children: */
-        for (int i = 0; i < childCount(); ++i)
-        {
-            QIAccessibilityInterfaceForQITreeViewItem *pChild =
-                dynamic_cast<QIAccessibilityInterfaceForQITreeViewItem*>(child(i));
-            AssertPtrReturn(pChild, QRect());
-            region += pChild->boundingRect();
-        }
-        /* Return cumulative bounding rectangle: */
-        return region.boundingRect();
-    }
 
     /** Returns corresponding QITreeViewItem. */
     QITreeViewItem *item() const { return qobject_cast<QITreeViewItem*>(object()); }
