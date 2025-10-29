@@ -156,6 +156,15 @@ status() {
     return $RETVAL
 }
 
+# Remove PIDFILE if process no longer running.
+update_pidfile() {
+    if [ -f $PIDFILE ]; then
+        [ -d "/proc/$(cat $PIDFILE)" ] || rm -f "$PIDFILE"
+    fi
+}
+
+update_pidfile
+
 case "$1" in
 start)
     start
