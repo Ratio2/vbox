@@ -29,6 +29,7 @@
 #include <QAccessibleWidget>
 #include <QPainter>
 #include <QResizeEvent>
+#include <QStack>
 
 /* GUI includes: */
 #include "QITreeWidget.h"
@@ -101,23 +102,36 @@ public:
         AssertPtrReturn(item()->parentTree(), QRect());
         AssertPtrReturn(item()->parentTree()->viewport(), QRect());
 
-        /* Compose common region: */
+        /* Calculate overall region: */
         QRegion region;
+        /* Compose a stack of items to enumerate: */
+        QStack<QITreeWidgetItem*> itemsToEnumerate;
+        /* Initially push only iterated item into that stack: */
+        itemsToEnumerate.push(item());
+        /* While there are items to enumerate inside that stack: */
+        while (!itemsToEnumerate.empty())
+        {
+            /* Take the top-most item from the stack: */
+            QITreeWidgetItem *pItemToEnumerate = itemsToEnumerate.pop();
 
-        /* Append item rectangle: */
-        const QRect  itemRectInViewport = item()->parentTree()->visualItemRect(item());
+            /* Append that top-most item's rectangle to the region: */
+            region += pItemToEnumerate->parentTree()->visualItemRect(pItemToEnumerate);
+
+            /* Push that top-most item's children to the stack in
+             * reverse order to process them in the correct order afterwards: */
+            for (int i = pItemToEnumerate->childCount() - 1; i >= 0; --i)
+                itemsToEnumerate.push(pItemToEnumerate->childItem(i));
+        }
+
+        /* Get the local rect: */
+        const QRect  itemRectInViewport = region.boundingRect();
         const QSize  itemSize           = itemRectInViewport.size();
         const QPoint itemPosInViewport  = itemRectInViewport.topLeft();
         const QPoint itemPosInScreen    = item()->parentTree()->viewport()->mapToGlobal(itemPosInViewport);
         const QRect  itemRectInScreen   = QRect(itemPosInScreen, itemSize);
-        region += itemRectInScreen;
 
-        /* Append children rectangles: */
-        for (int i = 0; i < childCount(); ++i)
-            region += child(i)->rect();
-
-        /* Return common region bounding rectangle: */
-        return region.boundingRect();
+        /* Return the rect: */
+        return itemRectInScreen;
     }
 
     /** Returns the number of children. */
