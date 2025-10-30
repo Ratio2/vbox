@@ -45,7 +45,9 @@
 #include <iprt/process.h>
 
 #if defined(RT_OS_LINUX)
+# include <signal.h>
 # include <VBox/HostServices/GuestPropertySvc.h>
+# include <iprt/file.h>
 
 /** Defines the DRM client executable (image). */
 # define VBOX_DRMCLIENT_EXECUTABLE           "/usr/bin/VBoxDRMClient"
@@ -162,6 +164,65 @@ VBGLR3DECL(int) VbglR3DrmClientStart(void)
 #if defined(RT_OS_LINUX)
     const char *apszArgs[2] = { VBOX_DRMCLIENT_EXECUTABLE, NULL }; /** @todo r=andy Pass path + process name as argv0? */
     return VbglR3DrmStart(VBOX_DRMCLIENT_EXECUTABLE, apszArgs);
+#else
+    return VERR_NOT_SUPPORTED;
+#endif
+}
+
+/**
+ * Stops the DRM resizing client process ("VBoxDRMClient").
+ *
+ * @returns VBox status code.
+ */
+VBGLR3DECL(int) VbglR3DrmClientStop(void)
+{
+#if defined(RT_OS_LINUX)
+    int rc;
+    RTFILE hFile;
+
+    /* Try open PID file. */
+    rc = RTFileOpen(&hFile, VBGLR3DRMPIDFILE, RTFILE_O_OPEN | RTFILE_O_READ | RTFILE_O_DENY_NONE);
+    if (RT_SUCCESS(rc))
+    {
+        uint64_t cbFile = 0;
+
+        /* Read process ID. */
+        rc = RTFileQuerySize(hFile, &cbFile);
+        if (RT_SUCCESS(rc))
+        {
+            char *szPid = (char *)RTMemAllocZ(cbFile + 1 /* \0 */);
+            if (RT_VALID_PTR(szPid))
+            {
+                rc = RTFileRead(hFile, szPid, cbFile, NULL);
+                if (RT_SUCCESS(rc))
+                {
+                    int32_t pid = RTStrToInt32(szPid);
+                    if (pid > 0)
+                    {
+                        /* Send SIGTERM to the process. */
+                        if (kill(pid, SIGTERM) == 0)
+                        {
+                            /* Wait until process terminated. */
+                            RTFILE hFileNew;
+                            rc = VbglR3PidfileWait(VBGLR3DRMPIDFILE, &hFileNew, 5000);
+                            if (RT_SUCCESS(rc))
+                                VbglR3ClosePidFile(VBGLR3DRMPIDFILE, hFileNew);
+                        }
+                        else
+                            rc = VERR_INVALID_PARAMETER;
+                    }
+                    else
+                        rc = VERR_INVALID_PARAMETER;
+                }
+
+                RTMemFree(szPid);
+            }
+        }
+
+        RTFileClose(hFile);
+    }
+
+    return rc;
 #else
     return VERR_NOT_SUPPORTED;
 #endif

@@ -245,7 +245,7 @@ unsigned g_cRespawn = 0;
 unsigned g_cVerbosity = 0;
 
 /** Path to the PID file. */
-static const char *g_pszPidFile = "/var/run/VBoxDRMClient";
+static const char *g_pszPidFile = VBGLR3DRMPIDFILE;
 
 /** Global flag which is triggered when service requested to shutdown. */
 static bool volatile g_fShutdown;

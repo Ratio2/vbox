@@ -843,11 +843,14 @@ VBGLR3DECL(int)     VbglR3WriteCoreDump(void);
 # define VBGLR3DRMPROPPTR           "/VirtualBox/GuestAdd/DRM*"
 /** Guest property that defines if the DRM IPC server access should be restricted to a specific user group. */
 # define VBGLR3DRMIPCPROPRESTRICT   "/VirtualBox/GuestAdd/DRMIpcRestricted"
+/** Pid file path for VBoxDRMClient. */
+# define VBGLR3DRMPIDFILE           "/var/run/VBoxDRMClient"
 
 VBGLR3DECL(bool)    VbglR3DrmClientIsNeeded(void);
 VBGLR3DECL(bool)    VbglR3DrmRestrictedIpcAccessIsNeeded(void);
 VBGLR3DECL(bool)    VbglR3DrmClientIsRunning(void);
 VBGLR3DECL(int)     VbglR3DrmClientStart(void);
+VBGLR3DECL(int)     VbglR3DrmClientStop(void);
 VBGLR3DECL(int)     VbglR3DrmLegacyClientStart(void);
 VBGLR3DECL(int)     VbglR3DrmLegacyX11AgentStart(void);
 /** @}  */
