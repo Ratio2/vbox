@@ -816,6 +816,12 @@ int VGSvcStopServices(void)
     }
 #endif
 
+# ifdef RT_OS_LINUX
+    rc = VbglR3DrmClientStop();
+    if (RT_FAILURE(rc))
+        VGSvcVerbose(0, "VMSVGA DRM resizing client could not be stopped, rc=%Rrc\n", rc);
+# endif /* RT_OS_LINUX */
+
     VGSvcVerbose(2, "Stopping services returning: %Rrc\n", rc);
     VGSvcReportStatus(RT_SUCCESS(rc) ? VBoxGuestFacilityStatus_Paused : VBoxGuestFacilityStatus_Failed);
     return rc;
