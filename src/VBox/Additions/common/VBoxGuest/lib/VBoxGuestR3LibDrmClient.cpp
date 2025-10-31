@@ -221,6 +221,7 @@ static bool vbglR3DrmClientCheckPid(int32_t pid)
 
     return fSuccess;
 #else
+    RT_NOREF(pid);
     return false;
 #endif
 }
