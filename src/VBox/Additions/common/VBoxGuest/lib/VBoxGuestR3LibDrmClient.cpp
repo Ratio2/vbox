@@ -170,6 +170,62 @@ VBGLR3DECL(int) VbglR3DrmClientStart(void)
 }
 
 /**
+ * Checks if given PID corresponds to running DRM resizing client process ("VBoxDRMClient").
+ *
+ * @returns VBox status code.
+ * @param   pid     Process ID.
+ */
+static bool vbglR3DrmClientCheckPid(int32_t pid)
+{
+#if defined(RT_OS_LINUX)
+    bool fSuccess = false;
+
+    /* Open /proc/PID/cmdline. */
+    if (pid > 0)
+    {
+        char *pszProcPath = (char *)RTMemAllocZ(RTPATH_MAX);
+        if (RT_VALID_PTR(pszProcPath))
+        {
+            if (RTStrPrintf2(pszProcPath, RTPATH_MAX, "/proc/%d/cmdline", pid) > 0)
+            {
+                RTFILE hFile;
+                int rc;
+
+                /* Read content of /proc/PID/cmdline and verify if it
+                 * matches to expected hardened path of VBoxDRMClient. */
+                rc = RTFileOpen(&hFile, pszProcPath, RTFILE_O_OPEN | RTFILE_O_READ | RTFILE_O_DENY_NONE);
+                if (RT_SUCCESS(rc))
+                {
+                    char *pszExePath = (char *)RTMemAllocZ(RTPATH_MAX);
+                    if (RT_VALID_PTR(pszExePath))
+                    {
+                        size_t cbRead = 0;
+                        rc = RTFileRead(hFile, pszExePath, RTPATH_MAX, &cbRead);
+                        if (   RT_SUCCESS(rc)
+                            && cbRead > 0)
+                        {
+                            if (RTStrNCmp(VBOX_DRMCLIENT_EXECUTABLE, pszExePath, RTPATH_MAX) == 0)
+                                fSuccess = true;
+                        }
+
+                        RTMemFree(pszExePath);
+                    }
+
+                    RTFileClose(hFile);
+                }
+            }
+
+            RTMemFree(pszProcPath);
+        }
+    }
+
+    return fSuccess;
+#else
+    return false;
+#endif
+}
+
+/**
  * Stops the DRM resizing client process ("VBoxDRMClient").
  *
  * @returns VBox status code.
@@ -199,14 +255,21 @@ VBGLR3DECL(int) VbglR3DrmClientStop(void)
                     int32_t pid = RTStrToInt32(szPid);
                     if (pid > 0)
                     {
-                        /* Send SIGTERM to the process. */
-                        if (kill(pid, SIGTERM) == 0)
+                        /* Make sure PID corresponds to running VBoxDRMClient
+                         * process (do not kill random process). */
+                        if (vbglR3DrmClientCheckPid(pid))
                         {
-                            /* Wait until process terminated. */
-                            RTFILE hFileNew;
-                            rc = VbglR3PidfileWait(VBGLR3DRMPIDFILE, &hFileNew, 5000);
-                            if (RT_SUCCESS(rc))
-                                VbglR3ClosePidFile(VBGLR3DRMPIDFILE, hFileNew);
+                            /* Send SIGTERM to the process. */
+                            if (kill(pid, SIGTERM) == 0)
+                            {
+                                /* Wait until process terminated. */
+                                RTFILE hFileNew;
+                                rc = VbglR3PidfileWait(VBGLR3DRMPIDFILE, &hFileNew, 5000);
+                                if (RT_SUCCESS(rc))
+                                    VbglR3ClosePidFile(VBGLR3DRMPIDFILE, hFileNew);
+                            }
+                            else
+                                rc = VERR_INVALID_PARAMETER;
                         }
                         else
                             rc = VERR_INVALID_PARAMETER;
