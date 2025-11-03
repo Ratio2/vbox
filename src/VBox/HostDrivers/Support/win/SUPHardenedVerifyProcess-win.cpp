@@ -1692,9 +1692,10 @@ static bool supHardNtVpFreeOrReplacePrivateExecMemory(PSUPHNTVPSTATE pThis, HAND
             break;
         cbFree += MemInfo2.RegionSize;
     }
-    SUP_DPRINTF(("supHardNtVpFreeOrReplacePrivateExecMemory: %s exec mem at %p (LB %#zx, %p LB %#zx)\n",
+    SUP_DPRINTF(("supHardNtVpFreeOrReplacePrivateExecMemory: %s exec mem at %p LB %#zx ([%p]/%p LB %#zx s=%#x ap=%#x rp=%#x t=%#x)\n",
                  pThis->fFlags & SUPHARDNTVP_F_EXEC_ALLOC_REPLACE_WITH_RW ? "Replacing" : "Freeing",
-                 pvFree, cbFree, pMemInfo->BaseAddress, pMemInfo->RegionSize));
+                 pvFree, cbFree, pMemInfo->AllocationBase, pMemInfo->BaseAddress, pMemInfo->RegionSize, pMemInfo->State,
+                 pMemInfo->AllocationProtect, pMemInfo->Protect, pMemInfo->Type));
 
     /*
      * In the BSOD workaround mode, we need to make a copy of the memory before
@@ -1789,9 +1790,9 @@ static bool supHardNtVpFreeOrReplacePrivateExecMemory(PSUPHNTVPSTATE pThis, HAND
                                                    &MemInfo3, sizeof(MemInfo3), &cbActual);
         if (!NT_SUCCESS(rcNt2))
             break;
-        SUP_DPRINTF(("supHardNtVpFreeOrReplacePrivateExecMemory: QVM after free %u: [%p]/%p LB %#zx s=%#x ap=%#x rp=%#p\n",
+        SUP_DPRINTF(("supHardNtVpFreeOrReplacePrivateExecMemory: QVM after free %u: [%p]/%p LB %#zx s=%#x ap=%#x rp=%#x t=%#x\n",
                      i, MemInfo3.AllocationBase, MemInfo3.BaseAddress, MemInfo3.RegionSize, MemInfo3.State,
-                     MemInfo3.AllocationProtect, MemInfo3.Protect));
+                     MemInfo3.AllocationProtect, MemInfo3.Protect, MemInfo3.Type));
         supR3HardenedLogFlush();
         if (MemInfo3.State == MEM_FREE || !(pThis->fFlags & SUPHARDNTVP_F_EXEC_ALLOC_REPLACE_WITH_RW))
             break;
@@ -2064,7 +2065,7 @@ static int supHardNtVpScanVirtualMemory(PSUPHNTVPSTATE pThis, HANDLE hProcess)
                 supHardNtVpSetInfo2(pThis, VERR_SUP_VP_FOUND_EXEC_MEMORY,
                                     "Found executable memory at %p (%p LB %#zx): type=%#x prot=%#x state=%#x aprot=%#x abase=%p",
                                     uPtrWhere, MemInfo.BaseAddress, MemInfo.RegionSize, MemInfo.Type, MemInfo.Protect,
-                                    MemInfo.State, MemInfo.AllocationBase, MemInfo.AllocationProtect);
+                                    MemInfo.State, MemInfo.AllocationProtect, MemInfo.AllocationBase);
 
 # ifndef IN_RING3
             if (RT_FAILURE(pThis->rcResult))
