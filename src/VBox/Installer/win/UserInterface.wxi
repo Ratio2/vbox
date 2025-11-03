@@ -842,8 +842,30 @@
 
         <Dialog Id="VBoxVerifyRepairDlg" Width="370" Height="270" Title="[ProductName] !(loc.Setup)" NoMinimize="yes" TrackDiskSpace="yes">
             <Control Id="Repair" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.ButtonText_Repair)">
-                <Publish Event="ReinstallMode" Value="ecmus" Condition="OutOfDiskSpace &lt;&gt; 1" />
-                <Publish Event="Reinstall" Value="All" Condition="OutOfDiskSpace &lt;&gt; 1" />
+                <!--
+                    To make the repair mode work, explicitly set the repair mode to the following:
+
+                    c - Reinstall if file is missing or checksum does not match
+                    d - Reinstall if file is missing or a different version is installed
+                    m - Rewrite all required computer-specific (machine) registry entries
+                    o - Reinstall if file is missing or a lower version is installed
+                    p - Reinstall only if a file is missing
+                    u - Rewrite all required user-specific registry entries
+
+                    Note! Repairing / re-installing with modes
+
+                          a - Force all files to be reinstalled, regardless of version or checksum
+                            or
+                          e - Reinstall if file is missing or an equal or older version is installed) makes the Windows Installer
+
+                          will *break* the repair mode if the original source .msi is not around anymore (like we do, as we delete this file
+                          when being done via the stub loader) , as this will invoke custom actions which work with external files.
+                          The Windows Installer Engine then will search for the source .msi and prompt the user to (re-) acquire the
+                          original source .msi.
+
+                    See @bugref{10764}
+                -->
+                <Publish Event="ReinstallMode" Value="cdmopu" Condition="OutOfDiskSpace &lt;&gt; 1" />
                 <Publish Event="EndDialog" Value="Return" Condition="OutOfDiskSpace &lt;&gt; 1" />
                 <Publish Event="SpawnDialog" Value="VBoxOutOfRbDiskDlg" Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND (PROMPTROLLBACKCOST=&quot;P&quot; OR NOT PROMPTROLLBACKCOST)" />
                 <Publish Event="EndDialog" Value="Return" Condition="OutOfDiskSpace = 1 AND OutOfNoRbDiskSpace = 0 AND PROMPTROLLBACKCOST=&quot;D&quot;" />
