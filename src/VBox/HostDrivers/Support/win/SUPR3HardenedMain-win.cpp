@@ -411,8 +411,8 @@ static uint32_t             g_fSupAdversaries = 0;
 #define SUPHARDNT_ADVERSARY_AVAST                   RT_BIT_32(2)
 /** TrendMicro OfficeScan and probably others. */
 #define SUPHARDNT_ADVERSARY_TRENDMICRO              RT_BIT_32(3)
-/** TrendMicro potentially buggy sakfile.sys. */
-#define SUPHARDNT_ADVERSARY_TRENDMICRO_SAKFILE      RT_BIT_32(4)
+/** TrendMicro potentially buggy sakfile.sys (BSOD). */
+#define SUPHARDNT_ADVERSARY_TRENDMICRO_SAKFILE_OLD  RT_BIT_32(4)
 /** McAfee.  */
 #define SUPHARDNT_ADVERSARY_MCAFEE                  RT_BIT_32(5)
 /** Kaspersky or OEMs of it.  */
@@ -429,7 +429,7 @@ static uint32_t             g_fSupAdversaries = 0;
 #define SUPHARDNT_ADVERSARY_COMODO                  RT_BIT_32(11)
 /** Check Point's Zone Alarm (may include Kaspersky).  */
 #define SUPHARDNT_ADVERSARY_ZONE_ALARM              RT_BIT_32(12)
-/** Digital guardian, old problematic version.  */
+/** Digital guardian, old problematic version (BSOD).  */
 #define SUPHARDNT_ADVERSARY_DIGITAL_GUARDIAN_OLD    RT_BIT_32(13)
 /** Digital guardian, new version.  */
 #define SUPHARDNT_ADVERSARY_DIGITAL_GUARDIAN_NEW    RT_BIT_32(14)
@@ -443,6 +443,9 @@ static uint32_t             g_fSupAdversaries = 0;
 #define SUPHARDNT_ADVERSARY_SOPHOS                  RT_BIT_32(18)
 /** VMware horizon view agent. */
 #define SUPHARDNT_ADVERSARY_HORIZON_VIEW_AGENT      RT_BIT_32(19)
+/** TrendMicro not buggy sakfile.sys. */
+#define SUPHARDNT_ADVERSARY_TRENDMICRO_SAKFILE_NEW  RT_BIT_32(20)
+
 /** Unknown adversary detected while waiting on child. */
 #define SUPHARDNT_ADVERSARY_UNKNOWN                 RT_BIT_32(31)
 /** @} */
@@ -4542,7 +4545,7 @@ static void supR3HardNtChildPurify(PSUPR3HARDNTCHILD pThis)
          */
         cFixes = 0;
         int rc = supHardenedWinVerifyProcess(pThis->hProcess, pThis->hThread, SUPHARDNTVPKIND_CHILD_PURIFICATION,
-                                             g_fSupAdversaries & (  SUPHARDNT_ADVERSARY_TRENDMICRO_SAKFILE
+                                             g_fSupAdversaries & (  SUPHARDNT_ADVERSARY_TRENDMICRO_SAKFILE_OLD
                                                                   | SUPHARDNT_ADVERSARY_DIGITAL_GUARDIAN_OLD)
                                              ? SUPHARDNTVP_F_EXEC_ALLOC_REPLACE_WITH_RW : 0,
                                              &cFixes, RTErrInfoInitStatic(&g_ErrInfoStatic));
@@ -6781,7 +6784,7 @@ static uint32_t supR3HardenedWinFindAdversaries(void)
         { SUPHARDNT_ADVERSARY_TRENDMICRO, L"\\SystemRoot\\System32\\drivers\\tmebc64.sys" },
         { SUPHARDNT_ADVERSARY_TRENDMICRO, L"\\SystemRoot\\System32\\drivers\\tmeevw.sys" },
         { SUPHARDNT_ADVERSARY_TRENDMICRO, L"\\SystemRoot\\System32\\drivers\\tmciesc.sys" },
-        { SUPHARDNT_ADVERSARY_TRENDMICRO_SAKFILE, L"\\SystemRoot\\System32\\drivers\\sakfile.sys" },  /* Data Loss Prevention, not officescan. */
+        { SUPHARDNT_ADVERSARY_TRENDMICRO_SAKFILE_OLD, L"\\SystemRoot\\System32\\drivers\\sakfile.sys" }, /* Data Loss Prevention, not officescan. */
         { SUPHARDNT_ADVERSARY_TRENDMICRO, L"\\SystemRoot\\System32\\drivers\\sakcd.sys" },  /* Data Loss Prevention, not officescan. */
 
 
@@ -6965,13 +6968,15 @@ static uint32_t supR3HardenedWinFindAdversaries(void)
     for (uint32_t i = 0; i < RT_ELEMENTS(s_aFiles); i++)
         if (s_aFiles[i].fAdversary & fFound)
         {
-            if (!(s_aFiles[i].fAdversary & SUPHARDNT_ADVERSARY_DIGITAL_GUARDIAN_OLD))
+            if (!(s_aFiles[i].fAdversary & (SUPHARDNT_ADVERSARY_DIGITAL_GUARDIAN_OLD | SUPHARDNT_ADVERSARY_TRENDMICRO_SAKFILE_OLD)))
                 supR3HardenedLogFileInfo(s_aFiles[i].pwszFile, NULL, 0);
             else
             {
                 /*
-                 * See if it's a newer version of the driver which doesn't BSODs when we free
-                 * its memory.  To use RTStrVersionCompare we do a rough UTF-16 -> ASCII conversion.
+                 * See if it's a newer version of the driver (both DG & TM) which
+                 * doesn't BSODs when we free its memory.
+                 *
+                 * To use RTStrVersionCompare we do a rough UTF-16 -> ASCII conversion.
                  */
                 union
                 {
@@ -6991,14 +6996,29 @@ static uint32_t supR3HardenedWinFindAdversaries(void)
                     uBuf.szFileVersion[RT_ELEMENTS(uBuf.wszFileVersion)] = '\0';
 #define VER_IN_RANGE(a_pszFirst, a_pszLast) \
     (RTStrVersionCompare(uBuf.szFileVersion, a_pszFirst) >= 0 && RTStrVersionCompare(uBuf.szFileVersion, a_pszLast) <= 0)
-                    if (   VER_IN_RANGE("7.3.2.0000", "999999999.9.9.9999")
-                        || VER_IN_RANGE("7.3.1.1000", "7.3.1.3000")
-                        || VER_IN_RANGE("7.3.0.3000", "7.3.0.999999999")
-                        || VER_IN_RANGE("7.2.1.3000", "7.2.999999999.999999999") )
+                    uint32_t fOld = 0;
+                    uint32_t fNew = 0;
+                    if (   (s_aFiles[i].fAdversary & SUPHARDNT_ADVERSARY_DIGITAL_GUARDIAN_OLD)
+                    {   && (   VER_IN_RANGE("7.3.2.0000", "999999999.9.9.9999")
+                            || VER_IN_RANGE("7.3.1.1000", "7.3.1.3000")
+                            || VER_IN_RANGE("7.3.0.3000", "7.3.0.999999999")
+                            || VER_IN_RANGE("7.2.1.3000", "7.2.999999999.999999999") ) )
+                    {
+                        fOld |= SUPHARDNT_ADVERSARY_DIGITAL_GUARDIAN_OLD;
+                        fNew |= SUPHARDNT_ADVERSARY_DIGITAL_GUARDIAN_NEW;
+                    }
+#if 1 /* Experiment: See later versions of sakfile.sys have been fixed (given version is timestamped 2025-09-11). */
+                    if (   (s_aFiles[i].fAdversary & SUPHARDNT_ADVERSARY_TRENDMICRO_SAKFILE_OLD)
+                        && VER_IN_RANGE("6.2.0.6098", "999999999.9.9.9999") )
+                    {
+                        fOld |= SUPHARDNT_ADVERSARY_TRENDMICRO_SAKFILE_OLD;
+                        fNew |= SUPHARDNT_ADVERSARY_TRENDMICRO_SAKFILE_NEW;
+                    }
+#endif
+                    if (fNew && fOld)
                     {
                         uint32_t const fOldFound = fFound;
-                        fFound = (fOldFound & ~SUPHARDNT_ADVERSARY_DIGITAL_GUARDIAN_OLD)
-                               |               SUPHARDNT_ADVERSARY_DIGITAL_GUARDIAN_NEW;
+                        fFound = (fOldFound & ~fOld) | fNew;
                         SUP_DPRINTF(("supR3HardenedWinFindAdversaries: Found newer version: %#x -> %#x\n", fOldFound, fFound));
                     }
                 }
