@@ -1434,11 +1434,10 @@ bool UIMessageCenter::confirmVisoDiscard(QWidget *pParent /* = 0*/) const
 
 int UIMessageCenter::confirmUnattendedFilesRemoval(QWidget *pParent /*= 0 */) const
 {
-    QString strText("There are still files left over from unattended guest OS install in VM folder. Do you want to delete those?");
-    QString strOption("Don't ask again");
-
     return messageWithOption(pParent, MessageType_Question,
-                             strText, strOption,
+                             tr("<p>The VM folder contains files that were used for unattended guest OS installation and are no longer needed.</p>"
+                                "<p>Delete them now?</p>"),
+                             tr("Don't ask again"),
                              false /* default option value */,
                              AlertButton_Ok,
                              AlertButton_Cancel | AlertButtonOption_Default | AlertButtonOption_Escape,

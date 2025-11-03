@@ -3107,7 +3107,8 @@ void UIMachineLogic::checkUnattendedLeftOvers()
     }
     if (!comUnattendedVISO.isNull())
     {
-        //printf("boo %d\n", msgCenter().confirmUnattendedFilesRemoval() & AlertButton_Ok);
+        if (msgCenter().confirmUnattendedFilesRemoval(activeMachineWindow()) != AlertButton_Ok)
+            return;
 
         UINotificationProgressMediumDeletingStorage *pNotification = new UINotificationProgressMediumDeletingStorage(comUnattendedVISO);
         // connect(pNotification, &UINotificationProgressMediumDeletingStorage::sigMediumStorageDeleted,
