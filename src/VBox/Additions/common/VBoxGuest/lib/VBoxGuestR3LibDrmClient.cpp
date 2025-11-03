@@ -66,14 +66,13 @@
 static bool vbglR3DrmClientCheckProp(const char *pszPropName, uint32_t fPropFlags)
 {
     bool fExist = false;
-# if defined(VBOX_WITH_GUEST_PROPS)
-    uint32_t idClient;
 
+# if defined(VBOX_WITH_GUEST_PROPS)
+    uint32_t idClient = 0;
     int rc = VbglR3GuestPropConnect(&idClient);
     if (RT_SUCCESS(rc))
     {
         char *pcszFlags = NULL;
-
         rc = VbglR3GuestPropReadEx(idClient, pszPropName, NULL /* ppszValue */, &pcszFlags, NULL);
         if (RT_SUCCESS(rc))
         {
@@ -81,9 +80,8 @@ static bool vbglR3DrmClientCheckProp(const char *pszPropName, uint32_t fPropFlag
             if (fPropFlags)
             {
                 uint32_t fFlags = 0;
-
                 rc = GuestPropValidateFlags(pcszFlags, &fFlags);
-                fExist = RT_SUCCESS(rc) && (fFlags == fPropFlags);
+                fExist = RT_SUCCESS(rc) && fFlags == fPropFlags;
             }
             else
                 fExist = true;
