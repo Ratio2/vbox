@@ -238,3 +238,97 @@ DECLR0VBGL(int) VbglR0HGCMFastCall(VBGLHGCMHANDLE hHandle, PVBGLIOCIDCHGCMFASTCA
     return VbglR0IdcCallRaw(&hHandle->IdcHandle, VBGL_IOCTL_IDC_HGCM_FAST_CALL, &pCallReq->Hdr, cbCallReq);
 }
 
+
+#include <VBox/VBoxGuestLibHGCMInline.h>
+#include <VBox/HostServices/GuestPropertySvc.h>
+
+/**
+ * Retrieve a property.
+ *
+ * @returns VBox status code.
+ * @retval  VINF_SUCCESS on success, pszValue, pu64Timestamp and pszFlags
+ *          containing valid data.
+ * @retval  VERR_BUFFER_OVERFLOW if the scratch buffer @a pcBuf is not large
+ *          enough.  In this case the size needed will be placed in
+ *          @a pcbBufActual if it is not NULL.
+ * @retval  VERR_NOT_FOUND if the key wasn't found.
+ *
+ * @param   hGuestProps     The handle of the guest properties.
+ * @param   idClient        The client id returned by VbglR0GuestPropConnect().
+ * @param   pszName         The value to read.  Utf8
+ * @param   pvBuf           A scratch buffer to store the data retrieved into.
+ *                          The returned data is only valid for it's lifetime.
+ *                          @a ppszValue will point to the start of this buffer.
+ * @param   cbBuf           The size of @a pcBuf
+ * @param   ppszValue       Where to store the pointer to the value retrieved.
+ *                          Optional.
+ * @param   pu64Timestamp   Where to store the timestamp.  Optional.
+ * @param   ppszFlags       Where to store the pointer to the flags.  Optional.
+ * @param   pcbBufActual    If @a pcBuf is not large enough, the size needed.
+ *                          Optional.
+ */
+DECLR0VBGL(int) VbglR0GuestPropRead(VBGLHGCMHANDLE hGuestProps, HGCMCLIENTID idClient, const char *pszName,
+                                    void *pvBuf, uint32_t cbBuf,
+                                    char **ppszValue, uint64_t *pu64Timestamp,
+                                    char **ppszFlags,
+                                    uint32_t *pcbBufActual)
+{
+    /*
+     * Create the GET_PROP message and call the host.
+     */
+    GuestPropMsgGetProperty Msg;
+    VBGL_HGCM_HDR_INIT(&Msg.hdr, idClient, GUEST_PROP_FN_GET_PROP, 4);
+    VbglHGCMParmPtrSetString(&Msg.name, pszName);
+    VbglHGCMParmPtrSet(&Msg.buffer, pvBuf, cbBuf);
+    VbglHGCMParmUInt64Set(&Msg.timestamp, 0);
+    VbglHGCMParmUInt32Set(&Msg.size, 0);
+
+    int rc = VbglR0HGCMCall(hGuestProps, &Msg.hdr, sizeof(Msg));
+
+    /*
+     * The cbBufActual parameter is also returned on overflow so the call can
+     * adjust his/her buffer.
+     */
+    if (    rc == VERR_BUFFER_OVERFLOW
+        ||  pcbBufActual != NULL)
+    {
+        int rc2 = VbglHGCMParmUInt32Get(&Msg.size, pcbBufActual);
+        AssertRCReturn(rc2, RT_FAILURE(rc) ? rc : rc2);
+    }
+    if (RT_FAILURE(rc))
+        return rc;
+
+    /*
+     * Buffer layout: Value\0Flags\0.
+     *
+     * If the caller cares about any of these strings, make sure things are
+     * properly terminated (paranoia).
+     */
+    if (    RT_SUCCESS(rc)
+        &&  (ppszValue != NULL || ppszFlags != NULL))
+    {
+        /* Validate / skip 'Name'. */
+        char *pszFlags = RTStrEnd((char *)pvBuf, cbBuf) + 1;
+        AssertPtrReturn(pszFlags, VERR_TOO_MUCH_DATA);
+        if (ppszValue)
+            *ppszValue = (char *)pvBuf;
+
+        if (ppszFlags)
+        {
+            /* Validate 'Flags'. */
+            char *pszEos = RTStrEnd(pszFlags, cbBuf - (pszFlags - (char *)pvBuf));
+            AssertPtrReturn(pszEos, VERR_TOO_MUCH_DATA);
+            *ppszFlags = pszFlags;
+        }
+    }
+
+    /* And the timestamp, if requested. */
+    if (pu64Timestamp != NULL)
+    {
+        rc = VbglHGCMParmUInt64Get(&Msg.timestamp, pu64Timestamp);
+        AssertRCReturn(rc, rc);
+    }
+
+    return VINF_SUCCESS;
+}
+

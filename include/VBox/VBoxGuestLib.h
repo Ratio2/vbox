@@ -554,6 +554,9 @@ DECLR0VBGL(int)     VbglR0SetMouseStatus(uint32_t fFeatures);
  */
 # define VBGLR3DECL(type) DECL_HIDDEN_NOTHROW(type) VBOXCALL
 
+# define DECLVBGL(type) VBGLR3DECL(type)
+
+
 /** @name General-purpose functions
  * @{ */
 /** Exit code which is returned by VBoxClient child process to notify

@@ -52,6 +52,7 @@
 
 #define IN_TESTCASE
 #define IN_RING0 /* pretend we're in ring-0 so we get access to the functions */
+#undef  IN_RING3
 #include <iprt/memobj.h>
 #include "../VBoxGuestR0LibInternal.h"
 #if defined(RT_OS_LINUX) && defined(RT_ARCH_ARM64)
@@ -62,6 +63,8 @@
 # define PAGE_OFFSET_MASK ((uintptr_t)(PAGE_SIZE - 1))
 # define PAGE_SHIFT 12
 #endif
+#define  IN_RING3
+
 
 
 /*********************************************************************************************************************************

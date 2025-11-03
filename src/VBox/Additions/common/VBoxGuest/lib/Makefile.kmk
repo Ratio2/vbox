@@ -85,6 +85,10 @@ VBoxGuestR0Lib_SOURCES      = \
 	VBoxGuestR0LibIdc.cpp \
 	VBoxGuestR0LibSharedFolders.c \
 	VBoxGuestR0LibMouse.cpp
+ifdef VBOX_WITH_GUEST_PROPS
+ VBoxGuestR0Lib_SOURCES   += \
+ 	VBoxGuestLibGuestProp.cpp
+endif
 VBoxGuestR0Lib_SOURCES.os2     = VBoxGuestR0LibIdc-os2.cpp
 VBoxGuestR0Lib_SOURCES.solaris = VBoxGuestR0LibIdc-solaris.cpp
 VBoxGuestR0Lib_SOURCES.win     = VBoxGuestR0LibIdc-win.cpp
@@ -151,6 +155,7 @@ ifneq ($(KBUILD_TARGET),win)
 endif
 ifdef VBOX_WITH_GUEST_PROPS
  VBoxGuestR3Lib_SOURCES   += \
+ 	VBoxGuestLibGuestProp.cpp \
  	VBoxGuestR3LibGuestProp.cpp \
  	VBoxGuestR3LibHostVersion.cpp
 endif
