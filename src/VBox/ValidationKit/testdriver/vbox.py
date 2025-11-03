@@ -3198,7 +3198,7 @@ class TestDriver(base.TestDriver):                                              
 
     def uploadStartupLogFile(self, oVM, sVmName):
         """
-        Uploads the VBoxStartup.log when present.
+        Uploads the VBoxHardening.log when present.
         """
         fRc = True;
         try:

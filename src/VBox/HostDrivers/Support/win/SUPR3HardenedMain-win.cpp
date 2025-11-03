@@ -5596,7 +5596,7 @@ static void supR3HardenedWinOpenStubDevice(void)
     {
         /*
          * Report trouble (fatal).  For some errors codes we try gather some
-         * extra information that goes into VBoxStartup.log so that we stand a
+         * extra information that goes into VBoxHardening.log so that we stand a
          * better chance resolving the issue.
          */
         char szErrorInfo[16384];
@@ -5632,7 +5632,7 @@ static void supR3HardenedWinOpenStubDevice(void)
                                       "Error getting %s\\ApiPort in the driver from vboxsup.\n"
                                       "\n"
                                       "Could be due to security software is redirecting access to it, so please include full "
-                                      "details of such software in a bug report. VBoxStartup.log may contain details important "
+                                      "details of such software in a bug report. VBoxHardening.log may contain details important "
                                       "to resolving the issue.%s"
                                       , s_wszName, szDir,
                                       supR3HardenedWinReadErrorInfoDevice(szErrorInfo, sizeof(szErrorInfo),

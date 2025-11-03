@@ -1814,7 +1814,7 @@ static bool supHardNtVpFreeOrReplacePrivateExecMemory(PSUPHNTVPSTATE pThis, HAND
             supHardNtVpSetInfo2(pThis, VERR_SUP_VP_REPLACE_VIRTUAL_MEMORY_FAILED,
                                 "NtAllocateVirtualMemory (%p LB %#zx) failed with rcNt=%#x allocating "
                                 "replacement memory for working around buggy protection software. "
-                                "See VBoxStartup.log for more details",
+                                "See VBoxHardening.log for more details",
                                 pvAlloc, cbFree, rcNt);
             supR3HardenedLogFlush();
             NtTerminateProcess(hProcess, VERR_SUP_VP_REPLACE_VIRTUAL_MEMORY_FAILED);
