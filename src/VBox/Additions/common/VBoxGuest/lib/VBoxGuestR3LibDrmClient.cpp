@@ -173,53 +173,44 @@ VBGLR3DECL(int) VbglR3DrmClientStart(void)
 /**
  * Checks if given PID corresponds to running DRM resizing client process ("VBoxDRMClient").
  *
- * @returns VBox status code.
+ * @returns true if the PID matches VBoxDRMClient, false if not.
  * @param   pid     Process ID.
  */
 static bool vbglR3DrmClientCheckPid(int32_t pid)
 {
-    bool fSuccess = false;
+    /** @todo r=bird: should try use /proc/PID/exe first (symlink),
+     *        as /proc/PID/cmdline is potentially unreliable (it's the argv[0] value
+     *        given to execve). */
 
     /* Open /proc/PID/cmdline. */
     if (pid > 0)
     {
-        char *pszProcPath = (char *)RTMemAllocZ(RTPATH_MAX);
-        if (RT_VALID_PTR(pszProcPath))
+        char szPath[256];
+        AssertCompile(sizeof(szPath) >= sizeof(VBOX_DRMCLIENT_EXECUTABLE));
+        AssertCompile(sizeof(szPath) >= sizeof("/proc/0123456789012345678901234567890123456789/cmdline"));
+
+        /* Read content of /proc/PID/cmdline and verify if it
+         * matches to expected hardened path of VBoxDRMClient. */
+        RTFILE hFile = NIL_RTFILE;
+        RTStrPrintf(szPath, sizeof(szPath), "/proc/%d/cmdline", pid);
+        int rc = RTFileOpen(&hFile, szPath, RTFILE_O_OPEN | RTFILE_O_READ | RTFILE_O_DENY_NONE);
+        if (RT_SUCCESS(rc))
         {
-            if (RTStrPrintf2(pszProcPath, RTPATH_MAX, "/proc/%d/cmdline", pid) > 0)
+            size_t cbRead = 0;
+            rc = RTFileRead(hFile, szPath, sizeof(szPath) - 1, &cbRead);
+
+            RTFileClose(hFile);
+
+            if (   RT_SUCCESS(rc)
+                && cbRead > 0)
             {
-                RTFILE hFile;
-                int rc;
-
-                /* Read content of /proc/PID/cmdline and verify if it
-                 * matches to expected hardened path of VBoxDRMClient. */
-                rc = RTFileOpen(&hFile, pszProcPath, RTFILE_O_OPEN | RTFILE_O_READ | RTFILE_O_DENY_NONE);
-                if (RT_SUCCESS(rc))
-                {
-                    char *pszExePath = (char *)RTMemAllocZ(RTPATH_MAX);
-                    if (RT_VALID_PTR(pszExePath))
-                    {
-                        size_t cbRead = 0;
-                        rc = RTFileRead(hFile, pszExePath, RTPATH_MAX, &cbRead);
-                        if (   RT_SUCCESS(rc)
-                            && cbRead > 0)
-                        {
-                            if (RTStrNCmp(VBOX_DRMCLIENT_EXECUTABLE, pszExePath, RTPATH_MAX) == 0)
-                                fSuccess = true;
-                        }
-
-                        RTMemFree(pszExePath);
-                    }
-
-                    RTFileClose(hFile);
-                }
+                szPath[cbRead] = '\0';
+                return RTStrCmp(szPath, VBOX_DRMCLIENT_EXECUTABLE) == 0; /* Note! szPath isn't necessarily UTF-8, but it's ok. */
             }
-
-            RTMemFree(pszProcPath);
         }
     }
 
-    return fSuccess;
+    return false;
 
 }
 #endif
@@ -232,26 +223,26 @@ static bool vbglR3DrmClientCheckPid(int32_t pid)
 VBGLR3DECL(int) VbglR3DrmClientStop(void)
 {
 #if defined(RT_OS_LINUX)
-    int rc;
-    RTFILE hFile;
-
-    /* Try open PID file. */
-    rc = RTFileOpen(&hFile, VBGLR3DRMPIDFILE, RTFILE_O_OPEN | RTFILE_O_READ | RTFILE_O_DENY_NONE);
+/** @todo r=bird: the first half should be in a VbglR3PidFileRead() function. */
+    /* Try open the PID file. */
+    RTFILE hFile = NIL_RTFILE;
+    int rc = RTFileOpen(&hFile, VBGLR3DRMPIDFILE, RTFILE_O_OPEN | RTFILE_O_READ | RTFILE_O_DENY_NONE);
     if (RT_SUCCESS(rc))
     {
+        /* Read the entire file.  The file is written by VbglR3PidFile and
+           shall only contain the numerical PID and a newline, so small enough
+           to safely use a fixed sized buffer.  */
         uint64_t cbFile = 0;
-
-        /* Read process ID. */
         rc = RTFileQuerySize(hFile, &cbFile);
         if (RT_SUCCESS(rc))
         {
-            char *szPid = (char *)RTMemAllocZ(cbFile + 1 /* \0 */);
-            if (RT_VALID_PTR(szPid))
+            char szPid[128] = {0};
+            if (cbFile >= 1 && cbFile < sizeof(szPid) - 1)
             {
                 rc = RTFileRead(hFile, szPid, cbFile, NULL);
                 if (RT_SUCCESS(rc))
                 {
-                    int32_t pid = RTStrToInt32(szPid);
+                    int32_t pid = RTStrToInt32(RTStrStrip(szPid));
                     if (pid > 0)
                     {
                         /* Make sure PID corresponds to running VBoxDRMClient
@@ -262,7 +253,10 @@ VBGLR3DECL(int) VbglR3DrmClientStop(void)
                             if (kill(pid, SIGTERM) == 0)
                             {
                                 /* Wait until process terminated. */
-                                RTFILE hFileNew;
+                                RTFILE hFileNew = NIL_RTFILE;
+                                /** @todo r=bird: s/VbglR3PidfileWait/VbglR3PidFileWait/g  */
+                                /** @todo r=bird: This will write our process ID to the pid file on
+                                 *        success... Also, we still have that file open. */
                                 rc = VbglR3PidfileWait(VBGLR3DRMPIDFILE, &hFileNew, 5000);
                                 if (RT_SUCCESS(rc))
                                     VbglR3ClosePidFile(VBGLR3DRMPIDFILE, hFileNew);
@@ -276,9 +270,9 @@ VBGLR3DECL(int) VbglR3DrmClientStop(void)
                     else
                         rc = VERR_INVALID_PARAMETER;
                 }
-
-                RTMemFree(szPid);
             }
+            else
+                rc = VERR_INVALID_PARAMETER;
         }
 
         RTFileClose(hFile);
