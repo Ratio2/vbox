@@ -74,9 +74,8 @@ class LocalRsrcCache(object):
             fRc = os.path.isfile(sCacheToc);
             if fRc:
                 oTocJson = None;
-                with open(sCacheToc) as oFileToc:
+                with open(sCacheToc, encoding = 'utf-8') as oFileToc:
                     oTocJson = json.load(oFileToc);
-                    oFileToc.close();
                 if oTocJson is not None:
                     for sItem in oTocJson:
                         sPath = os.path.join(self.sLocalCachePath, sItem);
@@ -104,9 +103,8 @@ class LocalRsrcCache(object):
             asToc.append(sKey);
 
         sCacheToc = os.path.join(self.sLocalCachePath, 'cache-toc.json');
-        with open(sCacheToc, 'w', encoding='utf-8') as oFileToc:
-            json.dump(asToc, oFileToc, ensure_ascii=False, indent=4);
-            oFileToc.close();
+        with open(sCacheToc, 'w', encoding = 'utf-8') as oFileToc:
+            json.dump(asToc, oFileToc, ensure_ascii = False, indent = 4);
 
     def getCachedResource(self, sName):
         """
