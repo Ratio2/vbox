@@ -383,7 +383,7 @@ DECLVBGL(int) VbglGuestPropRead(PVBGLGSTPROPCLIENT pClient, const char *pszName,
      * adjust his/her buffer.
      */
     if (    rc == VERR_BUFFER_OVERFLOW
-        ||  pcbBufActual != NULL)
+        &&  pcbBufActual != NULL)
     {
         int rc2 = VbglHGCMParmUInt32Get(&Msg.size, pcbBufActual);
         AssertRCReturn(rc2, RT_FAILURE(rc) ? rc : rc2);
