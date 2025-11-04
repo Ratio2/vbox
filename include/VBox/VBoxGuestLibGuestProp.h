@@ -60,8 +60,6 @@ typedef struct VBGLGUESTPROPENUM VBGLGUESTPROPENUM;
 /** @todo Docs. */
 typedef VBGLGUESTPROPENUM *PVBGLGUESTPROPENUM;
 
-DECLVBGL(int)  VbglGuestPropInit(void);
-DECLVBGL(void) VbglGuestPropTerm(void);
 DECLVBGL(int)  VbglGuestPropConnect(PVBGLGSTPROPCLIENT pClient);
 DECLVBGL(int)  VbglGuestPropDisconnect(PVBGLGSTPROPCLIENT pClient);
 

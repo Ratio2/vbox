@@ -136,22 +136,6 @@ struct VBGLGUESTPROPENUM
 };
 
 
-DECLVBGL(int) VbglGuestPropInit(void)
-{
-#ifdef IN_RING0
-    return VbglR0InitClient();
-#else
-    return VINF_SUCCESS;
-#endif
-}
-
-DECLVBGL(void) VbglGuestPropTerm(void)
-{
-#ifdef IN_RING0
-    VbglR0TerminateClient();
-#endif
-}
-
 
 /**
  * Connects to the guest property service.
