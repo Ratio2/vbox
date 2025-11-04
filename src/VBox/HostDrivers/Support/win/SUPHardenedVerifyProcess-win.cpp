@@ -1650,21 +1650,31 @@ static int supHardNtVpAddRegion(PSUPHNTVPSTATE pThis, PSUPHNTVPIMAGE pImage, PME
     return VINF_SUCCESS;
 }
 
-
 #ifdef IN_RING3
+
+/** Helper for supHardNtVpFreeOrReplacePrivateExecMemory(). */
+static int supHardNtVpFreeOrReplacePrivateExecMemoryFailed(HANDLE hProcess, void *pvCopy)
+{
+    supR3HardenedLogFlush();
+    NtTerminateProcess(hProcess, VERR_SUP_VP_REPLACE_VIRTUAL_MEMORY_FAILED);
+    if (pvCopy)
+        RTMemFree(pvCopy);
+    return VERR_SUP_VP_REPLACE_VIRTUAL_MEMORY_FAILED;
+}
+
+
 /**
  * Frees (or replaces) executable memory of allocation type private.
  *
- * @returns True if nothing really bad happen, false if to quit ASAP because we
- *          killed the process being scanned.
+ * @returns VBox status code.
  * @param   pThis               The process scanning state structure. Details
  *                              about images are added to this.
  * @param   hProcess            The process to verify.
  * @param   pMemInfo            The information we've got on this private
  *                              executable memory.
  */
-static bool supHardNtVpFreeOrReplacePrivateExecMemory(PSUPHNTVPSTATE pThis, HANDLE hProcess,
-                                                      MEMORY_BASIC_INFORMATION const *pMemInfo)
+static int supHardNtVpFreeOrReplacePrivateExecMemory(PSUPHNTVPSTATE pThis, HANDLE hProcess,
+                                                     MEMORY_BASIC_INFORMATION const *pMemInfo)
 {
     NTSTATUS rcNt;
 
@@ -1711,7 +1721,7 @@ static bool supHardNtVpFreeOrReplacePrivateExecMemory(PSUPHNTVPSTATE pThis, HAND
         if (!pvCopy)
         {
             supHardNtVpSetInfo2(pThis, VERR_SUP_VP_REPLACE_VIRTUAL_MEMORY_FAILED, "RTMemAllocZ(%#zx) failed", cbCopy);
-            return true;
+            return supHardNtVpFreeOrReplacePrivateExecMemoryFailed(hProcess, NULL);
         }
 
         rcNt = supHardNtVpReadMem(hProcess, uCopySrc, pvCopy, cbCopy);
@@ -1817,9 +1827,7 @@ static bool supHardNtVpFreeOrReplacePrivateExecMemory(PSUPHNTVPSTATE pThis, HAND
                                 "replacement memory for working around buggy protection software. "
                                 "See VBoxHardening.log for more details",
                                 pvAlloc, cbFree, rcNt);
-            supR3HardenedLogFlush();
-            NtTerminateProcess(hProcess, VERR_SUP_VP_REPLACE_VIRTUAL_MEMORY_FAILED);
-            return false;
+            return supHardNtVpFreeOrReplacePrivateExecMemoryFailed(hProcess, pvCopy);
         }
 
         if (   (uintptr_t)pvFree < (uintptr_t)pvAlloc
@@ -1828,9 +1836,7 @@ static bool supHardNtVpFreeOrReplacePrivateExecMemory(PSUPHNTVPSTATE pThis, HAND
             supHardNtVpSetInfo2(pThis, VERR_SUP_VP_REPLACE_VIRTUAL_MEMORY_FAILED,
                                 "We wanted NtAllocateVirtualMemory to get us %p LB %#zx, but it returned %p LB %#zx.",
                                 pMemInfo->BaseAddress, pMemInfo->RegionSize, pvFree, cbFree, rcNt);
-            supR3HardenedLogFlush();
-            NtTerminateProcess(hProcess, VERR_SUP_VP_REPLACE_VIRTUAL_MEMORY_FAILED);
-            return false;
+            return supHardNtVpFreeOrReplacePrivateExecMemoryFailed(hProcess, pvCopy);
         }
 
         /*
@@ -1867,20 +1873,17 @@ static bool supHardNtVpFreeOrReplacePrivateExecMemory(PSUPHNTVPSTATE pThis, HAND
         }
         else
         {
-            supHardNtVpSetInfo2(pThis, VERR_SUP_VP_FREE_VIRTUAL_MEMORY_FAILED,
-                                "NtWriteVirtualMemory (%p LB %#zx) failed: %#x",
+            supHardNtVpSetInfo2(pThis, VERR_SUP_VP_FREE_VIRTUAL_MEMORY_FAILED, "NtWriteVirtualMemory (%p LB %#zx) failed: %#x",
                                 pMemInfo->BaseAddress, pMemInfo->RegionSize, rcNt);
-            supR3HardenedLogFlush();
-            NtTerminateProcess(hProcess, VERR_SUP_VP_REPLACE_VIRTUAL_MEMORY_FAILED);
-            return false;
+            return supHardNtVpFreeOrReplacePrivateExecMemoryFailed(hProcess, pvCopy);
         }
     }
     if (pvCopy)
         RTMemFree(pvCopy);
-    return true;
+    return VINF_SUCCESS;
 }
-#endif /* IN_RING3 */
 
+#endif /* IN_RING3 */
 
 /**
  * Scans the virtual memory of the process.
@@ -2030,8 +2033,9 @@ static int supHardNtVpScanVirtualMemory(PSUPHNTVPSTATE pThis, HANDLE hProcess)
                  */
                 if (MemInfo.Type == MEM_PRIVATE)
                 {
-                    if (!supHardNtVpFreeOrReplacePrivateExecMemory(pThis, hProcess, &MemInfo))
-                        break;
+                    int const rc = supHardNtVpFreeOrReplacePrivateExecMemory(pThis, hProcess, &MemInfo);
+                    if (RT_FAILURE(rc))
+                        return rc;
                 }
                 /*
                  * Unmap mapped memory, failing that, drop exec privileges.
