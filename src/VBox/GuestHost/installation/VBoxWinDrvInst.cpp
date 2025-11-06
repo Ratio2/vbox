@@ -3243,7 +3243,7 @@ int VBoxWinDrvPatternReplace(const char *pszInput, const PVBOXWINDRVSTRPATTERN p
  *
  * @sa FNVBOXWINDRVSTRPATTERN
  */
-DECLCALLBACK(char *) vboxWinDrvInstPatternToEnvCallback(const char *pszPattern, void *pvUser)
+static DECLCALLBACK(char *) vboxWinDrvInstPatternToEnvCallback(const char *pszPattern, void *pvUser)
 {
     RT_NOREF(pvUser);
 
@@ -3269,7 +3269,7 @@ DECLCALLBACK(char *) vboxWinDrvInstPatternToEnvCallback(const char *pszPattern, 
  * @param   ppszResolved        Where to return the resolved path on success.
  *                              Must be free'd using RTStrFree().
  */
-int vboxWinDrvInstRegResolveRegPath(const char *pszPath, char **ppszResolved)
+static int vboxWinDrvInstRegResolveRegPath(const char *pszPath, char **ppszResolved)
 {
     static VBOXWINDRVSTRPATTERN s_aPatterns[] =
     {
