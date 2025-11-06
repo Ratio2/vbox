@@ -142,11 +142,11 @@ static uint32_t                 g_cVMInfoLoggedInUsers = 0;
 /** The guest property cache. */
 static VBOXSERVICEVEPROPCACHE   g_VMInfoPropCache;
 static const char              *g_pszPropCacheValLoggedInUsersList = "/VirtualBox/GuestInfo/OS/LoggedInUsersList";
-static const char              *g_pszPropCacheValLoggedInUsers = "/VirtualBox/GuestInfo/OS/LoggedInUsers";
-static const char              *g_pszPropCacheValNoLoggedInUsers = "/VirtualBox/GuestInfo/OS/NoLoggedInUsers";
-static const char              *g_pszPropCacheValNetCount = "/VirtualBox/GuestInfo/Net/Count";
+static const char              *g_pszPropCacheValLoggedInUsers     = "/VirtualBox/GuestInfo/OS/LoggedInUsers";
+static const char              *g_pszPropCacheValNoLoggedInUsers   = "/VirtualBox/GuestInfo/OS/NoLoggedInUsers";
+static const char              *g_pszPropCacheValNetCount          = "/VirtualBox/GuestInfo/Net/Count";
 /** A guest user's guest property root key. */
-static const char              *g_pszPropCacheKeyUser = "/VirtualBox/GuestInfo/User";
+static const char              *g_pszPropCacheKeyUser              = "/VirtualBox/GuestInfo/User";
 /** The VM session ID. Changes whenever the VM is restored or reset. */
 static uint64_t                 g_idVMInfoSession;
 /** The last attached locartion awareness (LA) client timestamp. */
@@ -430,12 +430,12 @@ DECLHIDDEN(int) VGSvcUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char *psz
 {
     AssertPtrReturn(pCache, VERR_INVALID_POINTER);
     AssertPtrReturn(pszUser, VERR_INVALID_POINTER);
-    /* pszDomain is optional. */
+    AssertPtrNullReturn(pszDomain, VERR_INVALID_POINTER);
     AssertPtrReturn(pszKey, VERR_INVALID_POINTER);
-    /* pszValueFormat is optional. */
+    AssertPtrNullReturn(pszValueFormat, VERR_INVALID_POINTER);
 
-    /** Historically we limit guest property names to 64 characters (see GUEST_PROP_MAX_NAME_LEN, including terminator).
-     *  So we need to make sure the stuff we want to write as a value fits into that space. See bugref{10575}. */
+    /* Historically we limit guest property names to 64 characters (see GUEST_PROP_MAX_NAME_LEN, including terminator).
+     * So we need to make sure the stuff we want to write as a value fits into that space. See bugref{10575}. */
 
     /* Try to write things the legacy way first. */
     char szName[GUEST_PROP_MAX_NAME_LEN];
@@ -464,13 +464,15 @@ DECLHIDDEN(int) VGSvcUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char *psz
     }
 
     if (RT_SUCCESS(rc))
-        rc = VGSvcPropCacheUpdate(pCache, szName, pszValue);
-    if (rc == VINF_SUCCESS) /* VGSvcPropCacheUpdate will also return VINF_NO_CHANGE. */
     {
-        /** @todo Combine updating flags w/ updating the actual value. */
-        rc = VGSvcPropCacheUpdateEntry(pCache, szName,
-                                       VGSVCPROPCACHE_FLAGS_TEMPORARY | VGSVCPROPCACHE_FLAGS_TRANSIENT,
-                                       NULL /* Delete on exit */);
+        rc = VGSvcPropCacheUpdate(pCache, szName, pszValue);
+        if (rc == VINF_SUCCESS) /* VGSvcPropCacheUpdate will also return VINF_NO_CHANGE. */
+        {
+            /** @todo Combine updating flags w/ updating the actual value. */
+            rc = VGSvcPropCacheUpdateEntry(pCache, szName,
+                                           VGSVCPROPCACHE_FLAGS_TEMPORARY | VGSVCPROPCACHE_FLAGS_TRANSIENT,
+                                           NULL /* Delete on exit */);
+        }
     }
 
     RTStrFree(pszValue);
@@ -1641,34 +1643,31 @@ static int vgsvcVMInfoWriteNetwork(void)
 
 #endif /* !RT_OS_WINDOWS */
 
-#if 0 /* Zapping not enabled yet, needs more testing first. */
+#if 1 /* Zapping not enabled yet, needs more testing first. */
     /*
      * Zap all stale network interface data if the former (saved) network ifaces count
      * is bigger than the current one.
      */
-
-    /* Get former count. */
-    uint32_t cIfsReportedOld;
-    rc = VGSvcReadPropUInt32(&g_VMInfoGuestPropSvcClient, g_pszPropCacheValNetCount, &cIfsReportedOld,
-                             0 /* Min */, UINT32_MAX /* Max */);
-    if (   RT_SUCCESS(rc)
-        && cIfsReportedOld > cIfsReported) /* Are some ifaces not around anymore? */
+    uint32_t cIfsReportedOld; /** @todo r=bird: Cache this internally instead of reading it? */
+    rc = VGSvcReadPropUInt32(&g_VMInfoGuestPropSvcClient, g_pszPropCacheValNetCount,
+                             &cIfsReportedOld, 0 /*u32Min*/, _1K /*u32Max*/);
+    if (RT_SUCCESS(rc))
     {
-        VGSvcVerbose(3, "VMInfo/Network: Stale interface data detected (%RU32 old vs. %RU32 current)\n",
-                     cIfsReportedOld, cIfsReported);
-
-        uint32_t uIfaceDeleteIdx = cIfsReported;
-        do
+        if (cIfsReportedOld > cIfsReported)
         {
-            VGSvcVerbose(3, "VMInfo/Network: Deleting stale data of interface %d ...\n", uIfaceDeleteIdx);
-            rc = VGSvcPropCacheUpdateByPath(&g_VMInfoPropCache, NULL /* Value, delete */, 0 /* Flags */, "/VirtualBox/GuestInfo/Net/%RU32", uIfaceDeleteIdx++);
-        } while (RT_SUCCESS(rc));
+            VGSvcVerbose(3, "VMInfo/Network: Stale interface data detected (%RU32 old vs. %RU32 current)\n",
+                         cIfsReportedOld, cIfsReported);
+
+            uint32_t uIfaceDeleteIdx = cIfsReported;
+            for (uint32_t idxDelete = 0; idxDelete < cIfsReportedOld; idxDelete++)
+            {
+                VGSvcVerbose(3, "VMInfo/Network: Deleting stale data of interface %d ...\n", uIfaceDeleteIdx);
+                VGSvcPropCacheUpdateByPath(&g_VMInfoPropCache, NULL, "/VirtualBox/GuestInfo/Net/%RU32", idxDelete);
+            }
+        }
     }
-    else if (   RT_FAILURE(rc)
-             && rc != VERR_NOT_FOUND)
-    {
+    else if (rc != VERR_NOT_FOUND)
         VGSvcError("VMInfo/Network: Failed retrieving old network interfaces count with error %Rrc\n", rc);
-    }
 #endif
 
     /*

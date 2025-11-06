@@ -54,10 +54,9 @@
 /** @}  */
 
 int  VGSvcPropCacheCreate(PVBOXSERVICEVEPROPCACHE pCache, PVBGLGSTPROPCLIENT pClient);
-int  VGSvcPropCacheUpdateEntry(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, uint32_t fFlags, const char *pszValueReset);
 int  VGSvcPropCacheUpdate(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, const char *pszValueFormat, ...);
-int  VGSvcPropCacheUpdateByPath(PVBOXSERVICEVEPROPCACHE pCache, const char *pszValue, uint32_t fFlags,
-                                const char *pszPathFormat, ...);
+int  VGSvcPropCacheUpdateByPath(PVBOXSERVICEVEPROPCACHE pCache, const char *pszValue, const char *pszPathFormat, ...);
+int  VGSvcPropCacheUpdateEntry(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, uint32_t fFlags, const char *pszValueReset);
 int  VGSvcPropCacheFlush(PVBOXSERVICEVEPROPCACHE pCache);
 void VGSvcPropCacheDestroy(PVBOXSERVICEVEPROPCACHE pCache);
 #endif /* VBOX_WITH_GUEST_PROPS */

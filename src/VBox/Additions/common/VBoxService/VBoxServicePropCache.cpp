@@ -47,50 +47,36 @@
  * @returns A pointer to the found property cache entry on success, or NULL if not found.
  * @param   pCache          The property cache.
  * @param   pszName         Name of property to search for. Case sensitive.
- * @param   fFlags          Search flags. Currently unused and must be 0.
  */
-static PVBOXSERVICEVEPROPCACHEENTRY vgsvcPropCacheFindInternal(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName,
-                                                               uint32_t fFlags)
+static PVBOXSERVICEVEPROPCACHEENTRY
+vgsvcPropCacheFindInternalLocked(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName)
 {
-    RT_NOREF1(fFlags);
-    AssertPtrReturn(pCache, NULL);
-    AssertPtrReturn(pszName, NULL);
-
     /** @todo This is a O(n) lookup, maybe improve this later to O(1) using a
      *        map.
      *  r=bird: Use a string space (RTstrSpace*). That is O(log n) in its current
      *        implementation (AVL tree). However, this is not important at the
      *        moment. */
-    PVBOXSERVICEVEPROPCACHEENTRY pNode = NULL;
-    if (RT_SUCCESS(RTCritSectEnter(&pCache->CritSect)))
+    PVBOXSERVICEVEPROPCACHEENTRY pNodeIt;
+    RTListForEach(&pCache->NodeHead, pNodeIt, VBOXSERVICEVEPROPCACHEENTRY, NodeSucc)
     {
-        PVBOXSERVICEVEPROPCACHEENTRY pNodeIt;
-        RTListForEach(&pCache->NodeHead, pNodeIt, VBOXSERVICEVEPROPCACHEENTRY, NodeSucc)
-        {
-            if (strcmp(pNodeIt->pszName, pszName) == 0)
-            {
-                pNode = pNodeIt;
-                break;
-            }
-        }
-        RTCritSectLeave(&pCache->CritSect);
+        if (strcmp(pNodeIt->pszName, pszName) == 0)
+            return pNodeIt;
     }
-    return pNode;
+    return NULL;
 }
 
 
 /**
  * Inserts (appends) a property into a property cache.
  *
+ * Caller must first make sure the name isn't in the cache already.
+ *
  * @returns A pointer to the inserted property cache entry on success, or NULL on failure.
  * @param   pCache          The property cache.
  * @param   pszName         Name of property to insert. Case sensitive.
  */
-static PVBOXSERVICEVEPROPCACHEENTRY vgsvcPropCacheInsertEntryInternal(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName)
+static PVBOXSERVICEVEPROPCACHEENTRY vgsvcPropCacheInsertEntryInternalLocked(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName)
 {
-    AssertPtrReturn(pCache, NULL);
-    AssertPtrReturn(pszName, NULL);
-
     PVBOXSERVICEVEPROPCACHEENTRY pNode = (PVBOXSERVICEVEPROPCACHEENTRY)RTMemAlloc(sizeof(VBOXSERVICEVEPROPCACHEENTRY));
     if (pNode)
     {
@@ -100,20 +86,9 @@ static PVBOXSERVICEVEPROPCACHEENTRY vgsvcPropCacheInsertEntryInternal(PVBOXSERVI
         pNode->fFlags = 0;
         pNode->pszValueReset = NULL;
 
-        int rc = RTCritSectEnter(&pCache->CritSect);
-        if (RT_SUCCESS(rc))
-        {
-            RTListAppend(&pCache->NodeHead, &pNode->NodeSucc);
-            RTCritSectLeave(&pCache->CritSect);
-
-            return pNode;
-        }
-
-        RTStrFree(pNode->pszName);
-        RTMemFree(pNode);
+        RTListAppend(&pCache->NodeHead, &pNode->NodeSucc);
     }
-
-    return NULL;
+    return pNode;
 }
 
 
@@ -216,7 +191,7 @@ int VGSvcPropCacheCreate(PVBOXSERVICEVEPROPCACHE pCache, PVBGLGSTPROPCLIENT pCli
 
 
 /**
- * Updates a cache entry without submitting any changes to the host.
+ * Creates/updates a cache entry without submitting any changes to the host.
  *
  * This is handy for defining default values/flags.
  *
@@ -230,38 +205,96 @@ int VGSvcPropCacheUpdateEntry(PVBOXSERVICEVEPROPCACHE pCache, const char *pszNam
 {
     AssertPtrReturn(pCache, VERR_INVALID_POINTER);
     AssertPtrReturn(pszName, VERR_INVALID_POINTER);
-    PVBOXSERVICEVEPROPCACHEENTRY pNode = vgsvcPropCacheFindInternal(pCache, pszName, 0);
-    if (pNode == NULL)
-        pNode = vgsvcPropCacheInsertEntryInternal(pCache, pszName);
 
-    int rc;
+    int rc = RTCritSectEnter(&pCache->CritSect);
+    AssertRCReturn(rc, rc);
+
+    PVBOXSERVICEVEPROPCACHEENTRY pNode = vgsvcPropCacheFindInternalLocked(pCache, pszName);
+    if (pNode == NULL)
+        pNode = vgsvcPropCacheInsertEntryInternalLocked(pCache, pszName);
     if (pNode != NULL)
     {
-        rc = RTCritSectEnter(&pCache->CritSect);
-        if (RT_SUCCESS(rc))
+        pNode->fFlags = fFlags;
+        if (pszValueReset)
         {
-            pNode->fFlags = fFlags;
-            if (pszValueReset)
-            {
-                if (pNode->pszValueReset)
-                    RTStrFree(pNode->pszValueReset);
-                pNode->pszValueReset = RTStrDup(pszValueReset);
-                AssertPtr(pNode->pszValueReset);
-            }
-            rc = RTCritSectLeave(&pCache->CritSect);
+            if (pNode->pszValueReset)
+                RTStrFree(pNode->pszValueReset);
+            pNode->pszValueReset = RTStrDup(pszValueReset);
+            AssertStmt(pNode->pszValueReset, rc = VERR_NO_STR_MEMORY);
         }
     }
     else
         rc = VERR_NO_MEMORY;
+
+    RTCritSectLeave(&pCache->CritSect);
     return rc;
 }
 
 
 /**
- * Updates the local guest property cache and writes it to HGCM if outdated.
+ * Core of VGSvcPropCacheUpdate shared with VGSvcPropCacheUpdateByPath.
+ */
+static int vgsvcPropCacheUpdateNode(PVBOXSERVICEVEPROPCACHE pCache, PVBOXSERVICEVEPROPCACHEENTRY pNode, const char *pszValue)
+{
+    int rc = VINF_SUCCESS;
+    if (pszValue) /* Do we have a value to check for? */
+    {
+        bool fUpdate = false;
+        /* Always update this property, no matter what? */
+        if (pNode->fFlags & VGSVCPROPCACHE_FLAGS_ALWAYS_UPDATE)
+            fUpdate = true;
+        /* Did the value change so we have to update? */
+        else if (pNode->pszValue && strcmp(pNode->pszValue, pszValue) != 0)
+            fUpdate = true;
+        /* No value stored at the moment but we have a value now? */
+        else if (pNode->pszValue == NULL)
+            fUpdate = true;
+
+        if (fUpdate)
+        {
+            /* Write the update. */
+            rc = vgsvcPropCacheWriteProp(pCache->pClient, pNode->pszName, pNode->fFlags, pszValue);
+            VGSvcVerbose(4, "[PropCache %p]: Written '%s'='%s' (flags: %x), rc=%Rrc\n",
+                         pCache, pNode->pszName, pszValue, pNode->fFlags, rc);
+            if (RT_SUCCESS(rc)) /* Only update the node's value on successful write. */
+            {
+                RTStrFree(pNode->pszValue);
+                pNode->pszValue = RTStrDup(pszValue);
+                if (!pNode->pszValue)
+                    rc = VERR_NO_STR_MEMORY;
+            }
+        }
+        else
+            rc = VINF_NO_CHANGE; /* No update needed. */
+    }
+    else
+    {
+        /* No value specified. Deletion (or no action required). */
+        if (pNode->pszValue) /* Did we have a value before? Then the value needs to be deleted. */
+        {
+            rc = vgsvcPropCacheWriteProp(pCache->pClient, pNode->pszName, 0, /*fFlags*/ NULL /*pszValue*/);
+            VGSvcVerbose(4, "[PropCache %p]: Deleted '%s'='%s' (flags: %x), rc=%Rrc\n",
+                         pCache, pNode->pszName, pNode->pszValue, pNode->fFlags, rc);
+            if (RT_SUCCESS(rc)) /* Only delete property value on successful Vbgl deletion. */
+            {
+                /* Delete property (but do not remove from cache) if not deleted yet. */
+                RTStrFree(pNode->pszValue);
+                pNode->pszValue = NULL;
+            }
+        }
+        else
+            rc = VINF_NO_CHANGE; /* No update needed. */
+    }
+    return rc;
+}
+
+
+/**
+ * Creates/Updates the locally cached value and writes it to HGCM if modified.
  *
  * @returns VBox status code.
  * @retval  VERR_BUFFER_OVERFLOW if the property name or value exceeds the limit.
+ * @retval  VINF_NO_CHANGE if the value is the same and nothing was written.
  * @param   pCache          The property cache.
  * @param   pszName         The property name.
  * @param   pszValueFormat  The property format string.  If this is NULL then
@@ -281,156 +314,100 @@ int VGSvcPropCacheUpdate(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, co
     /*
      * Format the value first.
      */
+    char  szValue[GUEST_PROP_MAX_VALUE_LEN];
     char *pszValue = NULL;
     if (pszValueFormat)
     {
-        /** @todo r=bird: Using RTStrAPrintfV is a bit pointless since we have
-         *        very low max value length.  The code doesn't even exploit the heap
-         *        allocation here, but instead duplicates it ... */
         va_list va;
         va_start(va, pszValueFormat);
-        RTStrAPrintfV(&pszValue, pszValueFormat, va);
+        ssize_t cchValue = RTStrPrintf2V(szValue, sizeof(szValue), pszValueFormat, va);
         va_end(va);
-        if (!pszValue)
-            return VERR_NO_STR_MEMORY;
-        if (RTStrNLen(pszValue, GUEST_PROP_MAX_VALUE_LEN) > GUEST_PROP_MAX_VALUE_LEN - 1 /* Terminator */)
-        {
-            RTStrFree(pszValue);
+        if (cchValue < 0)
             return VERR_BUFFER_OVERFLOW;
-        }
+        pszValue = szValue;
     }
 
-    /* Lock the cache. */
+    /*
+     * Lock the cache.
+     */
     int rc = RTCritSectEnter(&pCache->CritSect);
+    AssertRC(rc);
     if (RT_SUCCESS(rc))
     {
-        PVBOXSERVICEVEPROPCACHEENTRY const pNode = vgsvcPropCacheFindInternal(pCache, pszName, 0);
-        if (pNode)
-        {
-            if (pszValue) /* Do we have a value to check for? */
-            {
-                bool fUpdate = false;
-                /* Always update this property, no matter what? */
-                if (pNode->fFlags & VGSVCPROPCACHE_FLAGS_ALWAYS_UPDATE)
-                    fUpdate = true;
-                /* Did the value change so we have to update? */
-                else if (pNode->pszValue && strcmp(pNode->pszValue, pszValue) != 0)
-                    fUpdate = true;
-                /* No value stored at the moment but we have a value now? */
-                else if (pNode->pszValue == NULL)
-                    fUpdate = true;
-
-                if (fUpdate)
-                {
-                    /* Write the update. */
-                    rc = vgsvcPropCacheWriteProp(pCache->pClient, pNode->pszName, pNode->fFlags, pszValue);
-                    VGSvcVerbose(4, "[PropCache %p]: Written '%s'='%s' (flags: %x), rc=%Rrc\n",
-                                 pCache, pNode->pszName, pszValue, pNode->fFlags, rc);
-                    if (RT_SUCCESS(rc)) /* Only update the node's value on successful write. */
-                    {
-                        RTStrFree(pNode->pszValue);
-                        pNode->pszValue = RTStrDup(pszValue);
-                        if (!pNode->pszValue)
-                            rc = VERR_NO_MEMORY;
-                    }
-                }
-                else
-                    rc = VINF_NO_CHANGE; /* No update needed. */
-            }
-            else
-            {
-                /* No value specified. Deletion (or no action required). */
-                if (pNode->pszValue) /* Did we have a value before? Then the value needs to be deleted. */
-                {
-                    rc = vgsvcPropCacheWriteProp(pCache->pClient, pNode->pszName, 0, /*fFlags*/ NULL /*pszValue*/);
-                    VGSvcVerbose(4, "[PropCache %p]: Deleted '%s'='%s' (flags: %x), rc=%Rrc\n",
-                                 pCache, pNode->pszName, pNode->pszValue, pNode->fFlags, rc);
-                    if (RT_SUCCESS(rc)) /* Only delete property value on successful Vbgl deletion. */
-                    {
-                        /* Delete property (but do not remove from cache) if not deleted yet. */
-                        RTStrFree(pNode->pszValue);
-                        pNode->pszValue = NULL;
-                    }
-                }
-                else
-                    rc = VINF_NO_CHANGE; /* No update needed. */
-            }
-        }
+        /*
+         * Find the cache entry, create a new one if necessary, then update it.
+         */
+        PVBOXSERVICEVEPROPCACHEENTRY pNode = vgsvcPropCacheFindInternalLocked(pCache, pszName);
+        if (pNode == NULL)
+            pNode = vgsvcPropCacheInsertEntryInternalLocked(pCache, pszName);
+        if (pNode != NULL)
+            rc = vgsvcPropCacheUpdateNode(pCache, pNode, pszValue);
         else
-        {
-            AssertMsgFailed(("pszName=%s\n", pszName));
-            rc = VERR_NOT_FOUND;
-        }
+            rc = VERR_NO_MEMORY;
 
-        /* Release cache. */
+        /*
+         * Release cache.
+         */
         RTCritSectLeave(&pCache->CritSect);
     }
 
     VGSvcVerbose(4, "[PropCache %p]: Updating '%s' resulted in rc=%Rrc\n", pCache, pszName, rc);
-
-    /* Delete temp stuff. */
-    RTStrFree(pszValue);
     return rc;
 }
 
 
 /**
- * Updates all cache values which are matching the specified path.
+ * Updates all cache values which are starting with the specified path prefix.
  *
  * @returns VBox status code.
  * @param   pCache          The property cache.
  * @param   pszValue        The value to set.  A NULL will delete the value.
- * @param   fFlags          Flags to set.
- * @param   pszPathFormat   The path format string.  May not be null and has
- *                          to be an absolute path.
+ * @param   pszPathFormat   The path prefix format string.  May not be null and
+ *                          has to be an absolute path.
  * @param   ...             Format arguments.
  */
-int VGSvcPropCacheUpdateByPath(PVBOXSERVICEVEPROPCACHE pCache, const char *pszValue, uint32_t fFlags,
-                               const char *pszPathFormat, ...)
+int VGSvcPropCacheUpdateByPath(PVBOXSERVICEVEPROPCACHE pCache, const char *pszValue, const char *pszPathFormat, ...)
 {
-    RT_NOREF1(fFlags);
     AssertPtrReturn(pCache, VERR_INVALID_POINTER);
     AssertPtrReturn(pszPathFormat, VERR_INVALID_POINTER);
 
-    int rc = VERR_NOT_FOUND;
-    if (RT_SUCCESS(RTCritSectEnter(&pCache->CritSect)))
+    /*
+     * Format the value first.
+     */
+    int rc;
+    char szPath[GUEST_PROP_MAX_NAME_LEN];
+    va_list va;
+    va_start(va, pszPathFormat);
+    ssize_t const cchPath = RTStrPrintf2V(szPath, sizeof(szPath), pszPathFormat, va);
+    va_end(va);
+    if (cchPath > 0)
     {
-        /*
-         * Format the value first.
-         */
-        /** @todo r=bird: The max path length is 64 bytes, including terminator.
-         *        Why involve any heap here? */
-        char *pszPath = NULL;
-        va_list va;
-        va_start(va, pszPathFormat);
-        RTStrAPrintfV(&pszPath, pszPathFormat, va);
-        va_end(va);
-        if (!pszPath)
+        rc = RTCritSectEnter(&pCache->CritSect);
+        AssertRC(rc);
+        if (RT_SUCCESS(rc))
         {
-            rc = VERR_NO_STR_MEMORY;
-        }
-        else
-        {
-            /* Iterate through all nodes and compare their paths. */
+            /*
+             * Iterate through all nodes, update those starting with the given path.
+             */
+            rc = VERR_NOT_FOUND;
             PVBOXSERVICEVEPROPCACHEENTRY pNodeIt;
             RTListForEach(&pCache->NodeHead, pNodeIt, VBOXSERVICEVEPROPCACHEENTRY, NodeSucc)
             {
-                /** @todo r=bird: This is a _very_ inefficient way of writing RTStrStartsWith(pNodeIt->pszName, pszPath).
-                 * Better:
-                 * size_t const cchPath = strlen(pszPath);
-                 * ...
-                 *     if (RTStrNCmp(pNodeIt->pszName, pszPath, cchPath) == 0) */
-                if (RTStrStr(pNodeIt->pszName, pszPath) == pNodeIt->pszName)
+                if (RTStrNCmp(pNodeIt->pszName, szPath, (size_t)cchPath) == 0)
                 {
-                    /** @todo Use some internal function to update the node directly, this is slow atm. */
-                    rc = VGSvcPropCacheUpdate(pCache, pNodeIt->pszName, pszValue);
+                    int const rc2 = vgsvcPropCacheUpdateNode(pCache, pNodeIt, pszValue);
+                    if (rc == VERR_NOT_FOUND || RT_FAILURE(rc2))
+                        rc = rc2 == VINF_NO_CHANGE ? VINF_SUCCESS : rc2;
                 }
-                if (RT_FAILURE(rc))
-                    break;
             }
-            RTStrFree(pszPath);
+
+            RTCritSectLeave(&pCache->CritSect);
         }
-        RTCritSectLeave(&pCache->CritSect);
+    }
+    else
+    {
+        AssertFailed();
+        rc = VERR_FILENAME_TOO_LONG;
     }
     return rc;
 }
@@ -446,15 +423,15 @@ int VGSvcPropCacheFlush(PVBOXSERVICEVEPROPCACHE pCache)
 {
     AssertPtrReturn(pCache, VERR_INVALID_POINTER);
 
-    int rc = VINF_SUCCESS;
-    if (RT_SUCCESS(RTCritSectEnter(&pCache->CritSect)))
+    int rc = RTCritSectEnter(&pCache->CritSect);
+    if (RT_SUCCESS(rc))
     {
         PVBOXSERVICEVEPROPCACHEENTRY pNodeIt;
         RTListForEach(&pCache->NodeHead, pNodeIt, VBOXSERVICEVEPROPCACHEENTRY, NodeSucc)
         {
-            rc = vgsvcPropCacheWriteProp(pCache->pClient, pNodeIt->pszName, pNodeIt->fFlags, pNodeIt->pszValue);
-            if (RT_FAILURE(rc))
-                break;
+            int rc2 = vgsvcPropCacheWriteProp(pCache->pClient, pNodeIt->pszName, pNodeIt->fFlags, pNodeIt->pszValue);
+            if (RT_FAILURE(rc2) && RT_SUCCESS(rc))
+                rc = rc2;
         }
         RTCritSectLeave(&pCache->CritSect);
     }
@@ -474,31 +451,29 @@ void VGSvcPropCacheDestroy(PVBOXSERVICEVEPROPCACHE pCache)
 
     /* Lock the cache. */
     int rc = RTCritSectEnter(&pCache->CritSect);
+    AssertRC(rc);
     if (RT_SUCCESS(rc))
     {
-        /** @todo r=bird: Use RTListForEachSafe! */
-        PVBOXSERVICEVEPROPCACHEENTRY pNode = RTListGetFirst(&pCache->NodeHead, VBOXSERVICEVEPROPCACHEENTRY, NodeSucc);
-        while (pNode)
+        /* Destroy all the entries, writing the reset value for the temporary ones. */
+        PVBOXSERVICEVEPROPCACHEENTRY pNode, pNextNode;
+        RTListForEachSafe(&pCache->NodeHead, pNode, pNextNode, VBOXSERVICEVEPROPCACHEENTRY, NodeSucc)
         {
-            PVBOXSERVICEVEPROPCACHEENTRY pNext = RTListNodeIsLast(&pCache->NodeHead, &pNode->NodeSucc)
-                                                                  ? NULL
-                                                                  : RTListNodeGetNext(&pNode->NodeSucc,
-                                                                                      VBOXSERVICEVEPROPCACHEENTRY, NodeSucc);
+            AssertPtr(pNode->pszName);
             RTListNodeRemove(&pNode->NodeSucc);
 
             if (pNode->fFlags & VGSVCPROPCACHE_FLAGS_TEMPORARY)
                 vgsvcPropCacheWriteProp(pCache->pClient, pNode->pszName, pNode->fFlags, pNode->pszValueReset);
 
-            AssertPtr(pNode->pszName);
             RTStrFree(pNode->pszName);
+            pNode->pszName       = NULL;
             RTStrFree(pNode->pszValue);
+            pNode->pszValue      = NULL;
             RTStrFree(pNode->pszValueReset);
-            pNode->fFlags = 0;
-
+            pNode->pszValueReset = NULL;
+            pNode->fFlags        = 0;
             RTMemFree(pNode);
-
-            pNode = pNext;
         }
+
         RTCritSectLeave(&pCache->CritSect);
     }
 
