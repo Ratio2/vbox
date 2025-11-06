@@ -94,7 +94,6 @@ private:
     QIToolBar *m_pToolBar;
     /** Indicates if this widget's host tool is current tool. */
     bool    m_fIsCurrentTool;
-    QVector<QUuid> m_machineIds;
     UIVMActivityMonitorContainer *m_pMonitorContainer;
 };
 

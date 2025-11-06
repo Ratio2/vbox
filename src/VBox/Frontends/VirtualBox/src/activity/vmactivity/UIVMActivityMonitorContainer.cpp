@@ -347,3 +347,16 @@ void UIVMActivityMonitorContainer::sltTogglePreferencesPane(bool fChecked)
     AssertReturnVoid(m_pPaneContainer);
     m_pPaneContainer->setVisible(fChecked);
 }
+
+QVector<QUuid> UIVMActivityMonitorContainer::machineIds() const
+{
+    QVector<QUuid> ids;
+    for (int i = m_pTabWidget->count() - 1; i >= 0; --i)
+    {
+        UIVMActivityMonitor *pMonitor = qobject_cast<UIVMActivityMonitor*>(m_pTabWidget->widget(i));
+        if (!pMonitor)
+            continue;
+        ids << pMonitor->machineId();
+    }
+    return ids;
+}

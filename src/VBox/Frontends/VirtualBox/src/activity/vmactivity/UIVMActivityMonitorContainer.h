@@ -100,6 +100,8 @@ public:
     void removeTabs(const QVector<QUuid> &machineIdsToRemove);
     void addLocalMachine(const CMachine &comMachine);
     void addCloudMachine(const CCloudMachine &comMachine);
+    /* A list of current machine ids. */
+    QVector<QUuid> machineIds() const;
 
 private slots:
 
