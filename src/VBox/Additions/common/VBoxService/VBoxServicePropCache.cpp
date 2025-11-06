@@ -164,7 +164,7 @@ static int vgsvcPropCacheWriteProp(PVBGLGSTPROPCLIENT pClient, const char *pszNa
  * Writes a new value to a property, using a format value.
  *
  * @returns VBox status code.
- * @param   uClientId       The HGCM handle of to the guest property service.
+ * @param   pClient         The guest property client session info.
  * @param   pszName         Name of property to write value for. Case sensitive.
  * @param   fFlags          Property cache flags of type VGSVCPROPCACHE_FLAGS_XXX.
  * @param   pszValueFormat  Format string of value to write.
@@ -200,7 +200,7 @@ static int vgsvcPropCacheWritePropF(PVBGLGSTPROPCLIENT pClient, const char *pszN
  *
  * @returns VBox status code.
  * @param   pCache          Pointer to the cache.
- * @param   uClientId       The HGCM handle of to the guest property service.
+ * @param   pClient         The guest property client session info.
  */
 int VGSvcPropCacheCreate(PVBOXSERVICEVEPROPCACHE pCache, PVBGLGSTPROPCLIENT pClient)
 {
