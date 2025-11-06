@@ -545,7 +545,7 @@ VBGLR3DECL(int) VbglR3HGCMDisconnect(HGCMCLIENTID idClient)
  * @returns IPRT status code.
  * @param   pu64IdSession       Session id (out).
  */
-VBGLR3DECL(int) VbglR3GetSessionId(uint64_t *pu64IdSession)
+VBGLR3DECL(int) VbglR3QuerySessionId(uint64_t *pu64IdSession)
 {
     if (pu64IdSession)
         *pu64IdSession = 42;

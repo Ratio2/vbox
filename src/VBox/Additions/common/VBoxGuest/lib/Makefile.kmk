@@ -156,7 +156,6 @@ endif
 ifdef VBOX_WITH_GUEST_PROPS
  VBoxGuestR3Lib_SOURCES   += \
  	VBoxGuestLibGuestProp.cpp \
- 	VBoxGuestR3LibGuestProp.cpp \
  	VBoxGuestR3LibHostVersion.cpp
 endif
 ifdef VBOX_WITH_SHARED_CLIPBOARD
@@ -227,7 +226,7 @@ VBoxGuestR3LibXFree86_DEFS     = \
 VBoxGuestR3LibXFree86_SOURCES  = \
 	VBoxGuestR3Lib.cpp \
 	VBoxGuestR3LibGR.cpp \
-	$(if $(VBOX_WITH_GUEST_PROPS),VBoxGuestR3LibGuestProp.cpp,) \
+	$(if $(VBOX_WITH_GUEST_PROPS),VBoxGuestLibGuestProp.cpp,) \
 	VBoxGuestR3LibMouse.cpp \
 	VBoxGuestR3LibMisc.cpp \
 	VBoxGuestR3LibSeamless.cpp \

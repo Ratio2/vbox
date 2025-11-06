@@ -1493,7 +1493,7 @@ int VBoxDnDWnd::ProcessEvent(PVBOXDNDEVENT pEvent)
 int VBoxDnDWnd::checkForSessionChange(void)
 {
     uint64_t uSessionID;
-    int rc = VbglR3GetSessionId(&uSessionID);
+    int rc = VbglR3QuerySessionId(&uSessionID);
     if (   RT_SUCCESS(rc)
         && uSessionID != m_cmdCtx.uSessionID)
     {

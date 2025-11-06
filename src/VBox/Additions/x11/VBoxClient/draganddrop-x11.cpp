@@ -2141,7 +2141,7 @@ int VBClX11DnDInst::hgDataReceive(PVBGLR3GUESTDNDMETADATA pMeta)
 int VBClX11DnDInst::checkForSessionChange(void)
 {
     uint64_t uSessionID;
-    int rc = VbglR3GetSessionId(&uSessionID);
+    int rc = VbglR3QuerySessionId(&uSessionID);
     if (   RT_SUCCESS(rc)
         && uSessionID != m_dndCtx.uSessionID)
     {

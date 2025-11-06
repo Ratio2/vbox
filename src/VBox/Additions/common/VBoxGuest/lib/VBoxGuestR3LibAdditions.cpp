@@ -230,7 +230,7 @@ static int vbglR3GetAdditionsCompileTimeVersion(char **ppszVer, char **ppszVerEx
  *                      accepted. The returned pointer must be freed using
  *                      RTStrFree().
  */
-VBGLR3DECL(int) VbglR3GetAdditionsVersion(char **ppszVer, char **ppszVerExt, char **ppszRev)
+VBGLR3DECL(int) VbglR3QueryAdditionsVersion(char **ppszVer, char **ppszVerExt, char **ppszRev)
 {
     /*
      * Zap the return value up front.
@@ -310,7 +310,7 @@ VBGLR3DECL(int) VbglR3GetAdditionsVersion(char **ppszVer, char **ppszVerExt, cha
  *                      The returned pointer must be freed using
  *                      RTStrFree().
  */
-VBGLR3DECL(int) VbglR3GetAdditionsInstallationPath(char **ppszPath)
+VBGLR3DECL(int) VbglR3QueryAdditionsInstallationPath(char **ppszPath)
 {
     int rc;
 
@@ -325,7 +325,7 @@ VBGLR3DECL(int) VbglR3GetAdditionsInstallationPath(char **ppszPath)
         rc = vbglR3QueryRegistryString(hKey, L"InstallDir", MAX_PATH * sizeof(RTUTF16), ppszPath);
         if (RT_SUCCESS(rc))
             RTPathChangeToUnixSlashes(*ppszPath, true /*fForce*/);
-        rc = vbglR3WinCloseRegKey(hKey, rc);
+        /*rc = */ vbglR3WinCloseRegKey(hKey, rc); /* Not modifying rc here, to avoid leaking the *ppszPath string. */
     }
 #else
     /** @todo implement me */

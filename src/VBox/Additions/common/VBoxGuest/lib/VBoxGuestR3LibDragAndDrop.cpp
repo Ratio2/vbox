@@ -1088,7 +1088,7 @@ VBGLR3DECL(int) VbglR3DnDConnect(PVBGLR3GUESTDNDCMDCTX pCtx)
      * This is not fatal in case we're running with an ancient VBox version.
      */
     pCtx->uSessionID = 0;
-    int rc2 = VbglR3GetSessionId(&pCtx->uSessionID); RT_NOREF(rc2);
+    int rc2 = VbglR3QuerySessionId(&pCtx->uSessionID); RT_NOREF(rc2);
     LogFlowFunc(("uSessionID=%RU64, rc=%Rrc\n", pCtx->uSessionID, rc2));
 
     /*
@@ -1221,7 +1221,7 @@ VBGLR3DECL(int) VbglR3DnDEventGetNext(PVBGLR3GUESTDNDCMDCTX pCtx, PVBGLR3DNDEVEN
     {
         /* Check for VM session change. */
         uint64_t uSessionID;
-        int rc2 = VbglR3GetSessionId(&uSessionID);
+        int rc2 = VbglR3QuerySessionId(&uSessionID);
         if (   RT_SUCCESS(rc2)
             && (uSessionID != pCtx->uSessionID))
         {

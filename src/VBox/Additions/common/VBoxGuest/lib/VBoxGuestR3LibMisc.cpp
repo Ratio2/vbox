@@ -121,7 +121,7 @@ VBGLR3DECL(int) VbglR3AcquireGuestCaps(uint32_t fOr, uint32_t fNot, bool fConfig
  *                              deal with backward compatibility (see
  *                              VBoxServiceVMInfoWorker() for an example.)
  */
-VBGLR3DECL(int) VbglR3GetSessionId(uint64_t *pu64IdSession)
+VBGLR3DECL(int) VbglR3QuerySessionId(uint64_t *pu64IdSession)
 {
     VMMDevReqSessionId Req;
 

@@ -300,7 +300,7 @@ VBGLR3DECL(int) VbglR3DaemonizeEx(bool fNoChDir, bool fNoClose, bool fRespawn, u
             {
                 if (WEXITSTATUS(iStatus) == 0)
                     exit(0);
-                else if (fReturnOnUpdate && WEXITSTATUS(iStatus) == VBGLR3EXITCODERELOAD)
+                else if (fReturnOnUpdate && WEXITSTATUS(iStatus) == VBGLR3_EXITCODE_RELOAD)
                 {
                     /* Tell caller that update has been started. */
                     if (pfUpdateStarted != NULL)

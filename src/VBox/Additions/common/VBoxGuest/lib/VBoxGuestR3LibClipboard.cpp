@@ -72,11 +72,6 @@
  */
 
 
-/*********************************************************************************************************************************
-*   Prototypes                                                                                                                   *
-*********************************************************************************************************************************/
-
-
 /**
  * Connects to the Shared Clipboard service, legacy version, do not use anymore.
  *
@@ -621,8 +616,8 @@ VBGLR3DECL(int) VbglR3ClipboardQueryFeatures(uint32_t idClient, uint64_t *pfHost
  * @param   pidMsg          Where to store the message id.
  * @param   pcParameters    Where to store the number  of parameters which will
  *                          be received in a second call to the host.
- * @param   pidRestoreCheck Pointer to the VbglR3GetSessionId() variable to use
- *                          for the VM restore check.  Optional.
+ * @param   pidRestoreCheck Pointer to the VbglR3QuerySessionId() variable to
+ *                          use for the VM restore check.  Optional.
  *
  * @note    Restore check is only performed optimally with a 6.0 host.
  */
@@ -713,8 +708,8 @@ static int vbglR3ClipboardMsgPeekEx(PVBGLR3SHCLCMDCTX pCtx, bool fWait, uint32_t
  * @param   pidMsg          Where to store the message id.
  * @param   pcParameters    Where to store the number  of parameters which will
  *                          be received in a second call to the host.
- * @param   pidRestoreCheck Pointer to the VbglR3GetSessionId() variable to use
- *                          for the VM restore check.  Optional.
+ * @param   pidRestoreCheck Pointer to the VbglR3QuerySessionId() variable to
+ *                          use for the VM restore check.  Optional.
  *
  * @note    Restore check is only performed optimally with a 6.0 host.
  */
@@ -742,8 +737,8 @@ VBGLR3DECL(int) VbglR3ClipboardMsgPeekWait(PVBGLR3SHCLCMDCTX pCtx, uint32_t *pid
  * @param   pidMsg          Where to store the message id.
  * @param   pcParameters    Where to store the number  of parameters which will
  *                          be received in a second call to the host.
- * @param   pidRestoreCheck Pointer to the VbglR3GetSessionId() variable to use
- *                          for the VM restore check.  Optional.
+ * @param   pidRestoreCheck Pointer to the VbglR3QuerySessionId() variable to
+ *                          use for the VM restore check.  Optional.
  *
  * @note    Restore check is only performed optimally with a 6.0 host.
  */

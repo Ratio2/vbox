@@ -46,6 +46,7 @@
 
 #if defined(RT_OS_LINUX)
 # include <signal.h>
+# include <VBox/VBoxGuestLibGuestProp.h>
 # include <VBox/HostServices/GuestPropertySvc.h>
 # include <iprt/file.h>
 
@@ -68,12 +69,12 @@ static bool vbglR3DrmClientCheckProp(const char *pszPropName, uint32_t fPropFlag
     bool fExist = false;
 
 # if defined(VBOX_WITH_GUEST_PROPS)
-    uint32_t idClient = 0;
-    int rc = VbglR3GuestPropConnect(&idClient);
+    VBGLGSTPROPCLIENT Client;
+    int rc = VbglGuestPropConnect(&Client);
     if (RT_SUCCESS(rc))
     {
         char *pcszFlags = NULL;
-        rc = VbglR3GuestPropReadEx(idClient, pszPropName, NULL /* ppszValue */, &pcszFlags, NULL);
+        rc = VbglGuestPropReadEx(&Client, pszPropName, NULL /* ppszValue */, &pcszFlags, NULL);
         if (RT_SUCCESS(rc))
         {
             /* Check property flags match. */
@@ -89,7 +90,7 @@ static bool vbglR3DrmClientCheckProp(const char *pszPropName, uint32_t fPropFlag
             RTStrFree(pcszFlags);
         }
 
-        VbglR3GuestPropDisconnect(idClient);
+        VbglGuestPropDisconnect(&Client);
     }
 # endif /* VBOX_WITH_GUEST_PROPS */
     return fExist;

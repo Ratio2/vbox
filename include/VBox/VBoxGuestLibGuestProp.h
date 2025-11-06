@@ -72,6 +72,8 @@ DECLVBGL(int)  VbglGuestPropRead(PVBGLGSTPROPCLIENT pClient, const char *pszName
                                  char **ppszValue, uint64_t *pu64Timestamp, char **ppszFlags, uint32_t *pcbBufActual);
 DECLVBGL(int)  VbglGuestPropReadEx(PVBGLGSTPROPCLIENT pClient,
                                    const char *pszPropName, char **ppszValue, char **ppszFlags, uint64_t *puTimestamp);
+DECLVBGL(int)  VbglGuestPropReadValue(PVBGLGSTPROPCLIENT pClient, const char *pszName, char *pszValue, uint32_t cchValue,
+                                      uint32_t *pcchValueActual);
 DECLVBGL(int)  VbglGuestPropReadValueAlloc(PVBGLGSTPROPCLIENT pClient, const char *pszName, char **ppszValue);
 DECLVBGL(void) VbglGuestPropReadValueFree(char *pszValue);
 DECLVBGL(int)  VbglGuestPropEnumRaw(PVBGLGSTPROPCLIENT pClient, const char *pszzPatterns, char *pcBuf, uint32_t cbBuf,
