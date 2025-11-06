@@ -81,7 +81,7 @@ fail_msg()
 start_daemon() {
     usr="$1"
     shift
-    su - $usr -c "$*"
+    runuser -u $usr -- $*
 }
 
 if which start-stop-daemon >/dev/null 2>&1; then

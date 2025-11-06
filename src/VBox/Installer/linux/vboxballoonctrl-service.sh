@@ -82,7 +82,7 @@ fail_msg()
 start_daemon() {
     usr="$1"
     shift
-    su - $usr -c "$*"
+    runuser -u $usr -- $*
 }
 
 killproc() {
