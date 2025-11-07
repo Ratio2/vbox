@@ -26,15 +26,15 @@
 <Include xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
     <!-- VBoxSUP.sys installation. -->
-    <Custom Action="ca_VBoxSupDrvInstParms" Before="ca_VBoxSupDrvInst" 
+    <Custom Action="ca_VBoxSupDrvInstParms" Before="ca_VBoxSupDrvInst"
             Condition="NOT REMOVE" />
     <Custom Action="ca_VBoxSupDrvInst" After="InstallFiles"
             Condition="NOT REMOVE" />
 
     <!-- Start VBoxSUP.sys after installation. -->
-    <Custom Action="ca_VBoxSupDrvStartParms" Before="ca_VBoxSupDrvStart" 
+    <Custom Action="ca_VBoxSupDrvStartParms" Before="ca_VBoxSupDrvStart"
             Condition="NOT REMOVE" />
-    <Custom Action="ca_VBoxSupDrvStart" After="ca_VBoxSupDrvInst" 
+    <Custom Action="ca_VBoxSupDrvStart" After="ca_VBoxSupDrvInst"
             Condition="NOT REMOVE" />
 
     <!-- VBoxSUP.sys uninstallation.
