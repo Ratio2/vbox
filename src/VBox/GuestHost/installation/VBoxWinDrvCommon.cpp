@@ -370,19 +370,43 @@ int VBoxWinDrvInfQueryModelEx(HINF hInf, PCRTUTF16 pwszSection, unsigned uIndex,
     return rc;
 }
 
-int VBoxWinDrvInfQueryInstallSectionEx(HINF hInf, PCRTUTF16 pwszModel, PRTUTF16 *ppwszValue, PDWORD pcwcValue)
+/**
+ * Queries a section key by its index.
+ *
+ * @returns VBox status code.
+ * @param   hInf                INF handle to use.
+ * @param   pwszSection         Section name to search in.
+ * @param   uIndex              Index (zero-based) for key to search for.
+ * @param   ppwszValue          Where to return the allocated key value on success.
+ *                              Must be free'd using RTUtf16Free().
+ * @param   pcwcValue           Where to return the number of UTF-16 elements (not bytes!) of \a ppwszValue.
+ *                              Optional and can be NULL.
+ */
+int VBoxWinDrvInfQuerySectionKeyByIndex(HINF hInf, PCRTUTF16 pwszSection, DWORD uIndex, PRTUTF16 *ppwszValue, PDWORD pcwcValue)
 {
     INFCONTEXT InfCtx;
-    int rc = vboxWinDrvInfQueryContext(hInf, pwszModel, NULL, &InfCtx);
+    int rc = vboxWinDrvInfQueryContext(hInf, pwszSection, NULL, &InfCtx);
     if (RT_FAILURE(rc))
         return rc;
 
-    return VBoxWinDrvInfQueryKeyValue(&InfCtx, 1, ppwszValue, pcwcValue);
+    /* Also query the value? */
+    if (ppwszValue)
+        return VBoxWinDrvInfQueryKeyValue(&InfCtx, uIndex, ppwszValue, pcwcValue);
+
+    return VINF_SUCCESS;
 }
 
-int VBoxWinDrvInfQueryInstallSection(HINF hInf, PCRTUTF16 pwszModel, PRTUTF16 *ppwszValue)
+/**
+ * Returns whether an INF section exists or not.
+ *
+ * @returns @true if the section exists, @false if not.
+ * @param   hInf                INF handle to use.
+ * @param   pwszSection         Section name to check for.
+ */
+bool VBoxWinDrvInfSectionExists(HINF hInf, PCRTUTF16 pwszSection)
 {
-    return VBoxWinDrvInfQueryInstallSectionEx(hInf, pwszModel, ppwszValue, NULL);
+    return VBoxWinDrvInfQuerySectionKeyByIndex(hInf, pwszSection, 0 /* uIndex, ignored */,
+                                               NULL /* ppwszValue */, NULL /* pcwcValue */) == VINF_SUCCESS;
 }
 
 /**
