@@ -32,28 +32,67 @@
  *
  * Guest properties is a limited database maintained by the HGCM GuestProperties
  * service in cooperation with the Main API (VBoxSVC).  Properties have a name
- * (ours are path like), a string value, and a nanosecond timestamp (unix
- * epoch).  The timestamp lets the user see how recent the information is.  As
- * an laternative to polling on changes, it is also possible to wait on changes
- * via the Main API or VBoxManage on the host side and VBoxControl in the guest.
+ * (ours are path-like), a string value, and a nanosecond timestamp (unix epoch
+ * base).  The timestamp lets the user see how recent the information is.  As an
+ * laternative to polling on changes, it is also possible to wait on changes via
+ * the Main API or VBoxManage on the host side and VBoxControl in the guest.
  *
  * The namespace "/VirtualBox/" is reserved for value provided by VirtualBox.
- * This service provides all the information under "/VirtualBox/GuestInfo/".
+ *
+ * This subservice provides all the information under "/VirtualBox/GuestInfo/" (
+ * except for (some stupid reson) "/VirtualBox/GuestInfo/OS/AutoLogonStatus"
+ * which is written by the GINA and credential provider plugins on Windows) and
+ * some bits under "/VirtualBox/GuestAdd/"
+ *
+ * The properties are either of a fixed or transient (changing/temporary) in
+ * nature. The fixed properties are typically updated only when the subservice
+ * starts and the transient ones are updated at an interval.
+ *
+ *
+ * @section sec_vgsvc_vminfo_fixed      Fixed Properties
+ *
+ * To the fixed properties belong things like guest OS version, additions
+ * version, additions installation path and component info.
+ *
+ *
+ * @section sec_vgsvc_vminfo_transient  Transient Properties & Caching
+ *
+ * Transient properties provided by this subservice are for things are may
+ * change over time, for instance network addresses, the number of logged in
+ * users and such.  These properties will be delete (or in rare cases set to a
+ * special value) when the subservice is shut down.  When the VM is reset or
+ * powered off they will deleted.
+ *
+ * They are updated by the subservice every so often, with the interval given by
+ * the --vminfo-interval or --interval options.
+ *
+ * While the information provided by these properties is volatile, it is
+ * typically not changing at every update interval.  So, to avoid frequent
+ * writing of the same info to the host, we use a 'cache' to track the
+ * information we've already written to the host and how to deal with it when
+ * the subservice shuts down.  (While the 'cache' can be used for fixed
+ * properties, it is currently only used for transient ones and therefore it
+ * defaults to the standard transient behaviour when adding new entries to it.)
  *
  *
  * @section sec_vgsvc_vminfo_beacons    Beacons
  *
- * The subservice does not write properties unless there are changes.  So, in
- * order for the host side to know that information is up to date despite an
- * oldish timestamp we define a couple of values that are always updated and can
- * reliably used to figure how old the information actually is.
+ * As mentioned, the subservice does not write properties unless there are
+ * changes. So, in order for the host side to know that information is up to
+ * date despite an oldish timestamp we define a couple of values that are always
+ * updated and can reliably used to figure how old the information actually is.
  *
  * For the networking part "/VirtualBox/GuestInfo/Net/Count" is the value to
  * watch out for.
  *
- * For the login part, it's possible that we intended to use
- * "/VirtualBox/GuestInfo/OS/LoggedInUsers" for this, however it is not defined
- * correctly and current does NOT work as a beacon.
+ * For the login part "/VirtualBox/GuestInfo/OS/LoggedInUsers" is the value to
+ * watch, starting with VBox 7.2.6.
+ *
+ *
+ * @section sec_vgsvc_vminfo_properties Property List
+ *
+ * @todo list the properties with some explanation.
+ *
  *
  */
 
@@ -261,60 +300,66 @@ static DECLCALLBACK(int) vbsvcVMInfoInit(void)
     {
         VGSvcVerbose(3, "Property Service Client ID: %#x\n", g_VMInfoGuestPropSvcClient.idClient);
 
-        VGSvcPropCacheCreate(&g_VMInfoPropCache, &g_VMInfoGuestPropSvcClient);
-
-        /*
-         * Declare some guest properties with flags and reset values.
-         */
-        int rc2 = VGSvcPropCacheUpdateEntry(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsersList,
-                                            VGSVCPROPCACHE_FLAGS_TEMPORARY | VGSVCPROPCACHE_FLAGS_TRANSIENT,
-                                            NULL /* Delete on exit */);
-        if (RT_FAILURE(rc2))
-            VGSvcError("Failed to init property cache value '%s', rc=%Rrc\n", g_pszPropCacheValLoggedInUsersList, rc2);
-
-        rc2 = VGSvcPropCacheUpdateEntry(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsers,
-                                        VGSVCPROPCACHE_FLAGS_TEMPORARY | VGSVCPROPCACHE_FLAGS_TRANSIENT, "0");
-        if (RT_FAILURE(rc2))
-            VGSvcError("Failed to init property cache value '%s', rc=%Rrc\n", g_pszPropCacheValLoggedInUsers, rc2);
-
-        rc2 = VGSvcPropCacheUpdateEntry(&g_VMInfoPropCache, g_pszPropCacheValNoLoggedInUsers,
-                                        VGSVCPROPCACHE_FLAGS_TEMPORARY | VGSVCPROPCACHE_FLAGS_TRANSIENT, "true");
-        if (RT_FAILURE(rc2))
-            VGSvcError("Failed to init property cache value '%s', rc=%Rrc\n", g_pszPropCacheValNoLoggedInUsers, rc2);
-
-        rc2 = VGSvcPropCacheUpdateEntry(&g_VMInfoPropCache, g_pszPropCacheValNetCount,
-                                        VGSVCPROPCACHE_FLAGS_TEMPORARY | VGSVCPROPCACHE_FLAGS_ALWAYS_UPDATE,
-                                        NULL /* Delete on exit */);
-        if (RT_FAILURE(rc2))
-            VGSvcError("Failed to init property cache value '%s', rc=%Rrc\n", g_pszPropCacheValNetCount, rc2);
-
-        /*
-         * Get configuration guest properties from the host.
-         * Note: All properties should have sensible defaults in case the lookup here fails.
-         */
-        char *pszValue;
-        rc2 = VGSvcReadHostProp(&g_VMInfoGuestPropSvcClient, "/VirtualBox/GuestAdd/VBoxService/--vminfo-user-idle-threshold",
-                                true /* Read only */, &pszValue, NULL /* Flags */, NULL /* Timestamp */);
-        if (RT_SUCCESS(rc2))
+        rc = VGSvcPropCacheInit(&g_VMInfoPropCache, &g_VMInfoGuestPropSvcClient);
+        if (RT_SUCCESS(rc))
         {
-            AssertPtr(pszValue);
-            g_uVMInfoUserIdleThresholdMS = RTStrToUInt32(pszValue);
-            g_uVMInfoUserIdleThresholdMS = RT_CLAMP(g_uVMInfoUserIdleThresholdMS, 1000, UINT32_MAX - 1);
-            RTStrFree(pszValue);
+            /*
+             * Declare some guest properties with flags and reset values.
+             *
+             * We ignore errors here, though, we probably shouldn't as the only
+             * error is running out of memory or process corruption.
+             */
+            int rc2 = VGSvcPropCacheDeclareEntry(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsersList,
+                                                 VGSVCPROPCACHE_FLAGS_TMP_DEL_TRANSRESET, NULL);
+            AssertLogRelRC(rc2);
+
+            /** @todo r=bird: we should delete this one on termination just like
+             *        g_pszPropCacheValNetCount! */
+            rc2 = VGSvcPropCacheDeclareEntry(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsers,
+                                             VGSVCPROPCACHE_FLAGS_TMP_TRANSRESET | VGSVCPROPCACHE_FLAGS_ALWAYS_UPDATE, "0");
+            AssertLogRelRC(rc2);
+
+            /** @todo r=bird: we should delete this one on termination! 'true' can be
+             *        misleading, absence won't. */
+            rc2 = VGSvcPropCacheDeclareEntry(&g_VMInfoPropCache, g_pszPropCacheValNoLoggedInUsers,
+                                             VGSVCPROPCACHE_FLAGS_TMP_TRANSRESET, "true");
+            AssertLogRelRC(rc2);
+
+            rc2 = VGSvcPropCacheDeclareEntry(&g_VMInfoPropCache, g_pszPropCacheValNetCount,
+                                             VGSVCPROPCACHE_FLAGS_TMP_DEL | VGSVCPROPCACHE_FLAGS_ALWAYS_UPDATE, NULL);
+            AssertLogRelRC(rc2);
+
+            /*
+             * Get configuration guest properties from the host.
+             * Note: All properties should have sensible defaults in case the lookup here fails.
+             */
+            char *pszValue;
+            rc2 = VGSvcReadHostProp(&g_VMInfoGuestPropSvcClient, "/VirtualBox/GuestAdd/VBoxService/--vminfo-user-idle-threshold",
+                                    true /* Read only */, &pszValue, NULL /* Flags */, NULL /* Timestamp */);
+            if (RT_SUCCESS(rc2))
+            {
+                AssertPtr(pszValue);
+                g_uVMInfoUserIdleThresholdMS = RTStrToUInt32(pszValue);
+                g_uVMInfoUserIdleThresholdMS = RT_CLAMP(g_uVMInfoUserIdleThresholdMS, 1000, UINT32_MAX - 1);
+                RTStrFree(pszValue);
+            }
+
+            return VINF_SUCCESS;
         }
 
-        return VINF_SUCCESS;
+        VGSvcError("Failed to init guest property cache: %Rrc\n", rc);
+        VbglGuestPropDisconnect(&g_VMInfoGuestPropSvcClient);
     }
-
     /* If the service was not found, we disable this service without
        causing VBoxService to fail. */
-    if (rc == VERR_HGCM_SERVICE_NOT_FOUND) /* Host service is not available. */
+    else if (rc == VERR_HGCM_SERVICE_NOT_FOUND) /* Host service is not available. */
     {
         VGSvcVerbose(0, "Guest property service is not available, disabling the service\n");
         rc = VERR_SERVICE_DISABLED;
     }
     else
         VGSvcError("Failed to connect to the guest property service! Error: %Rrc\n", rc);
+
     RTSemEventMultiDestroy(g_hVMInfoEvent);
     g_hVMInfoEvent = NIL_RTSEMEVENTMULTI;
     return rc;
@@ -434,18 +479,21 @@ DECLHIDDEN(int) VGSvcUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char *psz
     AssertPtrReturn(pszKey, VERR_INVALID_POINTER);
     AssertPtrNullReturn(pszValueFormat, VERR_INVALID_POINTER);
 
-    /* Historically we limit guest property names to 64 characters (see GUEST_PROP_MAX_NAME_LEN, including terminator).
-     * So we need to make sure the stuff we want to write as a value fits into that space. See bugref{10575}. */
-
-    /* Try to write things the legacy way first. */
+    /*
+     * We limit guest property names to 64 characters (see GUEST_PROP_MAX_NAME_LEN,
+     * including terminator). So, we need to make sure the stuff we want to write
+     * as a value fits into that space. See bugref{10575}.
+     */
     char szName[GUEST_PROP_MAX_NAME_LEN];
     AssertCompile(GUEST_PROP_MAX_NAME_LEN == 64); /* Can we improve stuff once we (ever) raise this limit? */
-    ssize_t const cchVal = pszDomain
-                         ? RTStrPrintf2(szName, sizeof(szName), "%s/%s@%s/%s", g_pszPropCacheKeyUser, pszUser, pszDomain, pszKey)
-                         : RTStrPrintf2(szName, sizeof(szName), "%s/%s/%s",    g_pszPropCacheKeyUser, pszUser, pszKey);
+
+    /* Try to write things the legacy way first. */ /** @todo r=bird: Which legacy is this? */
+    ssize_t const cchName = pszDomain
+                          ? RTStrPrintf2(szName, sizeof(szName), "%s/%s@%s/%s", g_pszPropCacheKeyUser, pszUser, pszDomain, pszKey)
+                          : RTStrPrintf2(szName, sizeof(szName), "%s/%s/%s",    g_pszPropCacheKeyUser, pszUser, pszKey);
 
     /* Did we exceed the length limit? Tell the caller to try again with some more sane values. */
-    if (cchVal < 0)
+    if (cchName < 0)
         return VERR_BUFFER_OVERFLOW;
 
     int rc = VINF_SUCCESS;
@@ -465,16 +513,7 @@ DECLHIDDEN(int) VGSvcUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char *psz
     }
 
     if (RT_SUCCESS(rc))
-    {
         rc = VGSvcPropCacheUpdate(pCache, szName, pszValue);
-        if (rc == VINF_SUCCESS) /* VGSvcPropCacheUpdate will also return VINF_NO_CHANGE. */
-        {
-            /** @todo Combine updating flags w/ updating the actual value. */
-            rc = VGSvcPropCacheUpdateEntry(pCache, szName,
-                                           VGSVCPROPCACHE_FLAGS_TEMPORARY | VGSVCPROPCACHE_FLAGS_TRANSIENT,
-                                           NULL /* Delete on exit */);
-        }
-    }
 
     RTStrFree(pszValue);
     return rc;
@@ -697,6 +736,11 @@ static int vgsvcVMInfoWriteUsers(void)
     cUsersInList = 0;
 
 #ifdef RT_OS_WINDOWS
+    /* We're passing &g_VMInfoPropCache to this function, however, it's only
+       ever used to call back into VGSvcUserUpdateF and VGSvcUserUpdateV (which
+       doesn't technically need them). */
+/** @todo r=bird: confusing function name. It does write users, but it also
+ *        retrieves the user list and count. */
     rc = VGSvcVMInfoWinWriteUsers(&g_VMInfoPropCache, &pszUserList, &cUsersInList);
 
 #elif defined(RT_OS_FREEBSD)
@@ -740,9 +784,7 @@ static int vgsvcVMInfoWriteUsers(void)
         /* Make sure we don't add user names which are not
          * part of type USER_PROCES. */
         if (ut_user->ut_type == USER_PROCESS) /* Regular user process. */
-        {
             vgsvcVMInfoAddUserToList(ut_user->ut_user, "utmpx");
-        }
     }
 
 # ifdef VBOX_WITH_DBUS
@@ -893,9 +935,7 @@ static int vgsvcVMInfoWriteUsers(void)
 
         vboxService_dbus_message_discard(&pMsgSessions);
         if (dbus_error_is_set(&dbErr))
-        {
             dbus_error_free(&dbErr);
-        }
     }
     if (RT_SUCCESS(rc2))
     {
@@ -1112,7 +1152,7 @@ static int vgsvcVMInfoWriteUsers(void)
 
     /*
      * If the user enumeration above failed, reset the user count to 0 except
-     * we didn't have enough memory anymore. In that case we want to preserve
+     * if we didn't have enough memory anymore. In that case we want to preserve
      * the previous user count in order to not confuse third party tools which
      * rely on that count.
      */
@@ -1134,25 +1174,19 @@ static int vgsvcVMInfoWriteUsers(void)
 
     VGSvcVerbose(4, "cUsersInList=%RU32, pszUserList=%s, rc=%Rrc\n", cUsersInList, pszUserList ? pszUserList : "<NULL>", rc);
 
-    if (pszUserList)
-    {
-        AssertMsg(cUsersInList, ("pszUserList contains users whereas cUsersInList is 0\n"));
-        rc = VGSvcPropCacheUpdate(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsersList, pszUserList);
-    }
-    else
-        rc = VGSvcPropCacheUpdate(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsersList, NULL);
+    AssertMsg(!pszUserList || cUsersInList, ("pszUserList contains users whereas cUsersInList is 0: %s\n", pszUserList));
+    rc = VGSvcPropCacheUpdate(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsersList, pszUserList);
     if (RT_FAILURE(rc))
         VGSvcError("Error writing logged in users list, rc=%Rrc\n", rc);
 
-    rc = VGSvcPropCacheUpdateF(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsers, "%RU32", cUsersInList);
-    if (RT_FAILURE(rc))
-        VGSvcError("Error writing logged in users count, rc=%Rrc\n", rc);
-
-/** @todo r=bird: What's this 'beacon' nonsense here?  It's _not_ defined with
- *        the VGSVCPROPCACHE_FLAGS_ALWAYS_UPDATE flag set!!  */
     rc = VGSvcPropCacheUpdate(&g_VMInfoPropCache, g_pszPropCacheValNoLoggedInUsers, cUsersInList == 0 ? "true" : "false");
     if (RT_FAILURE(rc))
-        VGSvcError("Error writing no logged in users beacon, rc=%Rrc\n", rc);
+        VGSvcError("Error writing no logged in users, rc=%Rrc\n", rc);
+
+    /* (This is the operation which return code counts and must be returned.) */
+    rc = VGSvcPropCacheUpdateF(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsers, "%RU32", cUsersInList);
+    if (RT_FAILURE(rc))
+        VGSvcError("Error writing logged in users count (beacon), rc=%Rrc\n", rc);
 
     if (pszUserList)
         RTStrFree(pszUserList);
@@ -1307,21 +1341,17 @@ static int vgsvcVMInfoWriteNetwork(void)
         RTStrPrintf(szPropPath, sizeof(szPropPath), "/VirtualBox/GuestInfo/Net/%RU32/Status", cIfsReported);
         VGSvcPropCacheUpdate(&g_VMInfoPropCache, szPropPath, aInterfaces[i].iiFlags & IFF_UP ? "Up" : "Down");
 
-        if (pAdpInfo)
-        {
-            IP_ADAPTER_INFO *pAdp;
-            for (pAdp = pAdpInfo; pAdp; pAdp = pAdp->Next)
-                if (!strcmp(pAdp->IpAddressList.IpAddress.String, szIp))
-                    break;
-
-            RTStrPrintf(szPropPath, sizeof(szPropPath), "/VirtualBox/GuestInfo/Net/%RU32/MAC", cIfsReported);
-            if (pAdp)
-                VGSvcPropCacheUpdateF(&g_VMInfoPropCache, szPropPath, "%02X%02X%02X%02X%02X%02X",
-                                      pAdp->Address[0], pAdp->Address[1], pAdp->Address[2],
-                                      pAdp->Address[3], pAdp->Address[4], pAdp->Address[5]);
-            else
-                VGSvcPropCacheUpdate(&g_VMInfoPropCache, szPropPath, NULL);
-        }
+        RTStrPrintf(szPropPath, sizeof(szPropPath), "/VirtualBox/GuestInfo/Net/%RU32/MAC", cIfsReported);
+        IP_ADAPTER_INFO *pAdp;
+        for (pAdp = pAdpInfo; pAdp; pAdp = pAdp->Next)
+            if (!strcmp(pAdp->IpAddressList.IpAddress.String, szIp))
+                break;
+        if (pAdp)
+            VGSvcPropCacheUpdateF(&g_VMInfoPropCache, szPropPath, "%02X%02X%02X%02X%02X%02X",
+                                  pAdp->Address[0], pAdp->Address[1], pAdp->Address[2],
+                                  pAdp->Address[3], pAdp->Address[4], pAdp->Address[5]);
+        else
+            VGSvcPropCacheUpdate(&g_VMInfoPropCache, szPropPath, NULL);
 
         cIfsReported++;
     }
@@ -1375,20 +1405,23 @@ static int vgsvcVMInfoWriteNetwork(void)
             VGSvcPropCacheUpdate(&g_VMInfoPropCache, szPropPath, szInetAddr);
 
             /* Search for the AF_LINK interface of the current AF_INET one and get the mac. */
+            RTStrPrintf(szPropPath, sizeof(szPropPath), "/VirtualBox/GuestInfo/Net/%RU32/MAC", cIfsReported);
+            uint8_t const *pu8Mac = NULL;
             for (struct ifaddrs *pIfLinkCurr = pIfHead; pIfLinkCurr; pIfLinkCurr = pIfLinkCurr->ifa_next)
-            {
                 if (   pIfLinkCurr->ifa_addr->sa_family == AF_LINK
                     && !strcmp(pIfCurr->ifa_name, pIfLinkCurr->ifa_name))
                 {
                     struct sockaddr_dl *pLinkAddress = (struct sockaddr_dl *)pIfLinkCurr->ifa_addr;
                     AssertPtr(pLinkAddress);
                     uint8_t const      *pu8Mac       = (uint8_t const *)LLADDR(pLinkAddress);
-                    RTStrPrintf(szPropPath, sizeof(szPropPath), "/VirtualBox/GuestInfo/Net/%RU32/MAC", cIfsReported);
-                    VGSvcPropCacheUpdateF(&g_VMInfoPropCache, szPropPath, "%02X%02X%02X%02X%02X%02X",
-                                          pu8Mac[0], pu8Mac[1], pu8Mac[2], pu8Mac[3],  pu8Mac[4], pu8Mac[5]);
+                    AssertPtr(pu8Mac);
                     break;
                 }
-            }
+            if (pu8Mac)
+                VGSvcPropCacheUpdateF(&g_VMInfoPropCache, szPropPath, "%02X%02X%02X%02X%02X%02X",
+                                      pu8Mac[0], pu8Mac[1], pu8Mac[2], pu8Mac[3],  pu8Mac[4], pu8Mac[5]);
+            else
+                VGSvcPropCacheUpdate(&g_VMInfoPropCache, szPropPath, NULL);
 
             RTStrPrintf(szPropPath, sizeof(szPropPath), "/VirtualBox/GuestInfo/Net/%RU32/Status", cIfsReported);
             VGSvcPropCacheUpdate(&g_VMInfoPropCache, szPropPath, pIfCurr->ifa_flags & IFF_UP ? "Up" : "Down");
@@ -1585,6 +1618,7 @@ static int vgsvcVMInfoWriteNetwork(void)
                 VGSvcVerbose(2, "VMInfo/Network: Interface '%s' has no assigned IP address, skipping ...\n", pCur->ifr_name);
                 continue;
             }
+
 # elif defined(RT_OS_OS2)
             RTMAC   IfMac;
             if (   pPrevLinkAddr
@@ -1595,7 +1629,8 @@ static int vgsvcVMInfoWriteNetwork(void)
             }
             else
                 RT_ZERO(IfMac);
-#else
+
+# else
             if (ioctl(sd, SIOCGIFHWADDR, &IfReqTmp) < 0)
             {
                 rc = RTErrConvertFromErrno(errno);
@@ -1604,6 +1639,7 @@ static int vgsvcVMInfoWriteNetwork(void)
             }
             RTMAC IfMac = *(PRTMAC)&IfReqTmp.ifr_hwaddr.sa_data[0];
 # endif
+
             strcpy(&szPropPath[offSubProp], "/MAC");
             VGSvcPropCacheUpdateF(&g_VMInfoPropCache, szPropPath, "%02X%02X%02X%02X%02X%02X",
                                   IfMac.au8[0], IfMac.au8[1], IfMac.au8[2], IfMac.au8[3], IfMac.au8[4], IfMac.au8[5]);
@@ -1612,12 +1648,12 @@ static int vgsvcVMInfoWriteNetwork(void)
             VGSvcPropCacheUpdate(&g_VMInfoPropCache, szPropPath, fIfUp ? "Up" : "Down");
 
             /* The name. */
+            strcpy(&szPropPath[offSubProp], "/Name");
             int rc2 = RTStrValidateEncodingEx(pCur->ifr_name, sizeof(pCur->ifr_name), 0);
             if (RT_SUCCESS(rc2))
-            {
-                strcpy(&szPropPath[offSubProp], "/Name");
                 VGSvcPropCacheUpdateF(&g_VMInfoPropCache, szPropPath, "%.*s", sizeof(pCur->ifr_name), pCur->ifr_name);
-            }
+            else
+                VGSvcPropCacheUpdate(&g_VMInfoPropCache, szPropPath, NULL);
 
             cIfsReported++;
         }
@@ -1705,6 +1741,12 @@ static DECLCALLBACK(int) vbsvcVMInfoWorker(bool volatile *pfShutdown)
     vgsvcVMInfoWriteFixedProperties();
 
     /*
+     * Cleanup old properties before we start.
+     */
+    const char *apszPat[1] = { "/VirtualBox/GuestInfo/Net/*" };
+    VbglGuestPropDelSet(&g_VMInfoGuestPropSvcClient, &apszPat[0], RT_ELEMENTS(apszPat));
+
+    /*
      * Now enter the loop retrieving runtime data continuously.
      */
     for (;;)
@@ -1720,8 +1762,10 @@ static DECLCALLBACK(int) vbsvcVMInfoWorker(bool volatile *pfShutdown)
         /* Whether to wait for event semaphore or not. */
         bool fWait = true;
 
-        /* Check for location awareness. This most likely only
-         * works with VBox (latest) 4.1 and up. */
+        /*
+         * Check for location awareness.
+         * This most likely only works with VBox 4.1 and later.
+         */
 
         /* Check for new connection. */
         char *pszLAClientID = NULL;
@@ -1823,18 +1867,20 @@ static DECLCALLBACK(int) vbsvcVMInfoWorker(bool volatile *pfShutdown)
             rc2 = RTSemEventMultiWait(g_hVMInfoEvent, g_cMsVMInfoInterval);
         if (*pfShutdown)
             break;
-        if (rc2 != VERR_TIMEOUT && RT_FAILURE(rc2))
-        {
-            VGSvcError("RTSemEventMultiWait failed; rc2=%Rrc\n", rc2);
-            rc = rc2;
-            break;
-        }
-        else if (RT_LIKELY(RT_SUCCESS(rc2)))
+        if (rc2 == VERR_TIMEOUT)
+        { /* likely */ }
+        else if (RT_SUCCESS(rc2))
         {
             /* Reset event semaphore if it got triggered. */
             rc2 = RTSemEventMultiReset(g_hVMInfoEvent);
             if (RT_FAILURE(rc2))
                 VGSvcError("RTSemEventMultiReset failed; rc2=%Rrc\n", rc2);
+        }
+        else
+        {
+            VGSvcError("RTSemEventMultiWait failed; rc2=%Rrc\n", rc2);
+            rc = rc2;
+            break;
         }
     }
 
@@ -1863,34 +1909,14 @@ static DECLCALLBACK(void) vbsvcVMInfoTerm(void)
 {
     if (g_hVMInfoEvent != NIL_RTSEMEVENTMULTI)
     {
-        /** @todo temporary solution: Zap all values which are not valid
-         *        anymore when VM goes down (reboot/shutdown ). Needs to
-         *        be replaced with "temporary properties" later.
-         *
-         *        One idea is to introduce a (HGCM-)session guest property
-         *        flag meaning that a guest property is only valid as long
-         *        as the HGCM session isn't closed (e.g. guest application
-         *        terminates). [don't remove till implemented]
-         */
-        /** @todo r=bird: This temporary solution is making BAD ASSUMPTIONS like
-         *        VBoxService only stop when the VM is rebooted or shutdown.
-         *        If VBoxService is restarted for some other reason (some parameter
-         *        change), we'll nuke the still valid network data here. */
-        /** @todo r=bird: Drop the VbglGuestPropDelSet call here and use the cache
-         *        since it remembers what we've written. */
-        /** @todo r=bird: Haven't we've already implemented this? */
-        /* Delete the "../Net" branch. */
-        const char *apszPat[1] = { "/VirtualBox/GuestInfo/Net/*" };
-        VbglGuestPropDelSet(&g_VMInfoGuestPropSvcClient, &apszPat[0], RT_ELEMENTS(apszPat));
-
-        /* Destroy LA client info. */
-        vgsvcFreeLAClientInfo(&g_LAClientInfo);
-
-        /* Destroy property cache. */
-        VGSvcPropCacheDestroy(&g_VMInfoPropCache);
+        /* Destroy property cache (will delete or reset temporary values) */
+        VGSvcPropCacheTerm(&g_VMInfoPropCache);
 
         /* Disconnect from guest properties service. */
         VbglGuestPropDisconnect(&g_VMInfoGuestPropSvcClient);
+
+        /* Destroy LA client info. */
+        vgsvcFreeLAClientInfo(&g_LAClientInfo);
 
         RTSemEventMultiDestroy(g_hVMInfoEvent);
         g_hVMInfoEvent = NIL_RTSEMEVENTMULTI;
