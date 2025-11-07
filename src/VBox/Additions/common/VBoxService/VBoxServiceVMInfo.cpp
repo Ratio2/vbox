@@ -502,31 +502,6 @@ int VGSvcUserUpdate(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const c
  * @param   pszKey                  Key name of guest property to update.
  * @param   pszValueFormat          Guest property value (format string) to set.
  *                                  Pass NULL for deleting the property.
- * @param   ...                     Format arguments.
- */
-int VGSvcUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
-                     const char *pszKey, const char *pszValueFormat, ...)
-{
-    va_list va;
-    va_start(va, pszValueFormat);
-    int rc = VGSvcUserUpdateV(pCache, pszUser, pszDomain, pszKey, pszValueFormat, va);
-    va_end(va);
-    return rc;
-}
-
-
-/**
- * Updates a per-guest user guest property inside the given property cache.
- *
- * @return  VBox status code.
- * @retval  VERR_BUFFER_OVERFLOW if the final property name length exceeds the maximum supported length.
- * @retval  VERR_INVALID_PARAMETER if the value is too long.
- * @param   pCache                  Pointer to guest property cache to update user in.
- * @param   pszUser                 Name of guest user to update.
- * @param   pszDomain               Domain of guest user to update. Optional.
- * @param   pszKey                  Key name of guest property to update.
- * @param   pszValueFormat          Guest property value (format string) to set.
- *                                  Pass NULL for deleting the property.
  * @param   va                      Format arguments.
  */
 int VGSvcUserUpdateV(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
@@ -546,6 +521,31 @@ int VGSvcUserUpdateV(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const 
     }
     else
         rc = VGSvcUserUpdate(pCache, pszUser, pszDomain, pszKey, NULL);
+    return rc;
+}
+
+
+/**
+ * Updates a per-guest user guest property inside the given property cache.
+ *
+ * @return  VBox status code.
+ * @retval  VERR_BUFFER_OVERFLOW if the final property name length exceeds the maximum supported length.
+ * @retval  VERR_INVALID_PARAMETER if the value is too long.
+ * @param   pCache                  Pointer to guest property cache to update user in.
+ * @param   pszUser                 Name of guest user to update.
+ * @param   pszDomain               Domain of guest user to update. Optional.
+ * @param   pszKey                  Key name of guest property to update.
+ * @param   pszValueFormat          Guest property value (format string) to set.
+ *                                  Pass NULL for deleting the property.
+ * @param   ...                     Format arguments.
+ */
+int VGSvcUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
+                     const char *pszKey, const char *pszValueFormat, ...)
+{
+    va_list va;
+    va_start(va, pszValueFormat);
+    int rc = VGSvcUserUpdateV(pCache, pszUser, pszDomain, pszKey, pszValueFormat, va);
+    va_end(va);
     return rc;
 }
 

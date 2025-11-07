@@ -277,7 +277,7 @@ extern int                      VGSvcUserUpdate(PVBOXSERVICEVEPROPCACHE pCache, 
 extern int                      VGSvcUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
                                                  const char *pszKey, const char *pszValueFormat, ...);
 extern int                      VGSvcUserUpdateV(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
-                                                 const char *pszKey, const char *pszFormat, va_list va);
+                                                 const char *pszKey, const char *pszValueFormat, va_list va);
 extern int                      VGSvcVMInfoWinWriteUsers(PVBOXSERVICEVEPROPCACHE pCache, char **ppszUserList, uint32_t *pcUsersInList);
 extern int                      VGSvcVMInfoWinGetComponentVersions(PVBGLGSTPROPCLIENT pClient);
 # endif /* VBOX_WITH_GUEST_PROPS */
