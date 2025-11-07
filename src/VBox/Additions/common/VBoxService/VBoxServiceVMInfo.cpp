@@ -1413,7 +1413,7 @@ static int vgsvcVMInfoWriteNetwork(void)
                 {
                     struct sockaddr_dl *pLinkAddress = (struct sockaddr_dl *)pIfLinkCurr->ifa_addr;
                     AssertPtr(pLinkAddress);
-                    uint8_t const      *pu8Mac       = (uint8_t const *)LLADDR(pLinkAddress);
+                    pu8Mac = (uint8_t const *)LLADDR(pLinkAddress);
                     AssertPtr(pu8Mac);
                     break;
                 }
