@@ -66,11 +66,14 @@ typedef struct VBOXWINDRVINSTPARMS
     {
         struct
         {
-            /** Model including decoration (e.g. "VBoxUSB.NTAMD64"); optional and might be NULL. */
+            /** Model including decoration (e.g. "VBoxUSB.NTAMD64"); optional and might be NULL.
+             *  For primitive drivers this always is NULL. */
             PRTUTF16   pwszModel;
-            /** Hardware (Pnp) ID; optional and might be NULL. */
+            /** Hardware (Pnp) ID; optional and might be NULL.
+             * For primitive drivers this always is NULL. */
             PRTUTF16   pwszPnpId;
-            /** Name of section to install. */
+            /** Name of section to (un)install.
+             *  This marks the main section (entry point) of the specific driver model to handle. */
             PRTUTF16   pwszSection;
         } UnInstall;
         struct
