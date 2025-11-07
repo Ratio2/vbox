@@ -58,6 +58,7 @@ int VBoxWinDrvInfOpenEx(PCRTUTF16 pwszInfFile, PRTUTF16 pwszClassName, HINF *phI
 int VBoxWinDrvInfOpen(PCRTUTF16 pwszInfFile, HINF *phInf);
 int VBoxWinDrvInfOpenUtf8(const char *pszInfFile, HINF *phInf);
 int VBoxWinDrvInfClose(HINF hInf);
+PRTUTF16 VBoxWinDrvInfGetPathFromId(unsigned idDir, PCRTUTF16 pwszSubDir);
 VBOXWINDRVINFTYPE VBoxWinDrvInfGetTypeEx(HINF hInf, PRTUTF16 *ppwszSection);
 VBOXWINDRVINFTYPE VBoxWinDrvInfGetType(HINF hInf);
 int VBoxWinDrvInfQueryFirstModel(HINF hInf, PCRTUTF16 pwszSection, PRTUTF16 *ppwszModel);

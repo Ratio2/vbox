@@ -57,6 +57,80 @@ static int vboxWinDrvInfQueryContext(HINF hInf, LPCWSTR pwszSection, LPCWSTR pws
 
 
 /**
+ * Returns the path from a given INF directory ID.
+ *
+ * @returns Allocated path on success, or NULL if not implemented / invalid.
+ *          Must be free'd using RTUtf16Free().
+ * @param   idDir               Directory ID to return path for.
+ * @param   pwszSubDir          Sub directory to append to the looked up directory.
+ *                              Optional and might be NULL.
+ */
+PRTUTF16 VBoxWinDrvInfGetPathFromId(unsigned idDir, PCRTUTF16 pwszSubDir)
+{
+    RTUTF16 wszDirBase[RTPATH_MAX];
+    wszDirBase[0] = L'\0';
+
+    int rc = VINF_SUCCESS;
+
+    switch (idDir)
+    {
+        case 10: /* %SystemRoot% */
+        {
+            if (!GetSystemDirectoryW(wszDirBase, RT_ELEMENTS(wszDirBase)))
+                rc = RTErrConvertFromWin32(GetLastError());
+            break;
+        }
+
+        case 11: /* %SystemRoot%\system32 */
+        {
+            if (!GetWindowsDirectoryW(wszDirBase, RT_ELEMENTS(wszDirBase)))
+                rc = RTErrConvertFromWin32(GetLastError());
+            else
+                rc = RTUtf16Cat(wszDirBase, RT_ELEMENTS(wszDirBase), L"\\System32");
+            break;
+        }
+
+        case 12: /* SystemRoot%\system32\drivers  */
+        {
+            if (!GetWindowsDirectoryW(wszDirBase, RT_ELEMENTS(wszDirBase)))
+                rc = RTErrConvertFromWin32(GetLastError());
+            else
+                rc = RTUtf16Cat(wszDirBase, RT_ELEMENTS(wszDirBase), L"\\System32\\drivers");
+            break;
+        }
+
+        case 17: /* INF directory */
+        {
+            if (!GetWindowsDirectoryW(wszDirBase, RT_ELEMENTS(wszDirBase)))
+                rc = RTErrConvertFromWin32(GetLastError());
+            else
+                rc = RTUtf16Cat(wszDirBase, RT_ELEMENTS(wszDirBase), L"\\INF");
+            break;
+        }
+
+        default:
+            /** @todo Add more IDs once we need them. */
+            rc = VERR_NOT_IMPLEMENTED;
+            break;
+    }
+
+    if (   RT_SUCCESS(rc)
+        && pwszSubDir
+        && pwszSubDir[0] != L'\0')
+    {
+        rc = RTUtf16Cat(wszDirBase, RT_ELEMENTS(wszDirBase), L"\\");
+        if (RT_SUCCESS(rc))
+            rc = RTUtf16Cat(wszDirBase, RT_ELEMENTS(wszDirBase), pwszSubDir);
+    }
+
+    PRTUTF16 pwszPath = NULL;
+    if (RT_SUCCESS(rc))
+        pwszPath = RTUtf16Dup(wszDirBase);
+
+    return pwszPath;
+}
+
+/**
  * Returns the type of an INF file.
  *
  * @returns Type of the INF file.
