@@ -183,8 +183,10 @@ static const char              *g_pszPropCacheValLoggedInUsersList = "/VirtualBo
 static const char              *g_pszPropCacheValLoggedInUsers     = "/VirtualBox/GuestInfo/OS/LoggedInUsers";
 static const char              *g_pszPropCacheValNoLoggedInUsers   = "/VirtualBox/GuestInfo/OS/NoLoggedInUsers";
 static const char              *g_pszPropCacheValNetCount          = "/VirtualBox/GuestInfo/Net/Count";
+#ifdef RT_OS_WINDOWS
 /** A guest user's guest property root key. */
 static const char              *g_pszPropCacheKeyUser              = "/VirtualBox/GuestInfo/User";
+#endif
 /** The VM session ID. Changes whenever the VM is restored or reset. */
 static uint64_t                 g_idVMInfoSession;
 /** The last attached locartion awareness (LA) client timestamp. */
@@ -444,6 +446,7 @@ static void vgsvcFreeLAClientInfo(PVBOXSERVICELACLIENTINFO pClient)
     }
 }
 
+#ifdef RT_OS_WINDOWS
 
 /**
  * Updates a per-guest user guest property inside the given property cache.
@@ -549,6 +552,7 @@ int VGSvcUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const 
     return rc;
 }
 
+#endif /* RT_OS_WINDOWS */
 
 /**
  * Writes the properties that won't change while the service is running.
