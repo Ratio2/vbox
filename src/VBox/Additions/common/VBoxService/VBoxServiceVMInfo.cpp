@@ -460,10 +460,11 @@ static void vgsvcFreeLAClientInfo(PVBOXSERVICELACLIENTINFO pClient)
  * @param   pszValue                Guest property value to set. Pass NULL for
  *                                  deleting the property.
  */
-int VGSvcUserUpdate(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
-                    const char *pszKey, const char *pszValue)
+int VGSvcVMInfoUpdateUser(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
+                          const char *pszKey, const char *pszValue)
 {
     AssertPtrReturn(pCache, VERR_INVALID_POINTER);
+    Assert(pCache == &g_VMInfoPropCache);
     AssertPtrReturn(pszUser, VERR_INVALID_POINTER);
     AssertPtrNullReturn(pszDomain, VERR_INVALID_POINTER);
     AssertPtrReturn(pszKey, VERR_INVALID_POINTER);
@@ -507,8 +508,8 @@ int VGSvcUserUpdate(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const c
  *                                  Pass NULL for deleting the property.
  * @param   va                      Format arguments.
  */
-int VGSvcUserUpdateV(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
-                     const char *pszKey, const char *pszValueFormat, va_list va)
+int VGSvcVMInfoUpdateUserV(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
+                           const char *pszKey, const char *pszValueFormat, va_list va)
 {
     int rc;
     if (pszValueFormat)
@@ -518,12 +519,12 @@ int VGSvcUserUpdateV(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const 
         char    szValue[GUEST_PROP_MAX_VALUE_LEN];
         ssize_t cchValue = RTStrPrintf2V(szValue, sizeof(szValue), pszValueFormat, va);
         if (cchValue >= 0)
-            rc = VGSvcUserUpdate(pCache, pszUser, pszDomain, pszKey, szValue);
+            rc = VGSvcVMInfoUpdateUser(pCache, pszUser, pszDomain, pszKey, szValue);
         else
             rc = VERR_INVALID_PARAMETER;
     }
     else
-        rc = VGSvcUserUpdate(pCache, pszUser, pszDomain, pszKey, NULL);
+        rc = VGSvcVMInfoUpdateUser(pCache, pszUser, pszDomain, pszKey, NULL);
     return rc;
 }
 
@@ -542,12 +543,12 @@ int VGSvcUserUpdateV(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const 
  *                                  Pass NULL for deleting the property.
  * @param   ...                     Format arguments.
  */
-int VGSvcUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
-                     const char *pszKey, const char *pszValueFormat, ...)
+int VGSvcVMInfoUpdateUserF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
+                           const char *pszKey, const char *pszValueFormat, ...)
 {
     va_list va;
     va_start(va, pszValueFormat);
-    int rc = VGSvcUserUpdateV(pCache, pszUser, pszDomain, pszKey, pszValueFormat, va);
+    int rc = VGSvcVMInfoUpdateUserV(pCache, pszUser, pszDomain, pszKey, pszValueFormat, va);
     va_end(va);
     return rc;
 }
@@ -605,13 +606,13 @@ static void vgsvcVMInfoWriteFixedProperties(void)
     /*
      * Do windows specific properties.
      */
-    char *pszInstDir;
+    char *pszInstDir = NULL;
     rc = VbglR3QueryAdditionsInstallationPath(&pszInstDir);
     VGSvcWriteProp(&g_VMInfoGuestPropSvcClient, "/VirtualBox/GuestAdd/InstallDir", RT_SUCCESS(rc) ? pszInstDir : "");
     if (RT_SUCCESS(rc))
         RTStrFree(pszInstDir);
 
-    VGSvcVMInfoWinGetComponentVersions(&g_VMInfoGuestPropSvcClient);
+    VGSvcVMInfoWinWriteComponentVersions(&g_VMInfoGuestPropSvcClient);
 #endif
 }
 
@@ -638,9 +639,9 @@ static dbus_bool_t vboxService_dbus_message_append_args(DBusMessage *message, in
     return ret;
 }
 
-#ifndef DBUS_TYPE_VARIANT
-#define DBUS_TYPE_VARIANT       ((int) 'v')
-#endif
+# ifndef DBUS_TYPE_VARIANT
+#  define DBUS_TYPE_VARIANT      ((int) 'v')
+# endif
 /*
  * Wrapper to dig values out of dbus replies, which are contained in
  * a 'variant' and must be iterated into twice.
@@ -704,6 +705,7 @@ static void vboxService_dbus_message_discard(DBusMessage **ppMsg)
  * and dynamically maintaining the list storage)
  */
 #define USER_LIST_CHUNK_SIZE 32
+/** @todo wtf? */
 static uint32_t cUsersInList;
 static uint32_t cListSize;
 static char **papszUsers;
@@ -737,32 +739,31 @@ static void vgsvcVMInfoAddUserToList(const char *name, const char *src)
  */
 static int vgsvcVMInfoWriteUsers(void)
 {
-    int rc;
+    /*
+     * Get the number of logged in users and their names (comma separated list).
+     */
     char *pszUserList = NULL;
-
     cUsersInList = 0;
 
 #ifdef RT_OS_WINDOWS
     /* We're passing &g_VMInfoPropCache to this function, however, it's only
-       ever used to call back into VGSvcUserUpdateF and VGSvcUserUpdateV (which
+       ever used to call back into VGSvcVMInfoUpdateUserF and VGSvcVMInfoUpdateUserV (which
        doesn't technically need them). */
-/** @todo r=bird: confusing function name. It does write users, but it also
- *        retrieves the user list and count. */
-    rc = VGSvcVMInfoWinWriteUsers(&g_VMInfoPropCache, &pszUserList, &cUsersInList);
+    int rc = VGSvcVMInfoWinQueryUserListAndUpdateInfo(&g_VMInfoPropCache, &pszUserList, &cUsersInList);
 
 #elif defined(RT_OS_FREEBSD)
     /** @todo FreeBSD: Port logged on user info retrieval.
      *                 However, FreeBSD 9 supports utmpx, so we could use the code
      *                 block below (?). */
-    rc = VERR_NOT_IMPLEMENTED;
+    int rc = VERR_NOT_IMPLEMENTED;
 
 #elif defined(RT_OS_HAIKU)
     /** @todo Haiku: Port logged on user info retrieval. */
-    rc = VERR_NOT_IMPLEMENTED;
+    int rc = VERR_NOT_IMPLEMENTED;
 
 #elif defined(RT_OS_OS2)
     /** @todo OS/2: Port logged on (LAN/local/whatever) user info retrieval. */
-    rc = VERR_NOT_IMPLEMENTED;
+    int rc = VERR_NOT_IMPLEMENTED;
 
 #else
     setutxent();
@@ -771,10 +772,7 @@ static int vgsvcVMInfoWriteUsers(void)
 
     /* Allocate a first array to hold 32 users max. */
     papszUsers = (char **)RTMemAllocZ(cListSize * sizeof(char *));
-    if (papszUsers)
-        rc = VINF_SUCCESS;
-    else
-        rc = VERR_NO_MEMORY;
+    int rc = papszUsers ? VINF_SUCCESS : VERR_NO_MEMORY;
 
     /* Process all entries in the utmp file.
      * Note: This only handles */

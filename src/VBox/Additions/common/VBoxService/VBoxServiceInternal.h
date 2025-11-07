@@ -272,14 +272,15 @@ extern decltype(LsaNtStatusToWinError)         *g_pfnLsaNtStatusToWinError;
 
 # ifdef VBOX_WITH_GUEST_PROPS
 extern uint32_t                                 g_uVMInfoUserIdleThresholdMS;
-extern int                      VGSvcUserUpdate(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
-                                                const char *pszKey, const char *pszValue);
-extern int                      VGSvcUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
-                                                 const char *pszKey, const char *pszValueFormat, ...);
-extern int                      VGSvcUserUpdateV(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
-                                                 const char *pszKey, const char *pszValueFormat, va_list va);
-extern int                      VGSvcVMInfoWinWriteUsers(PVBOXSERVICEVEPROPCACHE pCache, char **ppszUserList, uint32_t *pcUsersInList);
-extern int                      VGSvcVMInfoWinGetComponentVersions(PVBGLGSTPROPCLIENT pClient);
+extern int                      VGSvcVMInfoUpdateUser(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
+                                                      const char *pszKey, const char *pszValue);
+extern int                      VGSvcVMInfoUpdateUserF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
+                                                       const char *pszKey, const char *pszValueFormat, ...);
+extern int                      VGSvcVMInfoUpdateUserV(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
+                                                       const char *pszKey, const char *pszValueFormat, va_list va);
+extern int                      VGSvcVMInfoWinQueryUserListAndUpdateInfo(PVBOXSERVICEVEPROPCACHE pCache,
+                                                                         char **ppszUserList, uint32_t *pcUsersInList);
+extern int                      VGSvcVMInfoWinWriteComponentVersions(PVBGLGSTPROPCLIENT pClient);
 # endif /* VBOX_WITH_GUEST_PROPS */
 
 #endif /* RT_OS_WINDOWS */

@@ -1045,13 +1045,13 @@ static int vgsvcVMInfoWinUserSidLookup(const char *pszUser, PSID *ppSid)
 static int vgsvcVMInfoWinUserUpdateFallbackV(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
                                              WCHAR *pwszSid, const char *pszKey, const char *pszValueFormat, va_list va)
 {
-    int rc = VGSvcUserUpdate(pCache, pszUser, NULL /* pszDomain */, "Domain", pszDomain);
+    int rc = VGSvcVMInfoUpdateUser(pCache, pszUser, NULL /* pszDomain */, "Domain", pszDomain);
     if (pwszSid && RT_SUCCESS(rc))
-        rc = VGSvcUserUpdateF(pCache, pszUser, NULL /* pszDomain */, "SID", "%ls", pwszSid);
+        rc = VGSvcVMInfoUpdateUserF(pCache, pszUser, NULL /* pszDomain */, "SID", "%ls", pwszSid);
 
     /* Last but no least, write the actual guest property value we initially were called for.
      * We always do this, no matter of what the outcome from above was. */
-    int rc2 = VGSvcUserUpdateV(pCache, pszUser, NULL /* pszDomain */, pszKey, pszValueFormat, va);
+    int rc2 = VGSvcVMInfoUpdateUserV(pCache, pszUser, NULL /* pszDomain */, pszKey, pszValueFormat, va);
     if (RT_SUCCESS(rc))
         rc2 = rc;
 
@@ -1060,7 +1060,7 @@ static int vgsvcVMInfoWinUserUpdateFallbackV(PVBOXSERVICEVEPROPCACHE pCache, con
 
 
 /**
- * Wrapper function for VGSvcUserUpdateF() that deals with too long guest property names.
+ * Wrapper function for VGSvcVMInfoUpdateUserF() that deals with too long guest property names.
  *
  * @return  VBox status code.
  * @retval  VERR_BUFFER_OVERFLOW if the final property name length exceeds the maximum supported length.
@@ -1079,7 +1079,7 @@ static int vgsvcVMInfoWinUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char 
     va_start(va, pszValueFormat);
 
     /* First, try to write stuff as we always did, to not break older VBox versions. */
-    int rc = VGSvcUserUpdateV(pCache, pszUser, pszDomain, pszKey, pszValueFormat, va);
+    int rc = VGSvcVMInfoUpdateUserV(pCache, pszUser, pszDomain, pszKey, pszValueFormat, va);
     if (rc == VERR_BUFFER_OVERFLOW)
     {
         /**
@@ -1116,7 +1116,7 @@ static int vgsvcVMInfoWinUserUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char 
                         /* Also write the resolved user name into a dedicated key,
                          * so that it's easier to look it up for the host. */
                         if (RT_SUCCESS(rc))
-                            rc = VGSvcUserUpdate(pCache, szUserRid, NULL /* pszDomain */, "User", pszUser);
+                            rc = VGSvcVMInfoUpdateUser(pCache, szUserRid, NULL /* pszDomain */, "User", pszUser);
                     }
                     else
                         rc = VERR_BUFFER_OVERFLOW;
@@ -1265,7 +1265,7 @@ static int vgsvcVMInfoWinWriteLastInput(PVBOXSERVICEVEPROPCACHE pCache, const ch
  *                          Must be freed with RTStrFree().
  * @param   pcUsersInList   Where to store the number of users in the list.
  */
-int VGSvcVMInfoWinWriteUsers(PVBOXSERVICEVEPROPCACHE pCache, char **ppszUserList, uint32_t *pcUsersInList)
+int VGSvcVMInfoWinQueryUserListAndUpdateInfo(PVBOXSERVICEVEPROPCACHE pCache, char **ppszUserList, uint32_t *pcUsersInList)
 {
     AssertPtrReturn(pCache, VERR_INVALID_POINTER);
     AssertPtrReturn(ppszUserList, VERR_INVALID_POINTER);
@@ -1513,53 +1513,56 @@ int VGSvcVMInfoWinWriteUsers(PVBOXSERVICEVEPROPCACHE pCache, char **ppszUserList
 }
 
 
-int VGSvcVMInfoWinGetComponentVersions(PVBGLGSTPROPCLIENT pClient)
+/**
+ * Called by vgsvcVMInfoWriteFixedProperties() to popuplate the
+ * "/VirtualBox/GuestAdd/Components/" area with file versions.
+ */
+int VGSvcVMInfoWinWriteComponentVersions(PVBGLGSTPROPCLIENT pClient)
 {
-    int rc;
-    char szSysDir[MAX_PATH] = {0};
-    char szWinDir[MAX_PATH] = {0};
-    char szDriversDir[MAX_PATH + 32] = {0};
-
     /* ASSUME: szSysDir and szWinDir and derivatives are always ASCII compatible. */
+    char szSysDir[MAX_PATH] = {0};
     GetSystemDirectory(szSysDir, MAX_PATH);
+    char szWinDir[MAX_PATH] = {0};
     GetWindowsDirectory(szWinDir, MAX_PATH);
-    RTStrPrintf(szDriversDir, sizeof(szDriversDir), "%s\\drivers", szSysDir);
+    char szSysDriversDir[MAX_PATH + 32] = {0};
+    RTStrPrintf(szSysDriversDir, sizeof(szSysDriversDir), "%s\\drivers", szSysDir);
 #ifdef RT_ARCH_AMD64
     char szSysWowDir[MAX_PATH + 32] = {0};
     RTStrPrintf(szSysWowDir, sizeof(szSysWowDir), "%s\\SysWow64", szWinDir);
 #endif
 
     /* The file information table. */
+    /** @todo add new stuff here, this is rather dated. */
     const VBOXSERVICEVMINFOFILE aVBoxFiles[] =
     {
-        { szSysDir,     "VBoxControl.exe" },
-        { szSysDir,     "VBoxHook.dll" },
-        { szSysDir,     "VBoxDisp.dll" },
-        { szSysDir,     "VBoxTray.exe" },
-        { szSysDir,     "VBoxService.exe" },
-        { szSysDir,     "VBoxMRXNP.dll" },
-        { szSysDir,     "VBoxGINA.dll" },
-        { szSysDir,     "VBoxCredProv.dll" },
+        { szSysDir,         "VBoxControl.exe" },
+        { szSysDir,         "VBoxHook.dll" },
+        { szSysDir,         "VBoxDisp.dll" },
+        { szSysDir,         "VBoxTray.exe" },
+        { szSysDir,         "VBoxService.exe" },
+        { szSysDir,         "VBoxMRXNP.dll" },
+        { szSysDir,         "VBoxGINA.dll" },
+        { szSysDir,         "VBoxCredProv.dll" },
 
  /* On 64-bit we don't yet have the OpenGL DLLs in native format.
     So just enumerate the 32-bit files in the SYSWOW directory. */
 #ifdef RT_ARCH_AMD64
-        { szSysWowDir,  "VBoxOGL-x86.dll" },
+        { szSysWowDir,      "VBoxOGL-x86.dll" },
 #else  /* !RT_ARCH_AMD64 */
-        { szSysDir,     "VBoxOGL.dll" },
+        { szSysDir,         "VBoxOGL.dll" },
 #endif /* !RT_ARCH_AMD64 */
 
-        { szDriversDir, "VBoxGuest.sys" },
-        { szDriversDir, "VBoxMouseNT.sys" },
-        { szDriversDir, "VBoxMouse.sys" },
-        { szDriversDir, "VBoxSF.sys"    },
-        { szDriversDir, "VBoxVideo.sys" },
+        { szSysDriversDir,  "VBoxGuest.sys" },
+        { szSysDriversDir,  "VBoxMouseNT.sys" },
+        { szSysDriversDir,  "VBoxMouse.sys" },
+        { szSysDriversDir,  "VBoxSF.sys"    },
+        { szSysDriversDir,  "VBoxVideo.sys" },
     };
 
     for (unsigned i = 0; i < RT_ELEMENTS(aVBoxFiles); i++)
     {
         char szVer[128];
-        rc = VGSvcUtilWinGetFileVersionString(aVBoxFiles[i].pszFilePath, aVBoxFiles[i].pszFileName, szVer, sizeof(szVer));
+        int rc = VGSvcUtilWinGetFileVersionString(aVBoxFiles[i].pszFilePath, aVBoxFiles[i].pszFileName, szVer, sizeof(szVer));
         char szPropPath[GUEST_PROP_MAX_NAME_LEN];
         RTStrPrintf(szPropPath, sizeof(szPropPath), "/VirtualBox/GuestAdd/Components/%s", aVBoxFiles[i].pszFileName);
         if (   rc != VERR_FILE_NOT_FOUND
