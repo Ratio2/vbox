@@ -74,7 +74,8 @@ typedef struct VBOXSERVICEVMINFOUSER
     WCHAR wszUser[MAX_PATH];
     WCHAR wszAuthenticationPackage[MAX_PATH];
     WCHAR wszLogonDomain[MAX_PATH];
-    /** Number of assigned user processes. */
+    /** Number of assigned user processes.
+     * @note This is only accurate for logging level 3 and higher.  */
     ULONG cInteractiveProcesses;
     /** Last (highest) session ID. This is needed for distinguishing old
      * session process counts from new (current) session ones. */
@@ -97,8 +98,6 @@ typedef struct VBOXSERVICEVMINFOPROC
     PSID pSid;
     /** The LUID. */
     LUID luid;
-    /** Interactive process. */
-    bool fInteractive;
 } VBOXSERVICEVMINFOPROC, *PVBOXSERVICEVMINFOPROC;
 
 
@@ -338,7 +337,6 @@ static int vgsvcVMInfoWinProcessesGetTokenInfo(HANDLE hToken, TOKEN_INFORMATION_
             break;
 
         case TokenUser:
-        case TokenGroups:
             cbTokenInfo = 0;
             AssertReturn(!GetTokenInformation(hToken, enmClass, NULL, 0, &cbTokenInfo), VERR_INTERNAL_ERROR_2);
             if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
@@ -367,23 +365,6 @@ static int vgsvcVMInfoWinProcessesGetTokenInfo(HANDLE hToken, TOKEN_INFORMATION_
             PTOKEN_STATISTICS const pStats = (PTOKEN_STATISTICS)pvTokenInfo;
             memcpy(&pProc->luid, &pStats->AuthenticationId, sizeof(LUID));
             /** @todo Add more information of TOKEN_STATISTICS as needed. */
-            break;
-        }
-
-        case TokenGroups:
-        {
-            PTOKEN_GROUPS const pGroups = (PTOKEN_GROUPS)pvTokenInfo;
-            pProc->fInteractive = false;
-            for (DWORD i = 0; i < pGroups->GroupCount; i++)
-            {
-                if (   (pGroups->Groups[i].Attributes & SE_GROUP_LOGON_ID)
-                    || (g_pSidInteractive && EqualSid(pGroups->Groups[i].Sid, g_pSidInteractive))
-                    || (g_pSidLocal       && EqualSid(pGroups->Groups[i].Sid, g_pSidLocal)) )
-                {
-                    pProc->fInteractive = true;
-                    break;
-                }
-            }
             break;
         }
 
@@ -423,6 +404,71 @@ static int vgsvcVMInfoWinProcessesGetTokenInfo(HANDLE hToken, TOKEN_INFORMATION_
 
 
 /**
+ * Worker for vgsvcVMInfoWinTokenQueryInteractive.
+ */
+static bool vgsvcVMInfoWinTokenQueryInteractiveWorker(TOKEN_GROUPS const *pGroups)
+{
+    for (DWORD i = 0; i < pGroups->GroupCount; i++)
+        if (   (pGroups->Groups[i].Attributes & SE_GROUP_LOGON_ID)
+            || (g_pSidInteractive && EqualSid(pGroups->Groups[i].Sid, g_pSidInteractive))
+            || (g_pSidLocal       && EqualSid(pGroups->Groups[i].Sid, g_pSidLocal)) )
+            return true;
+    return false;
+}
+
+
+/**
+ * Determins if the token is for an interactive process.
+ *
+ * Specialized code for this as it's the filtering criteria and best be as
+ * efficient as we can get it.
+ *
+ * @returns VBox status code.
+ * @param   hToken          The token to query information from.
+ * @param   pid             The PID we're querying it for (error reporting).
+ * @param   pfInteractive   Where to return the indicator.
+ */
+static int vgsvcVMInfoWinTokenQueryInteractive(HANDLE hToken, DWORD pid, bool *pfInteractive)
+{
+    /* Try with a stack buffer first. */
+    uint8_t         abBuffer[_1K];
+    PTOKEN_GROUPS   pGroups     = (PTOKEN_GROUPS)&abBuffer[0];
+    DWORD           cbTokenInfo = sizeof(abBuffer);
+    if (GetTokenInformation(hToken, TokenGroups, pGroups, cbTokenInfo, &cbTokenInfo))
+    {
+        *pfInteractive = vgsvcVMInfoWinTokenQueryInteractiveWorker(pGroups);
+        return VINF_SUCCESS;
+    }
+
+    DWORD dwErr = GetLastError();
+    if (dwErr == ERROR_INSUFFICIENT_BUFFER)
+    {
+        /* Okay, need a larger buffer off the heap. */
+        pGroups = (PTOKEN_GROUPS)RTMemTmpAlloc(cbTokenInfo);
+        if (pGroups)
+        {
+            AssertReturn(pGroups, VERR_NO_TMP_MEMORY);
+            if (GetTokenInformation(hToken, TokenGroups, pGroups, cbTokenInfo, &cbTokenInfo))
+            {
+                *pfInteractive = vgsvcVMInfoWinTokenQueryInteractiveWorker(pGroups);
+                RTMemFree(pGroups);
+                return VINF_SUCCESS;
+            }
+            dwErr = GetLastError();
+            RTMemFree(pGroups);
+        }
+        else
+            dwErr = ERROR_OUTOFMEMORY;
+    }
+    int const rc = dwErr ? RTErrConvertFromWin32(dwErr) : VERR_INTERNAL_ERROR_3;
+    if (g_cVerbosity)
+        VGSvcError("Get token class 'groups' for process %u failed: dwErr=%u (rc=%Rrc)\n", pid, dwErr, rc);
+    *pfInteractive = false;
+    return rc;
+}
+
+
+/**
  * Enumerate all the processes in the system and get the logon user IDs for
  * them.
  *
@@ -432,7 +478,7 @@ static int vgsvcVMInfoWinProcessesGetTokenInfo(HANDLE hToken, TOKEN_INFORMATION_
  *
  * @param   pcProcs     Where to store the returned process count.
  */
-static int vgsvcVMInfoWinProcessesEnumerate(PVBOXSERVICEVMINFOPROC *ppaProcs, PDWORD pcProcs)
+static int vgsvcVMInfoWinEnumerateInteractiveProcesses(PVBOXSERVICEVMINFOPROC *ppaProcs, PDWORD pcProcs)
 {
     AssertPtr(ppaProcs);
     AssertPtr(pcProcs);
@@ -483,30 +529,36 @@ static int vgsvcVMInfoWinProcessesEnumerate(PVBOXSERVICEVMINFOPROC *ppaProcs, PD
         paProcs = (PVBOXSERVICEVMINFOPROC)RTMemAllocZ(cProcesses * sizeof(VBOXSERVICEVMINFOPROC));
         if (paProcs)
         {
+            DWORD iDst = 0;
             for (DWORD i = 0; i < cProcesses; i++)
             {
-                DWORD const pid = paPID[i];
-                paProcs[i].id   = pid;
-                paProcs[i].pSid = NULL;
-
+                DWORD const  pid      = paPID[i];
                 HANDLE const hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE /*bInheritHandle*/, pid);
                 if (hProcess)
                 {
                     HANDLE hToken = NULL;
                     if (OpenProcessToken(hProcess, TOKEN_QUERY, &hToken))
                     {
-                        int rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(hToken, TokenUser, &paProcs[i]);
-                        if (RT_FAILURE(rc2) && g_cVerbosity)
-                            VGSvcError("Get token class 'user' for process %u failed: %Rrc\n", paProcs[i].id, rc2);
+                        /* Check if it is an interactive process that we ought to return. */
+                        bool fInteractive = false;
+                        int rc2 = vgsvcVMInfoWinTokenQueryInteractive(hToken, pid, &fInteractive);
+                        if (RT_SUCCESS(rc2) && fInteractive)
+                        {
+                            paProcs[iDst].id   = pid;
+                            paProcs[iDst].pSid = NULL;
 
-                        rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(hToken, TokenGroups, &paProcs[i]);
-                        if (RT_FAILURE(rc2) && g_cVerbosity)
-                            VGSvcError("Get token class 'groups' for process %u failed: %Rrc\n", paProcs[i].id, rc2);
+                            /** @todo Ignore processes we can't get the user for? */
+                            rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(hToken, TokenUser, &paProcs[iDst]);
+                            if (RT_FAILURE(rc2) && g_cVerbosity)
+                                VGSvcError("Get token class 'groups' for process %u failed: %Rrc\n", pid, rc2);
 
-                        rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(hToken, TokenStatistics, &paProcs[i]);
-                        if (RT_FAILURE(rc2) && g_cVerbosity)
-                            VGSvcError("Get token class 'statistics' for process %u failed: %Rrc\n", paProcs[i].id, rc2);
+                            /** @todo r=bird: What do we need luid/AuthenticationId for?   */
+                            rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(hToken, TokenStatistics, &paProcs[iDst]);
+                            if (RT_FAILURE(rc2) && g_cVerbosity)
+                                VGSvcError("Get token class 'statistics' for process %u failed: %Rrc\n", pid, rc2);
 
+                            iDst++;
+                        }
                         CloseHandle(hToken);
                     }
                     else if (g_cVerbosity)
@@ -518,7 +570,7 @@ static int vgsvcVMInfoWinProcessesEnumerate(PVBOXSERVICEVMINFOPROC *ppaProcs, PD
             }
 
             /* Save number of processes */
-            *pcProcs  = cProcesses;
+            *pcProcs  = iDst;
             *ppaProcs = paProcs;
             RTMemFree(paPID);
             return VINF_SUCCESS;
@@ -530,9 +582,10 @@ static int vgsvcVMInfoWinProcessesEnumerate(PVBOXSERVICEVMINFOPROC *ppaProcs, PD
     return rc;
 }
 
+
 /**
  * Frees the process structures returned by
- * vgsvcVMInfoWinProcessesEnumerate() before.
+ * vgsvcVMInfoWinEnumerateInteractiveProcesses() before.
  *
  * @param   cProcs      Number of processes in paProcs.
  * @param   paProcs     The process array.
@@ -548,13 +601,14 @@ static void vgsvcVMInfoWinProcessesFree(DWORD cProcs, PVBOXSERVICEVMINFOPROC paP
     RTMemFree(paProcs);
 }
 
+
 /**
  * Determines whether the specified session has interactive processes on the
  * system.
  *
  * @returns Number of processes found for a specified session.
  * @param   pSession            The current user's SID.
- * @param   paProcs             The process snapshot.
+ * @param   paProcs             The snapshot of the interactive processes.
  * @param   cProcs              The number of processes in the snaphot.
  * @param   puTerminalSession   Where to return terminal session number.
  *                              Optional.
@@ -562,11 +616,8 @@ static void vgsvcVMInfoWinProcessesFree(DWORD cProcs, PVBOXSERVICEVMINFOPROC paP
 static uint32_t vgsvcVMInfoWinCountInteractiveSessionProcesses(PLUID pSession, PVBOXSERVICEVMINFOPROC const paProcs,
                                                                DWORD cProcs, PULONG puTerminalSession = NULL)
 {
-    if (!pSession)
-    {
-        VGSvcVerbose(1, "Session became invalid while enumerating!\n");
-        return 0;
-    }
+    AssertPtr(pSession);
+
     if (!g_pfnLsaGetLogonSessionData)
         return 0;
 
@@ -592,36 +643,28 @@ static uint32_t vgsvcVMInfoWinCountInteractiveSessionProcesses(PLUID pSession, P
      * session. So check if we have some processes bound to it by comparing the
      * session <-> process LUIDs.
      */
-    int rc = VINF_SUCCESS;
     uint32_t cProcessesFound = 0;
     for (DWORD i = 0; i < cProcs; i++)
     {
         PSID pProcSID = paProcs[i].pSid;
-        if (   RT_SUCCESS(rc)
-            && pProcSID
+        if (   pProcSID
             && IsValidSid(pProcSID))
-        {
             if (EqualSid(pSessionData->Sid, paProcs[i].pSid))
             {
                 if (g_cVerbosity >= 4)
                 {
                     PRTUTF16 pszName;
                     int rc2 = vgsvcVMInfoWinProcessesGetModuleNameW(&paProcs[i], &pszName);
-                    VGSvcVerbose(4, "Session %RU32: PID=%u (fInt=%RTbool): %ls\n",
-                                 pSessionData->Session, paProcs[i].id, paProcs[i].fInteractive,
-                                 RT_SUCCESS(rc2) ? pszName : L"<Unknown>");
+                    VGSvcVerbose(4, "Session %RU32: PID=%u: %ls\n",
+                                 pSessionData->Session, paProcs[i].id, RT_SUCCESS(rc2) ? pszName : L"<Unknown>");
                     if (RT_SUCCESS(rc2))
                         RTUtf16Free(pszName);
                 }
 
-                if (paProcs[i].fInteractive)
-                {
-                    cProcessesFound++;
-                    if (!g_cVerbosity) /* We want a bit more info on higher verbosity. */
-                        break;
-                }
+                cProcessesFound++;
+                if (g_cVerbosity < 3) /* This must match the logging statements using cInteractiveProcesses. */
+                    break;
             }
-        }
     }
 
     if (puTerminalSession)
@@ -1193,6 +1236,7 @@ int VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct VBOXSERVICEVMINFOUSERLIST *p
     char szDebugPath[GUEST_PROP_MAX_NAME_LEN];
 #endif
 
+    /** @todo why don't we do this during sub-service init?   */
     int rc = RTOnce(&g_vgsvcWinVmInitOnce, vgsvcWinVmInfoInitOnce, NULL);
     if (RT_FAILURE(rc))
         return rc;
@@ -1241,7 +1285,7 @@ int VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct VBOXSERVICEVMINFOUSERLIST *p
      */
     PVBOXSERVICEVMINFOPROC  paProcs;
     DWORD                   cProcs;
-    rc = vgsvcVMInfoWinProcessesEnumerate(&paProcs, &cProcs);
+    rc = vgsvcVMInfoWinEnumerateInteractiveProcesses(&paProcs, &cProcs);
     if (RT_SUCCESS(rc))
     {
         /*
@@ -1271,6 +1315,9 @@ int VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct VBOXSERVICEVMINFOUSERLIST *p
                                  pUserSession->wszLogonDomain, pUserSession->wszAuthenticationPackage, pUserSession->ulLastSession);
 
                     /* Count the interactive processes in the session. */
+                    /** @todo r=bird: this is calling g_pfnLsaGetLogonSessionData just like
+                     *        vgsvcVMInfoWinIsLoggedInWithUserInfoReturned did above.
+                     *        Wonderful... */
                     pUserSession->cInteractiveProcesses = vgsvcVMInfoWinCountInteractiveSessionProcesses(&paSessions[iSession],
                                                                                                          paProcs, cProcs);
 #ifdef VGSVC_VMINFO_WIN_QUERY_USER_LIST_DEBUG
