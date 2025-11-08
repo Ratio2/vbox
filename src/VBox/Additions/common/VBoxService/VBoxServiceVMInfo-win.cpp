@@ -455,7 +455,7 @@ static int vgsvcVMInfoWinTokenQueryInteractive(HANDLE hToken, DWORD pid, bool *p
                 return VINF_SUCCESS;
             }
             dwErr = GetLastError();
-            RTMemFree(pGroups);
+            RTMemTmpFree(pGroups);
         }
         else
             dwErr = ERROR_OUTOFMEMORY;
