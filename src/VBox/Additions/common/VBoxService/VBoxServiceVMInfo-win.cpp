@@ -148,6 +148,11 @@ static decltype(QueryFullProcessImageNameW)    *g_pfnQueryFullProcessImageNameW 
 
 /** @} */
 
+/** S-1-5-4 (leaked). */
+static PSID                                     g_pSidInteractive = NULL;
+/** S-1-2-0 (leaked). */
+static PSID                                     g_pSidLocal = NULL;
+
 
 /**
  * An RTOnce callback function.
@@ -230,6 +235,16 @@ static DECLCALLBACK(int) vgsvcWinVmInfoInitOnce(void *pvIgnored)
     if (RT_SUCCESS(rc))
         RTLdrGetSymbol(hLdrMod, "ConvertSidToStringSidW", (void **)&g_pfnConvertSidToStringSidW);
 
+
+    /*
+     * Initialize the SIDs we need.
+     */
+    SID_IDENTIFIER_AUTHORITY SidAuthNT = SECURITY_NT_AUTHORITY;
+    AssertStmt(AllocateAndInitializeSid(&SidAuthNT, 1, 4, 0, 0, 0, 0, 0, 0, 0, &g_pSidInteractive), g_pSidInteractive = NULL);
+
+    SID_IDENTIFIER_AUTHORITY SidAuthLocal = SECURITY_LOCAL_SID_AUTHORITY;
+    AssertStmt(AllocateAndInitializeSid(&SidAuthLocal, 1, 0, 0, 0, 0, 0, 0, 0, 0, &g_pSidLocal), g_pSidLocal = NULL);
+
     return VINF_SUCCESS;
 }
 
@@ -304,188 +319,105 @@ static int vgsvcVMInfoWinProcessesGetModuleNameW(PVBOXSERVICEVMINFOPROC const pP
  * Fills in more data for a process.
  *
  * @returns VBox status code.
- * @param   pProc           The process structure to fill data into.
- * @param   tkClass         The kind of token information to get.
+ * @param   hToken      The token to query information from.
+ * @param   enmClass    The kind of token information to get and add to pProc.
+ * @param   pProc       The process structure to fill data into.
  */
-static int vgsvcVMInfoWinProcessesGetTokenInfo(PVBOXSERVICEVMINFOPROC pProc, TOKEN_INFORMATION_CLASS tkClass)
+static int vgsvcVMInfoWinProcessesGetTokenInfo(HANDLE hToken, TOKEN_INFORMATION_CLASS enmClass, PVBOXSERVICEVMINFOPROC pProc)
 {
-    AssertPtrReturn(pProc, VERR_INVALID_POINTER);
+    AssertPtr(pProc);
 
-    DWORD  dwErr = ERROR_SUCCESS;
-    HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pProc->id);
-    if (h == NULL)
+    /*
+     * Query the data.
+     */
+    DWORD cbTokenInfo;
+    switch (enmClass)
     {
-        dwErr = GetLastError();
-        if (g_cVerbosity > 4)
-            VGSvcError("Unable to open process with PID=%u, error=%u\n", pProc->id, dwErr);
-        return RTErrConvertFromWin32(dwErr);
+        case TokenStatistics:
+            cbTokenInfo = sizeof(TOKEN_STATISTICS);
+            break;
+
+        case TokenUser:
+        case TokenGroups:
+            cbTokenInfo = 0;
+            AssertReturn(!GetTokenInformation(hToken, enmClass, NULL, 0, &cbTokenInfo), VERR_INTERNAL_ERROR_2);
+            if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+                break;
+            return GetLastError() ? RTErrConvertFromWin32(GetLastError()) : VERR_INTERNAL_ERROR_3;
+
+        default:
+            AssertLogRelFailedReturn(VERR_NOT_IMPLEMENTED);
     }
 
-    int    rc = VINF_SUCCESS;
-    HANDLE hToken;
-    if (OpenProcessToken(h, TOKEN_QUERY, &hToken))
+    void *pvTokenInfo = RTMemAllocZ(cbTokenInfo);
+    AssertReturn(pvTokenInfo, VERR_NO_MEMORY);
+
+    DWORD dwRetLength = 0;
+    if (!GetTokenInformation(hToken, enmClass, pvTokenInfo, cbTokenInfo, &dwRetLength))
+        return GetLastError() ? RTErrConvertFromWin32(GetLastError()) : VERR_INTERNAL_ERROR_4;
+
+    /*
+     * Process the data.
+     */
+    int rc = VINF_SUCCESS;
+    switch (enmClass)
     {
-        void *pvTokenInfo = NULL;
-        DWORD dwTokenInfoSize;
-        switch (tkClass)
+        case TokenStatistics:
         {
-            case TokenStatistics:
-                dwTokenInfoSize = sizeof(TOKEN_STATISTICS);
-                pvTokenInfo = RTMemAllocZ(dwTokenInfoSize);
-                AssertStmt(pvTokenInfo, rc = VERR_NO_MEMORY);
-                break;
-
-            case TokenUser:
-            case TokenGroups:
-                dwTokenInfoSize = 0; /* Allocation will follow in a second step. */
-                break;
-
-            default:
-                VGSvcError("Token class not implemented: %d\n", tkClass);
-                rc = VERR_NOT_IMPLEMENTED;
-                dwTokenInfoSize = 0; /* Shut up MSC. */
-                break;
+            PTOKEN_STATISTICS const pStats = (PTOKEN_STATISTICS)pvTokenInfo;
+            memcpy(&pProc->luid, &pStats->AuthenticationId, sizeof(LUID));
+            /** @todo Add more information of TOKEN_STATISTICS as needed. */
+            break;
         }
-        if (RT_SUCCESS(rc))
-        {
-            DWORD dwRetLength;
-            if (!GetTokenInformation(hToken, tkClass, pvTokenInfo, dwTokenInfoSize, &dwRetLength))
-            {
-                dwErr = GetLastError();
-                if (dwErr == ERROR_INSUFFICIENT_BUFFER)
-                {
-                    switch (tkClass)
-                    {
-                        case TokenGroups:
-                        case TokenUser:
-                            Assert(!pvTokenInfo);
-                            dwTokenInfoSize = dwRetLength;
-                            pvTokenInfo = RTMemAllocZ(dwRetLength);
-                            AssertBreakStmt(pvTokenInfo, dwErr = ERROR_OUTOFMEMORY);
-                            if (GetTokenInformation(hToken, tkClass, pvTokenInfo, dwTokenInfoSize, &dwRetLength))
-                                dwErr = ERROR_SUCCESS;
-                            else
-                                dwErr = GetLastError();
-                            break;
 
-                        default:
-                            AssertMsgFailed(("Re-allocating of token information for token class not implemented\n"));
-                            break;
-                    }
+        case TokenGroups:
+        {
+            PTOKEN_GROUPS const pGroups = (PTOKEN_GROUPS)pvTokenInfo;
+            pProc->fInteractive = false;
+            for (DWORD i = 0; i < pGroups->GroupCount; i++)
+            {
+                if (   (pGroups->Groups[i].Attributes & SE_GROUP_LOGON_ID)
+                    || (g_pSidInteractive && EqualSid(pGroups->Groups[i].Sid, g_pSidInteractive))
+                    || (g_pSidLocal       && EqualSid(pGroups->Groups[i].Sid, g_pSidLocal)) )
+                {
+                    pProc->fInteractive = true;
+                    break;
                 }
             }
-
-            if (dwErr == ERROR_SUCCESS)
-            {
-                rc = VINF_SUCCESS;
-
-                switch (tkClass)
-                {
-                    case TokenStatistics:
-                    {
-                        PTOKEN_STATISTICS pStats = (PTOKEN_STATISTICS)pvTokenInfo;
-                        AssertPtr(pStats);
-                        memcpy(&pProc->luid, &pStats->AuthenticationId, sizeof(LUID));
-                        /** @todo Add more information of TOKEN_STATISTICS as needed. */
-                        break;
-                    }
-
-                    case TokenGroups:
-                    {
-                        pProc->fInteractive = false;
-
-                        SID_IDENTIFIER_AUTHORITY sidAuthNT = SECURITY_NT_AUTHORITY;
-                        PSID pSidInteractive = NULL; /*  S-1-5-4 */
-                        if (!AllocateAndInitializeSid(&sidAuthNT, 1, 4, 0, 0, 0, 0, 0, 0, 0, &pSidInteractive))
-                            dwErr = GetLastError();
-
-                        PSID pSidLocal = NULL; /*  S-1-2-0 */
-                        if (dwErr == ERROR_SUCCESS)
-                        {
-                            SID_IDENTIFIER_AUTHORITY sidAuthLocal = SECURITY_LOCAL_SID_AUTHORITY;
-                            if (!AllocateAndInitializeSid(&sidAuthLocal, 1, 0, 0, 0, 0, 0, 0, 0, 0, &pSidLocal))
-                                dwErr = GetLastError();
-                        }
-
-                        if (dwErr == ERROR_SUCCESS)
-                        {
-                            PTOKEN_GROUPS pGroups = (PTOKEN_GROUPS)pvTokenInfo;
-                            AssertPtr(pGroups);
-                            for (DWORD i = 0; i < pGroups->GroupCount; i++)
-                            {
-                                if (   EqualSid(pGroups->Groups[i].Sid, pSidInteractive)
-                                    || EqualSid(pGroups->Groups[i].Sid, pSidLocal)
-                                    || pGroups->Groups[i].Attributes & SE_GROUP_LOGON_ID)
-                                {
-                                    pProc->fInteractive = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (pSidInteractive)
-                            FreeSid(pSidInteractive);
-                        if (pSidLocal)
-                            FreeSid(pSidLocal);
-                        break;
-                    }
-
-                    case TokenUser:
-                    {
-                        PTOKEN_USER pUser = (PTOKEN_USER)pvTokenInfo;
-                        AssertPtr(pUser);
-
-                        DWORD dwLength = GetLengthSid(pUser->User.Sid);
-                        Assert(dwLength);
-                        if (dwLength)
-                        {
-                            pProc->pSid = (PSID)RTMemAllocZ(dwLength);
-                            AssertPtr(pProc->pSid);
-                            if (CopySid(dwLength, pProc->pSid, pUser->User.Sid))
-                            {
-                                if (!IsValidSid(pProc->pSid))
-                                    dwErr = ERROR_INVALID_NAME;
-                            }
-                            else
-                                dwErr = GetLastError();
-                        }
-                        else
-                            dwErr = ERROR_NO_DATA;
-
-                        if (dwErr != ERROR_SUCCESS)
-                        {
-                            VGSvcError("Error retrieving SID of process PID=%u: %u\n", pProc->id, dwErr);
-                            if (pProc->pSid)
-                            {
-                                RTMemFree(pProc->pSid);
-                                pProc->pSid = NULL;
-                            }
-                        }
-                        break;
-                    }
-
-                    default:
-                        AssertMsgFailed(("Unhandled token information class\n"));
-                        break;
-                }
-            }
-
-            if (pvTokenInfo)
-                RTMemFree(pvTokenInfo);
+            break;
         }
-        CloseHandle(hToken);
-    }
-    else
-        dwErr = GetLastError();
 
-    if (dwErr != ERROR_SUCCESS)
-    {
-        if (g_cVerbosity)
-            VGSvcError("Unable to query token information for PID=%u, error=%u\n", pProc->id, dwErr);
-        rc = RTErrConvertFromWin32(dwErr);
+        case TokenUser:
+        {
+            PTOKEN_USER const pUser     = (PTOKEN_USER)pvTokenInfo;
+            DWORD const       cbUserSid = GetLengthSid(pUser->User.Sid);
+            AssertBreakStmt(cbUserSid, rc = VERR_NO_DATA);
+            pProc->pSid = (PSID)RTMemAllocZ(cbUserSid);
+            AssertBreakStmt(pProc->pSid, rc = VERR_NO_MEMORY);
+
+            if (CopySid(cbUserSid, pProc->pSid, pUser->User.Sid))
+            {
+                if (IsValidSid(pProc->pSid))
+                    break;
+                AssertMsgFailed(("cbUserSid=%u\n%.*Rhxd\n", cbUserSid, cbUserSid, pProc->pSid));
+                rc = VERR_INVALID_NAME;
+            }
+            else
+                rc = GetLastError() ? RTErrConvertFromWin32(GetLastError()) : VERR_INTERNAL_ERROR_5;
+            RTMemFree(pProc->pSid);
+            pProc->pSid = NULL;
+            break;
+        }
+
+        default:
+            AssertMsgFailed(("Unhandled token information class\n"));
+            break;
     }
 
-    CloseHandle(h);
+    /*
+     * Clean up.
+     */
+    RTMemFree(pvTokenInfo);
     return rc;
 }
 
@@ -553,36 +485,45 @@ static int vgsvcVMInfoWinProcessesEnumerate(PVBOXSERVICEVMINFOPROC *ppaProcs, PD
         {
             for (DWORD i = 0; i < cProcesses; i++)
             {
-                paProcs[i].id = paPID[i];
+                DWORD const pid = paPID[i];
+                paProcs[i].id   = pid;
                 paProcs[i].pSid = NULL;
 
-                /** @todo r=bird: wtf do we open the process and query the token three times
-                 *        here for each effing process? Insanity... */
+                HANDLE const hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE /*bInheritHandle*/, pid);
+                if (hProcess)
+                {
+                    HANDLE hToken = NULL;
+                    if (OpenProcessToken(hProcess, TOKEN_QUERY, &hToken))
+                    {
+                        int rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(hToken, TokenUser, &paProcs[i]);
+                        if (RT_FAILURE(rc2) && g_cVerbosity)
+                            VGSvcError("Get token class 'user' for process %u failed: %Rrc\n", paProcs[i].id, rc2);
 
-                int rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(&paProcs[i], TokenUser);
-                if (RT_FAILURE(rc2) && g_cVerbosity)
-                    VGSvcError("Get token class 'user' for process %u failed, rc=%Rrc\n", paProcs[i].id, rc2);
+                        rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(hToken, TokenGroups, &paProcs[i]);
+                        if (RT_FAILURE(rc2) && g_cVerbosity)
+                            VGSvcError("Get token class 'groups' for process %u failed: %Rrc\n", paProcs[i].id, rc2);
 
-                rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(&paProcs[i], TokenGroups);
-                if (RT_FAILURE(rc2) && g_cVerbosity)
-                    VGSvcError("Get token class 'groups' for process %u failed, rc=%Rrc\n", paProcs[i].id, rc2);
+                        rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(hToken, TokenStatistics, &paProcs[i]);
+                        if (RT_FAILURE(rc2) && g_cVerbosity)
+                            VGSvcError("Get token class 'statistics' for process %u failed: %Rrc\n", paProcs[i].id, rc2);
 
-                rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(&paProcs[i], TokenStatistics);
-                if (RT_FAILURE(rc2) && g_cVerbosity)
-                    VGSvcError("Get token class 'statistics' for process %u failed, rc=%Rrc\n", paProcs[i].id, rc2);
+                        CloseHandle(hToken);
+                    }
+                    else if (g_cVerbosity)
+                        VGSvcError("Unable to open token for PID %u: GetLastError=%u\n", pid, GetLastError());
+                    CloseHandle(hProcess);
+                }
+                else if (g_cVerbosity)
+                    VGSvcError("Unable to open PID %u: GetLastError=%u\n", pid, GetLastError());
             }
 
             /* Save number of processes */
-            if (RT_SUCCESS(rc))
-            {
-                *pcProcs  = cProcesses;
-                *ppaProcs = paProcs;
-            }
-            else
-                vgsvcVMInfoWinProcessesFree(cProcesses, paProcs);
+            *pcProcs  = cProcesses;
+            *ppaProcs = paProcs;
+            RTMemFree(paPID);
+            return VINF_SUCCESS;
         }
-        else
-            rc = VERR_NO_MEMORY;
+        rc = VERR_NO_MEMORY;
     }
 
     RTMemFree(paPID);
