@@ -330,22 +330,14 @@ static int vgsvcVMInfoWinProcessesGetTokenInfo(PVBOXSERVICEVMINFOPROC pProc, TOK
         switch (tkClass)
         {
             case TokenStatistics:
-                /** @todo r=bird: Someone has been reading too many MSDN examples. You shall
-                 *        use RTMemAlloc here!  There is absolutely not reason for
-                 *        complicating things uncessarily by using HeapAlloc! */
                 dwTokenInfoSize = sizeof(TOKEN_STATISTICS);
-                pvTokenInfo = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwTokenInfoSize);
-                AssertPtr(pvTokenInfo);
-                break;
-
-            case TokenGroups:
-                dwTokenInfoSize = 0;
-                /* Allocation will follow in a second step. */
+                pvTokenInfo = RTMemAllocZ(dwTokenInfoSize);
+                AssertStmt(pvTokenInfo, rc = VERR_NO_MEMORY);
                 break;
 
             case TokenUser:
-                dwTokenInfoSize = 0;
-                /* Allocation will follow in a second step. */
+            case TokenGroups:
+                dwTokenInfoSize = 0; /* Allocation will follow in a second step. */
                 break;
 
             default:
@@ -354,7 +346,6 @@ static int vgsvcVMInfoWinProcessesGetTokenInfo(PVBOXSERVICEVMINFOPROC pProc, TOK
                 dwTokenInfoSize = 0; /* Shut up MSC. */
                 break;
         }
-
         if (RT_SUCCESS(rc))
         {
             DWORD dwRetLength;
@@ -363,33 +354,23 @@ static int vgsvcVMInfoWinProcessesGetTokenInfo(PVBOXSERVICEVMINFOPROC pProc, TOK
                 dwErr = GetLastError();
                 if (dwErr == ERROR_INSUFFICIENT_BUFFER)
                 {
-                    dwErr = ERROR_SUCCESS;
-
                     switch (tkClass)
                     {
                         case TokenGroups:
-                            pvTokenInfo = (PTOKEN_GROUPS)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwRetLength);
-                            if (!pvTokenInfo)
-                                dwErr = GetLastError();
-                            dwTokenInfoSize = dwRetLength;
-                            break;
-
                         case TokenUser:
-                            pvTokenInfo = (PTOKEN_USER)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwRetLength);
-                            if (!pvTokenInfo)
-                                dwErr = GetLastError();
+                            Assert(!pvTokenInfo);
                             dwTokenInfoSize = dwRetLength;
+                            pvTokenInfo = RTMemAllocZ(dwRetLength);
+                            AssertBreakStmt(pvTokenInfo, dwErr = ERROR_OUTOFMEMORY);
+                            if (GetTokenInformation(hToken, tkClass, pvTokenInfo, dwTokenInfoSize, &dwRetLength))
+                                dwErr = ERROR_SUCCESS;
+                            else
+                                dwErr = GetLastError();
                             break;
 
                         default:
                             AssertMsgFailed(("Re-allocating of token information for token class not implemented\n"));
                             break;
-                    }
-
-                    if (dwErr == ERROR_SUCCESS)
-                    {
-                        if (!GetTokenInformation(hToken, tkClass, pvTokenInfo, dwTokenInfoSize, &dwRetLength))
-                            dwErr = GetLastError();
                     }
                 }
             }
@@ -458,8 +439,7 @@ static int vgsvcVMInfoWinProcessesGetTokenInfo(PVBOXSERVICEVMINFOPROC pProc, TOK
                         Assert(dwLength);
                         if (dwLength)
                         {
-                            pProc->pSid = (PSID)HeapAlloc(GetProcessHeap(),
-                                                          HEAP_ZERO_MEMORY, dwLength);
+                            pProc->pSid = (PSID)RTMemAllocZ(dwLength);
                             AssertPtr(pProc->pSid);
                             if (CopySid(dwLength, pProc->pSid, pUser->User.Sid))
                             {
@@ -477,7 +457,7 @@ static int vgsvcVMInfoWinProcessesGetTokenInfo(PVBOXSERVICEVMINFOPROC pProc, TOK
                             VGSvcError("Error retrieving SID of process PID=%u: %u\n", pProc->id, dwErr);
                             if (pProc->pSid)
                             {
-                                HeapFree(GetProcessHeap(), 0 /* Flags */, pProc->pSid);
+                                RTMemFree(pProc->pSid);
                                 pProc->pSid = NULL;
                             }
                         }
@@ -491,7 +471,7 @@ static int vgsvcVMInfoWinProcessesGetTokenInfo(PVBOXSERVICEVMINFOPROC pProc, TOK
             }
 
             if (pvTokenInfo)
-                HeapFree(GetProcessHeap(), 0 /* Flags */, pvTokenInfo);
+                RTMemFree(pvTokenInfo);
         }
         CloseHandle(hToken);
     }
@@ -621,7 +601,7 @@ static void vgsvcVMInfoWinProcessesFree(DWORD cProcs, PVBOXSERVICEVMINFOPROC paP
     for (DWORD i = 0; i < cProcs; i++)
         if (paProcs[i].pSid)
         {
-            HeapFree(GetProcessHeap(), 0 /* Flags */, paProcs[i].pSid);
+            RTMemFree(paProcs[i].pSid);
             paProcs[i].pSid = NULL;
         }
     RTMemFree(paProcs);
