@@ -133,6 +133,9 @@
 # endif
 # ifdef VBOX_WITH_DBUS
 #  include <VBox/dbus.h>
+#  ifndef DBUS_TYPE_VARIANT
+#   define DBUS_TYPE_VARIANT    ((int) 'v')
+#  endif
 # endif
 #endif
 
@@ -150,6 +153,27 @@
 #include "VBoxServiceInternal.h"
 #include "VBoxServiceUtils.h"
 #include "VBoxServicePropCache.h"
+
+
+/*********************************************************************************************************************************
+*   Structures and Typedefs                                                                                                      *
+*********************************************************************************************************************************/
+/**
+ * Structure for gathering list of logged in users.
+ */
+typedef struct VBOXSERVICEVMINFOUSERLIST
+{
+    /** Number of users in the list (szUserList). */
+    uint32_t    cUsersInList;
+    /** The user list length. */
+    uint32_t    cchUserList;
+    /** Number of user names dropped due to list overflow. */
+    uint32_t    cOverflowUsers;
+    /** The user list. */
+    char        szUserList[GUEST_PROP_MAX_VALUE_LEN];
+} VBOXSERVICEVMINFOUSERLIST;
+/** Pointer to a user list gathering structure. */
+typedef VBOXSERVICEVMINFOUSERLIST *PVBOXSERVICEVMINFOUSERLIST;
 
 
 /** Structure containing information about a location awarness
@@ -175,7 +199,9 @@ static uint32_t                 g_cMsVMInfoInterval = 0;
 static RTSEMEVENTMULTI          g_hVMInfoEvent = NIL_RTSEMEVENTMULTI;
 /** The guest property service client session details. */
 static VBGLGSTPROPCLIENT        g_VMInfoGuestPropSvcClient;
-/** Number of currently logged in users in OS. */
+/** Number of currently logged in users in OS.
+ * @note This for handling out-of-memory situations in what we hope is a
+ *       reasonable manner... */
 static uint32_t                 g_cVMInfoLoggedInUsers = 0;
 /** The guest property cache. */
 static VBOXSERVICEVEPROPCACHE   g_VMInfoPropCache;
@@ -617,49 +643,90 @@ static void vgsvcVMInfoWriteFixedProperties(void)
 }
 
 
-#if !defined(RT_OS_WINDOWS) && !defined(RT_OS_OS2) && !defined(RT_OS_FREEBSD) && !defined(RT_OS_HAIKU)
-/*
- * Add a user to the list of active users (while ignoring duplicates
- * and dynamically maintaining the list storage)
+/**
+ * Adds a user to the list we're gathering for setting:
+ *  - "/VirtualBox/GuestInfo/OS/LoggedInUsers"
+ *  - "/VirtualBox/GuestInfo/OS/LoggedInUsersList"
+ *  - "/VirtualBox/GuestInfo/OS/NoLoggedInUsers"
  */
-# define USER_LIST_CHUNK_SIZE 32
-#endif
-/** @todo wtf? */
-static uint32_t cUsersInList;
-#if !defined(RT_OS_WINDOWS) && !defined(RT_OS_OS2) && !defined(RT_OS_FREEBSD) && !defined(RT_OS_HAIKU)
-static uint32_t cListSize;
-static char **papszUsers;
-
-static void vgsvcVMInfoAddUserToList(const char *name, const char *src)
+void VGSvcVMInfoAddUserToList(PVBOXSERVICEVMINFOUSERLIST pUserGatherer, const char *pszName,
+                              const char *pszSource, bool fCheckUnique)
 {
-    int rc;
-    bool fFound = false;
-    for (uint32_t idx = 0; idx < cUsersInList && !fFound; idx++)
-        fFound = strncmp(papszUsers[idx], name, 32) == 0;
-    VGSvcVerbose(5, "LoggedInUsers: Asked to add user '%s' from '%s' to list (already in list = %lu)\n", name, src, fFound);
-    if (!fFound)
+    size_t const cchName = strlen(pszName);
+
+    /*
+     * Check if it's already in the list.
+     */
+    if (fCheckUnique && pUserGatherer->cchUserList > 0)
     {
-        if (cUsersInList + 1 > cListSize)
+        const char *pszHit  = strstr(pUserGatherer->szUserList, pszName);
+        while (pszHit)
         {
-            VGSvcVerbose(5, "LoggedInUsers: increase user list size from %lu to %lu\n", cListSize, cListSize + USER_LIST_CHUNK_SIZE);
-            cListSize += USER_LIST_CHUNK_SIZE;
-            void *pvNew = RTMemRealloc(papszUsers, cListSize * sizeof(char*));
-            AssertReturnVoidStmt(pvNew, cListSize -= USER_LIST_CHUNK_SIZE);
-            papszUsers = (char **)pvNew;
+            if (pszHit == pUserGatherer->szUserList || pszHit[-1] == ',')
+                if (pszHit[cchName] == '\0' || pszHit[cchName] == ',')
+                {
+                    VGSvcVerbose(5, "LoggedInUsers: User '%s' from '%s' is already in the list\n", pszName, pszSource);
+                    return;
+                }
+            pszHit = strstr(pszHit + 1, pszName);
         }
-        VGSvcVerbose(4, "LoggedInUsers: Adding user '%s' from '%s' to list (size = %lu, count = %lu)\n", name, src, cListSize, cUsersInList);
-        rc = RTStrDupEx(&papszUsers[cUsersInList], name);
-        if (!RT_FAILURE(rc))
-            cUsersInList++;
     }
+
+    /*
+     * Append it to the list, if there is room.
+     */
+    size_t off = pUserGatherer->cchUserList;
+    if (off + 1 + cchName < sizeof(pUserGatherer->szUserList))
+    {
+        if (off)
+            pUserGatherer->szUserList[off++] = ',';
+        memcpy(&pUserGatherer->szUserList[off], pszName, cchName);
+        off += cchName;
+        pUserGatherer->szUserList[off] = '\0';
+        pUserGatherer->cchUserList     = (uint32_t)off;
+        pUserGatherer->cUsersInList   += 1;
+        VGSvcVerbose(4, "LoggedInUsers: Added user '%s' from '%s' to list (size = %zu, count = %u)\n",
+                     pszName, pszSource, off, pUserGatherer->cUsersInList);
+    }
+    else
+    {
+        pUserGatherer->cOverflowUsers++;
+        VGSvcVerbose(5, "LoggedInUsers: Overflow! User '%s' from '%s' does not fit in the list\n", pszName, pszSource);
+    }
+}
+
+
+#if !defined(RT_OS_WINDOWS) && !defined(RT_OS_OS2) && !defined(RT_OS_HAIKU) && !defined(RT_OS_FREEBSD)
+/**
+ * Worker for vgsvcVMInfoWriteUsers that uses the utmpx.h interface to gather
+ * users that are logged in.
+ */
+static void vgsvcVMInfoAddUsersFromUTmpX(PVBOXSERVICEVMINFOUSERLIST pUserGatherer)
+{
+    setutxent();
+    utmpx *ut_user;
+    while ((ut_user = getutxent()) != NULL)
+    {
+# ifdef RT_OS_DARWIN /* No ut_user->ut_session on Darwin */
+        VGSvcVerbose(4, "Found entry '%s' (type: %d, PID: %RU32)\n", ut_user->ut_user, ut_user->ut_type, ut_user->ut_pid);
+# else
+        VGSvcVerbose(4, "Found entry '%s' (type: %d, PID: %RU32, session: %RU32)\n",
+                     ut_user->ut_user, ut_user->ut_type, ut_user->ut_pid, ut_user->ut_session);
+# endif
+
+        /* Make sure we don't add user names which are not part of type USER_PROCESS. */
+        if (ut_user->ut_type == USER_PROCESS) /* Regular user process. */
+            VGSvcVMInfoAddUserToList(pUserGatherer, ut_user->ut_user, "utmpx", true /*fCheckUnique*/);
+    }
+    endutxent(); /* Close utmpx file. */
+
 }
 #endif
 
+#if defined(VBOX_WITH_DBUS) && defined(RT_OS_LINUX) /* Not yet for Solaris or FreeBSD. */
 
-#if defined(VBOX_WITH_DBUS) && defined(RT_OS_LINUX) /* Not yet for Solaris/FreeBSD. */
-
-/*
- * Simple wrappers to work around compiler-specific va_list madness.
+/** @name Simple wrappers to work around compiler-specific va_list madness.
+ * @{
  */
 static dbus_bool_t vboxService_dbus_message_get_args(DBusMessage *message, DBusError *error, int first_arg_type, ...)
 {
@@ -678,11 +745,10 @@ static dbus_bool_t vboxService_dbus_message_append_args(DBusMessage *message, in
     va_end(va);
     return ret;
 }
+/** @} */
 
-# ifndef DBUS_TYPE_VARIANT
-#  define DBUS_TYPE_VARIANT      ((int) 'v')
-# endif
-/*
+
+/**
  * Wrapper to dig values out of dbus replies, which are contained in
  * a 'variant' and must be iterated into twice.
  *
@@ -723,8 +789,9 @@ static bool vboxService_dbus_unpack_variant_reply(DBusError *error, DBusMessage 
     return false;
 }
 
-/*
+/**
  * Wrapper to NULL out the DBusMessage pointer while discarding it.
+ *
  * DBus API is multi-threaded and can have multiple concurrent accessors.
  * Our use here is single-threaded and can never have multiple accessors.
  */
@@ -738,10 +805,16 @@ static void vboxService_dbus_message_discard(DBusMessage **ppMsg)
     }
 }
 
-static void vgsvcVMInfoDBusAddToUserList(void)
+
+/**
+ * Worker for vgsvcVMInfoWriteUsers that adds to the user list from the
+ * systemd session manager and ConsoleKit.
+ *
+ * @todo this is rather horrible stuff and should be split up into 3 separate
+ *       functions (connect to dbus, systemd and ConsoleKit).
+ */
+static void vgsvcVMInfoDBusAddToUserList(PVBOXSERVICEVMINFOUSERLIST pUserGatherer)
 {
-# ifdef VBOX_WITH_DBUS
-#  if defined(RT_OS_LINUX) /* Not yet for Solaris/FreeBSB. */
     DBusError dbErr;
     DBusConnection *pConnection = NULL;
     int rc2 = RTDBusLoadLib();
@@ -854,7 +927,8 @@ static void vgsvcVMInfoDBusAddToUserList(void)
                                                                DBUS_TYPE_STRING,
                                                                &sessionPropertyNameValue)
                                                         && sessionPropertyNameValue)
-                                                        vgsvcVMInfoAddUserToList(sessionPropertyNameValue, "systemd-logind");
+                                                        VGSvcVMInfoAddUserToList(pUserGatherer, sessionPropertyNameValue,
+                                                                                 "systemd-logind", true /*fCheckUnique*/);
                                                     vboxService_dbus_message_discard(&pReplyName);
                                                 }
                                                 vboxService_dbus_message_discard(&pMsgSession2);
@@ -890,7 +964,7 @@ static void vgsvcVMInfoDBusAddToUserList(void)
         if (dbus_error_is_set(&dbErr))
             dbus_error_free(&dbErr);
     }
-    if (RT_SUCCESS(rc2))
+    if (RT_SUCCESS(rc2)) /* rc2 is from RTDBusLoadLib() way above, sigh. */
     {
         /* Handle desktop sessions using ConsoleKit. */
         VGSvcVerbose(4, "Checking ConsoleKit sessions ...\n");
@@ -1000,7 +1074,8 @@ static void vgsvcVMInfoDBusAddToUserList(void)
                                     {
                                             VGSvcVerbose(4, "ConsoleKit: session '%s' -> %s (uid: %RU32)\n",
                                                          *ppszCurSession, ppwEntry->pw_name, uid);
-                                            vgsvcVMInfoAddUserToList(ppwEntry->pw_name, "ConsoleKit");
+                                            VGSvcVMInfoAddUserToList(pUserGatherer, ppwEntry->pw_name,
+                                                                     "ConsoleKit", true /*fCheckUnique*/);
                                     }
                                     else
                                         VGSvcError("ConsoleKit: unable to lookup user name for uid=%RU32\n", uid);
@@ -1064,9 +1139,6 @@ static void vgsvcVMInfoDBusAddToUserList(void)
     if (   fHaveLibDbus
         && dbus_error_is_set(&dbErr))
         dbus_error_free(&dbErr);
-#  endif /* RT_OS_LINUX */
-# endif /* VBOX_WITH_DBUS */
-
 }
 
 #endif /* VBOX_WITH_DBUS && RT_OS_LINUX */
@@ -1078,16 +1150,22 @@ static void vgsvcVMInfoDBusAddToUserList(void)
 static int vgsvcVMInfoWriteUsers(void)
 {
     /*
+     * Initialize the user gatherer structure.
+     */
+    VBOXSERVICEVMINFOUSERLIST UserGatherer;
+    UserGatherer.cUsersInList   = 0;
+    UserGatherer.cchUserList    = 0;
+    UserGatherer.cOverflowUsers = 0;
+    UserGatherer.szUserList[0]  = '\0';
+
+    /*
      * Get the number of logged in users and their names (comma separated list).
      */
-    char *pszUserList = NULL;
-    cUsersInList = 0;
-
 #ifdef RT_OS_WINDOWS
     /* We're passing &g_VMInfoPropCache to this function, however, it's only
        ever used to call back into VGSvcVMInfoUpdateUserF and VGSvcVMInfoUpdateUserV (which
        doesn't technically need them). */
-    int rc = VGSvcVMInfoWinQueryUserListAndUpdateInfo(&g_VMInfoPropCache, &pszUserList, &cUsersInList);
+    int rc = VGSvcVMInfoWinQueryUserListAndUpdateInfo(&UserGatherer, &g_VMInfoPropCache);
 
 #elif defined(RT_OS_FREEBSD)
     /** @todo FreeBSD: Port logged on user info retrieval.
@@ -1104,112 +1182,54 @@ static int vgsvcVMInfoWriteUsers(void)
     int rc = VERR_NOT_IMPLEMENTED;
 
 #else
-    setutxent();
-    utmpx *ut_user;
-    cListSize = USER_LIST_CHUNK_SIZE;
+    int rc = VINF_SUCCESS;
 
-    /* Allocate a first array to hold 32 users max. */
-    papszUsers = (char **)RTMemAllocZ(cListSize * sizeof(char *));
-    int rc = papszUsers ? VINF_SUCCESS : VERR_NO_MEMORY;
-
-    /* Process all entries in the utmp file.
-     * Note: This only handles */
-    while (   (ut_user = getutxent())
-           && RT_SUCCESS(rc))
-    {
-# ifdef RT_OS_DARWIN /* No ut_user->ut_session on Darwin */
-        VGSvcVerbose(4, "Found entry '%s' (type: %d, PID: %RU32)\n", ut_user->ut_user, ut_user->ut_type, ut_user->ut_pid);
-# else
-        VGSvcVerbose(4, "Found entry '%s' (type: %d, PID: %RU32, session: %RU32)\n",
-                     ut_user->ut_user, ut_user->ut_type, ut_user->ut_pid, ut_user->ut_session);
-# endif
-
-        /* Make sure we don't add user names which are not
-         * part of type USER_PROCESS. */
-        if (ut_user->ut_type == USER_PROCESS) /* Regular user process. */
-            vgsvcVMInfoAddUserToList(ut_user->ut_user, "utmpx");
-    }
+    /* Gather using setutxent & getutxent to source the utmp file. */
+    vgsvcVMInfoAddUsersFromUTmpX(&UserGatherer);
 
 # if defined(VBOX_WITH_DBUS) && defined(RT_OS_LINUX) /* Not yet for Solaris/FreeBSD. */
-    vgsvcVMInfoDBusAddToUserList();
+    /* Gather using various DBus interface. */
+    vgsvcVMInfoDBusAddToUserList(&UserGatherer);
 # endif
 
-    /* Calc the string length. */
-    size_t cchUserList = 0;
-    if (RT_SUCCESS(rc))
-        for (uint32_t i = 0; i < cUsersInList; i++)
-            cchUserList += (i != 0) + strlen(papszUsers[i]);
-
-    /* Build the user list. */
-    if (cchUserList > 0)
-    {
-        if (RT_SUCCESS(rc))
-            rc = RTStrAllocEx(&pszUserList, cchUserList + 1);
-        if (RT_SUCCESS(rc))
-        {
-            char *psz = pszUserList;
-            for (uint32_t i = 0; i < cUsersInList; i++)
-            {
-                if (i != 0)
-                    *psz++ = ',';
-                size_t cch = strlen(papszUsers[i]);
-                memcpy(psz, papszUsers[i], cch);
-                psz += cch;
-            }
-            *psz = '\0';
-        }
-    }
-
-    /* Cleanup. */
-    for (uint32_t i = 0; i < cUsersInList; i++)
-        RTStrFree(papszUsers[i]);
-    RTMemFree(papszUsers);
-
-    endutxent(); /* Close utmpx file. */
 #endif /* !RT_OS_WINDOWS && !RT_OS_FREEBSD && !RT_OS_HAIKU && !RT_OS_OS2 */
 
-    Assert(RT_FAILURE(rc) || cUsersInList == 0 || (pszUserList && *pszUserList));
+    if (RT_SUCCESS(rc))
+        g_cVMInfoLoggedInUsers = UserGatherer.cUsersInList;
+    /* If the enumeration code ran out of memory, preserve the count to try avoid
+       confusing 3rd party tools which uses the count to take pause/save/whatever
+       action on the VM. */
+    else if (rc == VERR_NO_MEMORY || rc == VERR_NO_TMP_MEMORY || rc == VERR_NO_STR_MEMORY || rc == VERR_NO_PAGE_MEMORY)
+    {
+        static int s_iVMInfoBitchedOOM = 0;
+        if (s_iVMInfoBitchedOOM++ < 3)
+            VGSvcVerbose(0, "Warning: Not enough memory available to enumerate users! Keeping old value (%RU32)\n",
+                         g_cVMInfoLoggedInUsers);
+        UserGatherer.cUsersInList = g_cVMInfoLoggedInUsers;
+    }
+    /* else: For all other errors, just display what we've got... */
+
+    VGSvcVerbose(4, "rc=%Rrc: cUsersInList=%RU32 szUserList=%s\n", rc, UserGatherer.cUsersInList, UserGatherer.szUserList);
+    Assert(RT_FAILURE(rc) || UserGatherer.cUsersInList == 0 || UserGatherer.szUserList[0]);
+    AssertMsg(!UserGatherer.szUserList[0] || UserGatherer.cUsersInList,
+              ("szUserList contains users whereas cUsersInList is 0: %s\n", UserGatherer.szUserList));
 
     /*
-     * If the user enumeration above failed, reset the user count to 0 except
-     * if we didn't have enough memory anymore. In that case we want to preserve
-     * the previous user count in order to not confuse third party tools which
-     * rely on that count.
+     * Update the properties.
      */
-    if (RT_FAILURE(rc))
-    {
-        if (rc == VERR_NO_MEMORY)
-        {
-            static int s_iVMInfoBitchedOOM = 0;
-            if (s_iVMInfoBitchedOOM++ < 3)
-                VGSvcVerbose(0, "Warning: Not enough memory available to enumerate users! Keeping old value (%RU32)\n",
-                             g_cVMInfoLoggedInUsers);
-            cUsersInList = g_cVMInfoLoggedInUsers;
-        }
-        else
-            cUsersInList = 0;
-    }
-    else /* Preserve logged in users count. */
-        g_cVMInfoLoggedInUsers = cUsersInList;
-
-    VGSvcVerbose(4, "cUsersInList=%RU32, pszUserList=%s, rc=%Rrc\n", cUsersInList, pszUserList ? pszUserList : "<NULL>", rc);
-
-    AssertMsg(!pszUserList || cUsersInList, ("pszUserList contains users whereas cUsersInList is 0: %s\n", pszUserList));
-    rc = VGSvcPropCacheUpdate(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsersList, pszUserList);
+    rc = VGSvcPropCacheUpdate(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsersList, UserGatherer.szUserList);
     if (RT_FAILURE(rc))
         VGSvcError("Error writing logged in users list, rc=%Rrc\n", rc);
 
-    rc = VGSvcPropCacheUpdate(&g_VMInfoPropCache, g_pszPropCacheValNoLoggedInUsers, cUsersInList == 0 ? "true" : "false");
+    rc = VGSvcPropCacheUpdate(&g_VMInfoPropCache, g_pszPropCacheValNoLoggedInUsers,
+                              UserGatherer.cUsersInList == 0 ? "true" : "false");
     if (RT_FAILURE(rc))
         VGSvcError("Error writing no logged in users, rc=%Rrc\n", rc);
 
     /* (This is the operation which return code counts and must be returned.) */
-    rc = VGSvcPropCacheUpdateF(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsers, "%RU32", cUsersInList);
+    rc = VGSvcPropCacheUpdateF(&g_VMInfoPropCache, g_pszPropCacheValLoggedInUsers, "%RU32", UserGatherer.cUsersInList);
     if (RT_FAILURE(rc))
         VGSvcError("Error writing logged in users count (beacon), rc=%Rrc\n", rc);
-
-    if (pszUserList)
-        RTStrFree(pszUserList);
 
     VGSvcVerbose(4, "Writing users returned with rc=%Rrc\n", rc);
     return rc;

@@ -189,6 +189,8 @@ typedef struct VBOXSERVICEVEPROPCACHEENTRY
 } VBOXSERVICEVEPROPCACHEENTRY;
 /** Pointer to a cached guest property. */
 typedef VBOXSERVICEVEPROPCACHEENTRY *PVBOXSERVICEVEPROPCACHEENTRY;
+/* forward decl. */
+struct VBOXSERVICEVMINFOUSERLIST;
 #endif /* VBOX_WITH_GUEST_PROPS */
 
 RT_C_DECLS_BEGIN
@@ -266,24 +268,27 @@ extern decltype(closesocket)                   *g_pfnclosesocket;
 extern decltype(inet_ntoa)                     *g_pfninet_ntoa;
 # endif /* WINSOCK_VERSION */
 
-#ifdef SE_INTERACTIVE_LOGON_NAME
+# ifdef SE_INTERACTIVE_LOGON_NAME
 extern decltype(LsaNtStatusToWinError)         *g_pfnLsaNtStatusToWinError;
-#endif
+# endif
+#endif /* RT_OS_WINDOWS */
 
-# ifdef VBOX_WITH_GUEST_PROPS
-extern uint32_t                                 g_uVMInfoUserIdleThresholdMS;
+#ifdef VBOX_WITH_GUEST_PROPS
+extern void                     VGSvcVMInfoAddUserToList(struct VBOXSERVICEVMINFOUSERLIST *pUserGatherer,
+                                                         const char *pszName, const char *pszSource, bool fCheckUnique);
+# ifdef RT_OS_WINDOWS
 extern int                      VGSvcVMInfoUpdateUser(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
                                                       const char *pszKey, const char *pszValue);
 extern int                      VGSvcVMInfoUpdateUserF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
                                                        const char *pszKey, const char *pszValueFormat, ...);
 extern int                      VGSvcVMInfoUpdateUserV(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain,
                                                        const char *pszKey, const char *pszValueFormat, va_list va);
-extern int                      VGSvcVMInfoWinQueryUserListAndUpdateInfo(PVBOXSERVICEVEPROPCACHE pCache,
-                                                                         char **ppszUserList, uint32_t *pcUsersInList);
+extern int                      VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct VBOXSERVICEVMINFOUSERLIST *pUserGatherer,
+                                                                         PVBOXSERVICEVEPROPCACHE pCache);
 extern int                      VGSvcVMInfoWinWriteComponentVersions(PVBGLGSTPROPCLIENT pClient);
-# endif /* VBOX_WITH_GUEST_PROPS */
-
-#endif /* RT_OS_WINDOWS */
+extern uint32_t                                 g_uVMInfoUserIdleThresholdMS;
+# endif
+#endif /* VBOX_WITH_GUEST_PROPS */
 
 #ifdef VBOX_WITH_MEMBALLOON
 extern uint32_t                 VGSvcBalloonQueryPages(uint32_t cbPage);

@@ -75,11 +75,9 @@ typedef struct VBOXSERVICEVMINFOUSER
     WCHAR wszAuthenticationPackage[MAX_PATH];
     WCHAR wszLogonDomain[MAX_PATH];
     /** Number of assigned user processes. */
-    ULONG ulNumProcs;
-    /** Last (highest) session ID. This
-     *  is needed for distinguishing old session
-     *  process counts from new (current) session
-     *  ones. */
+    ULONG cInteractiveProcesses;
+    /** Last (highest) session ID. This is needed for distinguishing old
+     * session process counts from new (current) session ones. */
     ULONG ulLastSession;
 } VBOXSERVICEVMINFOUSER, *PVBOXSERVICEVMINFOUSER;
 
@@ -107,8 +105,8 @@ typedef struct VBOXSERVICEVMINFOPROC
 /*********************************************************************************************************************************
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
-static uint32_t vgsvcVMInfoWinSessionHasProcesses(PLUID pSession, PVBOXSERVICEVMINFOPROC const paProcs, DWORD cProcs);
-static bool vgsvcVMInfoWinIsLoggedIn(PVBOXSERVICEVMINFOUSER a_pUserInfo, PLUID a_pSession);
+static uint32_t vgsvcVMInfoWinCountSessionProcesses(PLUID pSession, PVBOXSERVICEVMINFOPROC const paProcs, DWORD cProcs);
+static bool vgsvcVMInfoWinIsLoggedInWithUserInfoReturned(PVBOXSERVICEVMINFOUSER a_pUserInfo, PLUID a_pSession);
 static int  vgsvcVMInfoWinProcessesEnumerate(PVBOXSERVICEVMINFOPROC *ppProc, DWORD *pdwCount);
 static void vgsvcVMInfoWinProcessesFree(DWORD cProcs, PVBOXSERVICEVMINFOPROC paProcs);
 static int  vgsvcVMInfoWinWriteLastInput(PVBOXSERVICEVEPROPCACHE pCache, const char *pszUser, const char *pszDomain);
@@ -578,6 +576,9 @@ static int vgsvcVMInfoWinProcessesEnumerate(PVBOXSERVICEVMINFOPROC *ppaProcs, PD
                 paProcs[i].id = paPID[i];
                 paProcs[i].pSid = NULL;
 
+                /** @todo r=bird: wtf do we open the process and query the token three times
+                 *        here for each effing process? Insanity... */
+
                 int rc2 = vgsvcVMInfoWinProcessesGetTokenInfo(&paProcs[i], TokenUser);
                 if (RT_FAILURE(rc2) && g_cVerbosity)
                     VGSvcError("Get token class 'user' for process %u failed, rc=%Rrc\n", paProcs[i].id, rc2);
@@ -627,7 +628,8 @@ static void vgsvcVMInfoWinProcessesFree(DWORD cProcs, PVBOXSERVICEVMINFOPROC paP
 }
 
 /**
- * Determines whether the specified session has processes on the system.
+ * Determines whether the specified session has interactive processes on the
+ * system.
  *
  * @returns Number of processes found for a specified session.
  * @param   pSession            The current user's SID.
@@ -636,10 +638,8 @@ static void vgsvcVMInfoWinProcessesFree(DWORD cProcs, PVBOXSERVICEVMINFOPROC paP
  * @param   puTerminalSession   Where to return terminal session number.
  *                              Optional.
  */
-/** @todo r=bird: The 'Has' indicates a predicate function, which this is
- *        not.  Predicate functions always returns bool. */
-static uint32_t vgsvcVMInfoWinSessionHasProcesses(PLUID pSession, PVBOXSERVICEVMINFOPROC const paProcs, DWORD cProcs,
-                                                  PULONG puTerminalSession)
+static uint32_t vgsvcVMInfoWinCountInteractiveSessionProcesses(PLUID pSession, PVBOXSERVICEVMINFOPROC const paProcs,
+                                                               DWORD cProcs, PULONG puTerminalSession = NULL)
 {
     if (!pSession)
     {
@@ -682,7 +682,7 @@ static uint32_t vgsvcVMInfoWinSessionHasProcesses(PLUID pSession, PVBOXSERVICEVM
         {
             if (EqualSid(pSessionData->Sid, paProcs[i].pSid))
             {
-                if (g_cVerbosity)
+                if (g_cVerbosity >= 4)
                 {
                     PRTUTF16 pszName;
                     int rc2 = vgsvcVMInfoWinProcessesGetModuleNameW(&paProcs[i], &pszName);
@@ -737,13 +737,13 @@ static void vgsvcVMInfoWinSafeCopy(PWCHAR pwszDst, size_t cbDst, LSA_UNICODE_STR
 
 
 /**
- * Detects whether a user is logged on.
+ * Detects whether a user is logged on and gets user info.
  *
  * @returns true if logged in, false if not (or error).
  * @param   pUserInfo           Where to return the user information.
  * @param   pSession            The session to check.
  */
-static bool vgsvcVMInfoWinIsLoggedIn(PVBOXSERVICEVMINFOUSER pUserInfo, PLUID pSession)
+static bool vgsvcVMInfoWinIsLoggedInWithUserInfoReturned(PVBOXSERVICEVMINFOUSER pUserInfo, PLUID pSession)
 {
     AssertPtrReturn(pUserInfo, false);
     if (!pSession)
@@ -837,13 +837,13 @@ static bool vgsvcVMInfoWinIsLoggedIn(PVBOXSERVICEVMINFOUSER pUserInfo, PLUID pSe
                               &dwDomainNameSize,
                               &enmOwnerType))
         {
-            DWORD dwErr = GetLastError();
             /*
              * If a network time-out prevents the function from finding the name or
              * if a SID that does not have a corresponding account name (such as a
              * logon SID that identifies a logon session), we get ERROR_NONE_MAPPED
              * here that we just skip.
              */
+            DWORD dwErr = GetLastError();
             if (dwErr != ERROR_NONE_MAPPED)
                 VGSvcError("Failed looking up account info for user=%ls, error=$ld!\n", pUserInfo->wszUser, dwErr);
         }
@@ -1259,17 +1259,18 @@ static int vgsvcVMInfoWinWriteLastInput(PVBOXSERVICEVEPROPCACHE pCache, const ch
  * user count.
  *
  * @returns VBox status code.
+ * @param   pUserGatherer   Pointer to the user gatherer state that we pass to
+ *                          VGSvcVMInfoAddUserToList().
  * @param   pCache          Property cache to use for storing some of the lookup
  *                          data in between calls.
- * @param   ppszUserList    Where to store the user list (separated by commas).
- *                          Must be freed with RTStrFree().
- * @param   pcUsersInList   Where to store the number of users in the list.
  */
-int VGSvcVMInfoWinQueryUserListAndUpdateInfo(PVBOXSERVICEVEPROPCACHE pCache, char **ppszUserList, uint32_t *pcUsersInList)
+int VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct VBOXSERVICEVMINFOUSERLIST *pUserGatherer, PVBOXSERVICEVEPROPCACHE pCache)
 {
     AssertPtrReturn(pCache, VERR_INVALID_POINTER);
-    AssertPtrReturn(ppszUserList, VERR_INVALID_POINTER);
-    AssertPtrReturn(pcUsersInList, VERR_INVALID_POINTER);
+#if 1
+# define VGSVC_VMINFO_WIN_QUERY_USER_LIST_DEBUG
+    char szDebugPath[GUEST_PROP_MAX_NAME_LEN];
+#endif
 
     int rc = RTOnce(&g_vgsvcWinVmInitOnce, vgsvcWinVmInfoInitOnce, NULL);
     if (RT_FAILURE(rc))
@@ -1277,238 +1278,217 @@ int VGSvcVMInfoWinQueryUserListAndUpdateInfo(PVBOXSERVICEVEPROPCACHE pCache, cha
     if (!g_pfnLsaEnumerateLogonSessions || !g_pfnEnumProcesses || !g_pfnLsaNtStatusToWinError)
         return VERR_NOT_SUPPORTED;
 
-    VBGLGSTPROPCLIENT DebugGuestPropClient;
-    if (g_cVerbosity <= 3)
-        rc = VERR_NOT_IMPLEMENTED;
-    else
-    {
-        rc = VbglGuestPropConnect(&DebugGuestPropClient);
-        AssertRC(rc);
-    }
-    PVBGLGSTPROPCLIENT const pDebugGuestPropClient = RT_SUCCESS(rc) ? &DebugGuestPropClient : NULL;
-
-    char *pszUserList = NULL;
-    uint32_t cUsersInList = 0;
-
-    /* This function can report stale or orphaned interactive logon sessions
-       of already logged off users (especially in Windows 2000). */
+    /*
+     * Snapshot the logon sessions.
+     *
+     * This function can report stale or orphaned interactive logon sessions
+     * of already logged off users (especially in Windows 2000).
+     */
     PLUID    paSessions = NULL;
-    ULONG    cSessions = 0;
+    ULONG    cSessions  = 0;
     NTSTATUS rcNt = g_pfnLsaEnumerateLogonSessions(&cSessions, &paSessions);
     if (rcNt != STATUS_SUCCESS)
     {
-        ULONG uError = g_pfnLsaNtStatusToWinError(rcNt);
+        ULONG const uError = g_pfnLsaNtStatusToWinError(rcNt);
         switch (uError)
         {
             case ERROR_NOT_ENOUGH_MEMORY:
                 VGSvcError("Not enough memory to enumerate logon sessions!\n");
+                rc = VERR_NO_MEMORY;
                 break;
 
             case ERROR_SHUTDOWN_IN_PROGRESS:
                 /* If we're about to shutdown when we were in the middle of enumerating the logon
                  * sessions, skip the error to not confuse the user with an unnecessary log message. */
                 VGSvcVerbose(3, "Shutdown in progress ...\n");
-                uError = ERROR_SUCCESS;
+                rc = VINF_SUCCESS;
                 break;
 
             default:
-                VGSvcError("LsaEnumerate failed with error %RU32\n", uError);
+                VGSvcError("LsaEnumerate failed with error %RU32 (rcNt=%#x)\n", uError, rcNt);
+                rc = RTErrConvertFromWin32(uError);
                 break;
         }
-
         if (paSessions)
             g_pfnLsaFreeReturnBuffer(paSessions);
-
-        return RTErrConvertFromWin32(uError);
+        return rc;
     }
     VGSvcVerbose(3, "Found %u sessions\n", cSessions);
 
+    /*
+     * Snapshot the processes in the system.
+     */
     PVBOXSERVICEVMINFOPROC  paProcs;
     DWORD                   cProcs;
     rc = vgsvcVMInfoWinProcessesEnumerate(&paProcs, &cProcs);
-    if (RT_FAILURE(rc))
+    if (RT_SUCCESS(rc))
     {
-        if (rc == VERR_NO_MEMORY)
-            VGSvcError("Not enough memory to enumerate processes\n");
-        else
-            VGSvcError("Failed to enumerate processes, rc=%Rrc\n", rc);
-    }
-    else
-    {
-        PVBOXSERVICEVMINFOUSER pUserInfo;
-        pUserInfo = (PVBOXSERVICEVMINFOUSER)RTMemAllocZ(cSessions * sizeof(VBOXSERVICEVMINFOUSER) + 1);
-        if (!pUserInfo)
-            VGSvcError("Not enough memory to store enumerated users!\n");
-        else
+        /*
+         * Allocate an array for gather unique user info that we'll be destilling
+         * from the logon sessions and process snapshot.
+         */
+        PVBOXSERVICEVMINFOUSER paUserInfo = (PVBOXSERVICEVMINFOUSER)RTMemTmpAllocZ(cSessions * sizeof(VBOXSERVICEVMINFOUSER));
+        if (paUserInfo)
         {
             ULONG cUniqueUsers = 0;
 
             /*
+             * Iterate thru the login sessions, popuplating paUserInfo with unique entries.
+             *
              * Note: The cSessions loop variable does *not* correlate with
              *       the Windows session ID!
              */
-            for (ULONG i = 0; i < cSessions; i++)
+            for (ULONG iSession = 0; iSession < cSessions; iSession++)
             {
-                VGSvcVerbose(3, "Handling session %RU32 (of %RU32)\n", i + 1, cSessions);
+                VGSvcVerbose(3, "iSession=%RU32 (of %RU32)\n", iSession, cSessions);
 
-                VBOXSERVICEVMINFOUSER userSession;
-                if (vgsvcVMInfoWinIsLoggedIn(&userSession, &paSessions[i]))
+                /* Get user information. */
+                PVBOXSERVICEVMINFOUSER const pUserSession = &paUserInfo[cUniqueUsers];
+                if (vgsvcVMInfoWinIsLoggedInWithUserInfoReturned(pUserSession, &paSessions[iSession]))
                 {
-                    VGSvcVerbose(4, "Handling user=%ls, domain=%ls, package=%ls, session=%RU32\n",
-                                 userSession.wszUser, userSession.wszLogonDomain, userSession.wszAuthenticationPackage,
-                                 userSession.ulLastSession);
+                    VGSvcVerbose(4, "Handling user=%ls, domain=%ls, package=%ls, session=%RU32\n", pUserSession->wszUser,
+                                 pUserSession->wszLogonDomain, pUserSession->wszAuthenticationPackage, pUserSession->ulLastSession);
 
-                    /* Retrieve assigned processes of current session. */
-                    uint32_t cCurSessionProcs = vgsvcVMInfoWinSessionHasProcesses(&paSessions[i], paProcs, cProcs,
-                                                                                  NULL /* Terminal session ID */);
-                    /* Don't return here when current session does not have assigned processes
-                     * anymore -- in that case we have to search through the unique users list below
-                     * and see if got a stale user/session entry. */
-
+                    /* Count the interactive processes in the session. */
+                    pUserSession->cInteractiveProcesses = vgsvcVMInfoWinCountInteractiveSessionProcesses(&paSessions[iSession],
+                                                                                                         paProcs, cProcs);
+#ifdef VGSVC_VMINFO_WIN_QUERY_USER_LIST_DEBUG
                     if (g_cVerbosity > 3)
                     {
-                        char szDebugSessionPath[GUEST_PROP_MAX_NAME_LEN];
-                        RTStrPrintf(szDebugSessionPath,  sizeof(szDebugSessionPath),
-                                    "/VirtualBox/GuestInfo/Debug/LSA/Session/%RU32", userSession.ulLastSession);
-                        VGSvcWritePropF(pDebugGuestPropClient, szDebugSessionPath,
-                                        "#%RU32: cSessionProcs=%RU32 (of %RU32 procs total)",
-                                        g_uDebugIter, cCurSessionProcs, cProcs);
+                        RTStrPrintf(szDebugPath, sizeof(szDebugPath),
+                                    "/VirtualBox/GuestInfo/Debug/LSA/Session/%RU32", pUserSession->ulLastSession);
+                        VGSvcWritePropF(pCache->pClient, szDebugPath, "#%RU32: cSessionProcs=%RU32 (of %RU32 procs total)",
+                                        g_uDebugIter, pUserSession->cInteractiveProcesses, cProcs);
                     }
-
-                    bool fFoundUser = false;
-                    for (ULONG a = 0; a < cUniqueUsers; a++)
+#endif
+                    /*
+                     * Check if the user of this session is already in the paUserInfo array.
+                     */
+                    ULONG iUserInfo;
+                    for (iUserInfo = 0; iUserInfo < cUniqueUsers; iUserInfo++)
                     {
-                        PVBOXSERVICEVMINFOUSER pCurUser = &pUserInfo[a];
-                        AssertPtr(pCurUser);
-
-                        if (   !RTUtf16Cmp(userSession.wszUser, pCurUser->wszUser)
-                            && !RTUtf16Cmp(userSession.wszLogonDomain, pCurUser->wszLogonDomain)
-                            && !RTUtf16Cmp(userSession.wszAuthenticationPackage, pCurUser->wszAuthenticationPackage))
+                        PVBOXSERVICEVMINFOUSER const pCurUser = &paUserInfo[iUserInfo];
+                        if (   !RTUtf16Cmp(pUserSession->wszUser, pCurUser->wszUser)
+                            && !RTUtf16Cmp(pUserSession->wszLogonDomain, pCurUser->wszLogonDomain)
+                            && !RTUtf16Cmp(pUserSession->wszAuthenticationPackage, pCurUser->wszAuthenticationPackage))
                         {
-                            /*
-                             * Only respect the highest session for the current user.
-                             */
-                            if (userSession.ulLastSession > pCurUser->ulLastSession)
+                            /** @todo r=bird: What if a user has two session, and it's the latter one
+                             *        that is stale?  We'll hide the first one that still active with the
+                             *        current approach... */
+
+                            /*  Only respect the highest session for the current user. */
+                            if (pUserSession->ulLastSession > pCurUser->ulLastSession)
                             {
                                 VGSvcVerbose(4, "Updating user=%ls to %u processes (last used session: %RU32)\n",
-                                                   pCurUser->wszUser, cCurSessionProcs, userSession.ulLastSession);
+                                             pCurUser->wszUser, pUserSession->cInteractiveProcesses, pUserSession->ulLastSession);
 
-                                if (!cCurSessionProcs)
-                                    VGSvcVerbose(3, "Stale session for user=%ls detected! Processes: %RU32 -> %RU32, Session: %RU32 -> %RU32\n",
-                                                 pCurUser->wszUser, pCurUser->ulNumProcs, cCurSessionProcs,
-                                                 pCurUser->ulLastSession, userSession.ulLastSession);
+                                if (!pUserSession->cInteractiveProcesses)
+                                    VGSvcVerbose(3, "Stale session for user=%ls detected! Processes: %RU32 -> 0, Session: %RU32 -> %RU32\n",
+                                                 pCurUser->wszUser, pCurUser->cInteractiveProcesses, pCurUser->ulLastSession,
+                                                 pUserSession->ulLastSession);
 
-                                pCurUser->ulNumProcs = cCurSessionProcs;
-                                pCurUser->ulLastSession  = userSession.ulLastSession;
+                                pCurUser->cInteractiveProcesses = pUserSession->cInteractiveProcesses;
+                                pCurUser->ulLastSession         = pUserSession->ulLastSession;
                             }
                             /* There can be multiple session objects using the same session ID for the
-                             * current user -- so when we got the same session again just add the found
-                             * processes to it. */
-                            else if (pCurUser->ulLastSession == userSession.ulLastSession)
+                               current user -- so when we got the same session again just add the found
+                               processes to it. */
+                            else if (pCurUser->ulLastSession == pUserSession->ulLastSession)
                             {
                                 VGSvcVerbose(4, "Updating processes for user=%ls (old procs=%RU32, new procs=%RU32, session=%RU32)\n",
-                                             pCurUser->wszUser, pCurUser->ulNumProcs, cCurSessionProcs, pCurUser->ulLastSession);
-
-                                pCurUser->ulNumProcs = cCurSessionProcs;
+                                             pCurUser->wszUser, pCurUser->cInteractiveProcesses,
+                                             pUserSession->cInteractiveProcesses, pCurUser->ulLastSession);
+                                pCurUser->cInteractiveProcesses = pUserSession->cInteractiveProcesses;
                             }
-
-                            fFoundUser = true;
                             break;
                         }
                     }
 
-                    if (!fFoundUser)
+                    /*
+                     * If we got thru the array, it's a new unique user which we should add.
+                     *
+                     * Since pUserSession already points to the next array entry, there
+                     * isn't much to do here other than updating the interactive process count.
+                     */
+                    if (iUserInfo >= cUniqueUsers)
                     {
                         VGSvcVerbose(4, "Adding new user=%ls (session=%RU32) with %RU32 processes\n",
-                                     userSession.wszUser, userSession.ulLastSession, cCurSessionProcs);
-
-                        memcpy(&pUserInfo[cUniqueUsers], &userSession, sizeof(VBOXSERVICEVMINFOUSER));
-                        pUserInfo[cUniqueUsers].ulNumProcs = cCurSessionProcs;
+                                     pUserSession->wszUser, pUserSession->ulLastSession, pUserSession->cInteractiveProcesses);
                         cUniqueUsers++;
                         Assert(cUniqueUsers <= cSessions);
                     }
                 }
             }
 
+            vgsvcVMInfoWinProcessesFree(cProcs, paProcs); /* (free it early so we got more heap for string conversion) */
+
+#ifdef VGSVC_VMINFO_WIN_QUERY_USER_LIST_DEBUG
             if (g_cVerbosity > 3)
-                VGSvcWritePropF(pDebugGuestPropClient, "/VirtualBox/GuestInfo/Debug/LSA",
+                VGSvcWritePropF(pCache->pClient, "/VirtualBox/GuestInfo/Debug/LSA",
                                 "#%RU32: cSessions=%RU32, cProcs=%RU32, cUniqueUsers=%RU32",
                                 g_uDebugIter, cSessions, cProcs, cUniqueUsers);
+#endif
+            VGSvcVerbose(3, "Found %u unique logged-in user%s\n", cUniqueUsers, cUniqueUsers == 1 ? "" : "s");
 
-            VGSvcVerbose(3, "Found %u unique logged-in user(s)\n", cUniqueUsers);
-
+            /*
+             * Publish the unique user information that we've destilled above.
+             */
             for (ULONG i = 0; i < cUniqueUsers; i++)
             {
+#ifdef VGSVC_VMINFO_WIN_QUERY_USER_LIST_DEBUG
                 if (g_cVerbosity > 3)
                 {
-                    char szDebugUserPath[GUEST_PROP_MAX_NAME_LEN];
-                    RTStrPrintf(szDebugUserPath,  sizeof(szDebugUserPath), "/VirtualBox/GuestInfo/Debug/LSA/User/%RU32", i);
-                    VGSvcWritePropF(pDebugGuestPropClient, szDebugUserPath,
-                                    "#%RU32: szName=%ls, sessionID=%RU32, cProcs=%RU32",
-                                    g_uDebugIter, pUserInfo[i].wszUser, pUserInfo[i].ulLastSession, pUserInfo[i].ulNumProcs);
+                    RTStrPrintf(szDebugPath, sizeof(szDebugPath), "/VirtualBox/GuestInfo/Debug/LSA/User/%RU32", i);
+                    VGSvcWritePropF(pCache->pClient, szDebugPath, "#%RU32: szName=%ls, sessionID=%RU32, cProcs=%RU32",
+                                    g_uDebugIter, paUserInfo[i].wszUser, paUserInfo[i].ulLastSession, paUserInfo[i].cInteractiveProcesses);
                 }
-
-                bool fAddUser = false;
-                if (pUserInfo[i].ulNumProcs)
-                    fAddUser = true;
-
-                if (fAddUser)
+#endif
+                if (paUserInfo[i].cInteractiveProcesses > 0) /* (non-stale sessions only) */
                 {
                     VGSvcVerbose(3, "User '%ls' has %RU32 interactive processes (session=%RU32)\n",
-                                 pUserInfo[i].wszUser, pUserInfo[i].ulNumProcs, pUserInfo[i].ulLastSession);
-
-                    if (cUsersInList > 0)
-                    {
-                        rc = RTStrAAppend(&pszUserList, ",");
-                        AssertRCBreakStmt(rc, RTStrFree(pszUserList));
-                    }
-
-                    cUsersInList += 1;
+                                 paUserInfo[i].wszUser, paUserInfo[i].cInteractiveProcesses, paUserInfo[i].ulLastSession);
 
                     char *pszUser = NULL;
-                    char *pszDomain = NULL;
-                    rc = RTUtf16ToUtf8(pUserInfo[i].wszUser, &pszUser);
-                    if (   RT_SUCCESS(rc)
-                        && pUserInfo[i].wszLogonDomain)
-                        rc = RTUtf16ToUtf8(pUserInfo[i].wszLogonDomain, &pszDomain);
+                    rc = RTUtf16ToUtf8(paUserInfo[i].wszUser, &pszUser);
                     if (RT_SUCCESS(rc))
                     {
-                        /* Append user to users list. */
-                        rc = RTStrAAppend(&pszUserList, pszUser);
+                        VGSvcVMInfoAddUserToList(pUserGatherer, pszUser, "win", false /*fCheckUnique*/);
 
-                        /* Do idle detection. */
+                        char *pszDomain = NULL;
+                        if (paUserInfo[i].wszLogonDomain)
+                            rc = RTUtf16ToUtf8(paUserInfo[i].wszLogonDomain, &pszDomain);
                         if (RT_SUCCESS(rc))
+                        {
                             rc = vgsvcVMInfoWinWriteLastInput(pCache, pszUser, pszDomain);
+                            RTStrFree(pszDomain);
+                        }
+                        RTStrFree(pszUser);
                     }
                     else
-                        rc = RTStrAAppend(&pszUserList, "<string-conversion-error>");
-
-                    RTStrFree(pszUser);
-                    RTStrFree(pszDomain);
-
-                    AssertRCBreakStmt(rc, RTStrFree(pszUserList));
+                        VGSvcVMInfoAddUserToList(pUserGatherer, "<conv-error>", "win", false /*fCheckUnique*/);
+                    AssertRCBreak(rc); /** @todo is this sensible behaviour? */
                 }
             }
 
-            RTMemFree(pUserInfo);
+            RTMemTmpFree(paUserInfo);
         }
-        vgsvcVMInfoWinProcessesFree(cProcs, paProcs);
+        else
+        {
+            vgsvcVMInfoWinProcessesFree(cProcs, paProcs);
+            VGSvcError("Not enough memory to store unique users!\n");
+            rc = VERR_NO_MEMORY;
+        }
     }
+    else if (rc == VERR_NO_MEMORY)
+        VGSvcError("Not enough memory to enumerate processes\n");
+    else
+        VGSvcError("Failed to enumerate processes: rc=%Rrc\n", rc);
     if (paSessions)
         g_pfnLsaFreeReturnBuffer(paSessions);
 
-    if (RT_SUCCESS(rc))
-    {
-        *ppszUserList = pszUserList;
-        *pcUsersInList = cUsersInList;
-    }
-
-    if (pDebugGuestPropClient)
-    {
-        g_uDebugIter++;
-        VbglGuestPropDisconnect(pDebugGuestPropClient);
-    }
-
+#ifdef VGSVC_VMINFO_WIN_QUERY_USER_LIST_DEBUG
+    g_uDebugIter++;
+#endif
     return rc;
 }
 
