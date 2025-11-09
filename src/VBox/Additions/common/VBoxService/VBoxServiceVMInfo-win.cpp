@@ -551,41 +551,24 @@ static void vgsvcVMInfoWinProcessesFree(DWORD cProcs, PVBOXSERVICEVMINFOPROC paP
  * system.
  *
  * @returns Number of processes found for a specified session.
- * @param   pSession            The current user's SID.
  * @param   paProcs             The snapshot of the interactive processes.
  * @param   cProcs              The number of processes in the snaphot.
- * @param   puTerminalSession   Where to return terminal session number.
- *                              Optional.
+ * @param   pSessionData        The data for the session we're looking for. We
+ *                              use the SID and Session members.
  */
-static uint32_t vgsvcVMInfoWinCountInteractiveSessionProcesses(PLUID pSession, PVBOXSERVICEVMINFOPROC const paProcs,
-                                                               DWORD cProcs, PULONG puTerminalSession = NULL)
+static uint32_t vgsvcVMInfoWinCountSessionProcesses(PVBOXSERVICEVMINFOPROC const paProcs, DWORD cProcs,
+                                                    PSECURITY_LOGON_SESSION_DATA pSessionData)
 {
-    AssertPtr(pSession);
-
-    if (!g_pfnLsaGetLogonSessionData)
-        return 0;
-
-    PSECURITY_LOGON_SESSION_DATA pSessionData = NULL;
-    NTSTATUS rcNt = g_pfnLsaGetLogonSessionData(pSession, &pSessionData);
-    if (rcNt != STATUS_SUCCESS)
-    {
-        VGSvcError("Could not get logon session data! rcNt=%#x\n", rcNt);
-        return 0;
-    }
-
-    if (!IsValidSid(pSessionData->Sid))
-    {
-       VGSvcError("User SID=%p is not valid\n", pSessionData->Sid);
-       if (pSessionData)
-           g_pfnLsaFreeReturnBuffer(pSessionData);
-       return 0;
-    }
-
+    AssertPtrReturn(pSessionData, 0);
+    Assert(IsValidSid(pSessionData->Sid));
 
     /*
      * Even if a user seems to be logged in, it could be a stale/orphaned logon
      * session. So check if we have some processes bound to it by comparing the
      * session <-> process LUIDs.
+     *
+     * 2025-11-09 bird: We don't actually compare LUID, we compare user SID, the
+     *                  purposes is the same though.
      */
     uint32_t cProcessesFound = 0;
     for (DWORD i = 0; i < cProcs; i++)
@@ -605,11 +588,6 @@ static uint32_t vgsvcVMInfoWinCountInteractiveSessionProcesses(PLUID pSession, P
                                  paProcs[i].pUniStrName ? paProcs[i].pUniStrName->Buffer : NULL);
             }
     }
-
-    if (puTerminalSession)
-        *puTerminalSession = pSessionData->Session;
-
-    g_pfnLsaFreeReturnBuffer(pSessionData);
 
     return cProcessesFound;
 }
@@ -643,11 +621,14 @@ static void vgsvcVMInfoWinSafeCopy(PWCHAR pwszDst, size_t cbDst, LSA_UNICODE_STR
  * Detects whether a user is logged on and gets user info.
  *
  * @returns true if logged in, false if not (or error).
- * @param   pUserInfo           Where to return the user information.
  * @param   pSession            The session to check.
+ * @param   pUserInfo           Where to return the user information.
+ * @param   ppSessionData       Where to return pointer to the session data.
  */
-static bool vgsvcVMInfoWinIsLoggedInWithUserInfoReturned(PVBOXSERVICEVMINFOUSER pUserInfo, PLUID pSession)
+static bool vgsvcVMInfoWinIsLoggedInWithUserInfoReturned(PLUID pSession, PVBOXSERVICEVMINFOUSER pUserInfo,
+                                                         PSECURITY_LOGON_SESSION_DATA *ppSessionData)
 {
+    *ppSessionData = NULL;
     AssertPtrReturn(pUserInfo, false);
     if (!pSession)
         return false;
@@ -848,9 +829,13 @@ static bool vgsvcVMInfoWinIsLoggedInWithUserInfoReturned(PVBOXSERVICEVMINFOUSER 
     }
 
     if (fFoundUser)
+    {
         pUserInfo->ulLastSession = pSessionData->Session;
+        *ppSessionData = pSessionData;
+    }
+    else
+        g_pfnLsaFreeReturnBuffer(pSessionData);
 
-    g_pfnLsaFreeReturnBuffer(pSessionData);
     return fFoundUser;
 }
 
@@ -1249,17 +1234,14 @@ int VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct VBOXSERVICEVMINFOUSERLIST *p
 
                 /* Get user information. */
                 PVBOXSERVICEVMINFOUSER const pUserSession = &paUserInfo[cUniqueUsers];
-                if (vgsvcVMInfoWinIsLoggedInWithUserInfoReturned(pUserSession, &paSessions[iSession]))
+                PSECURITY_LOGON_SESSION_DATA pSessionData = NULL;
+                if (vgsvcVMInfoWinIsLoggedInWithUserInfoReturned(&paSessions[iSession], pUserSession, &pSessionData))
                 {
                     VGSvcVerbose(4, "Handling user=%ls, domain=%ls, package=%ls, session=%RU32\n", pUserSession->wszUser,
                                  pUserSession->wszLogonDomain, pUserSession->wszAuthenticationPackage, pUserSession->ulLastSession);
 
                     /* Count the interactive processes in the session. */
-                    /** @todo r=bird: this is calling g_pfnLsaGetLogonSessionData just like
-                     *        vgsvcVMInfoWinIsLoggedInWithUserInfoReturned did above.
-                     *        Wonderful... */
-                    pUserSession->cInteractiveProcesses = vgsvcVMInfoWinCountInteractiveSessionProcesses(&paSessions[iSession],
-                                                                                                         paProcs, cProcs);
+                    pUserSession->cInteractiveProcesses = vgsvcVMInfoWinCountSessionProcesses(paProcs, cProcs, pSessionData);
 #ifdef VGSVC_VMINFO_WIN_QUERY_USER_LIST_DEBUG
                     if (g_cVerbosity > 3)
                     {
@@ -1269,6 +1251,8 @@ int VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct VBOXSERVICEVMINFOUSERLIST *p
                                         g_uDebugIter, pUserSession->cInteractiveProcesses, cProcs);
                     }
 #endif
+                    g_pfnLsaFreeReturnBuffer(pSessionData);
+
                     /*
                      * Check if the user of this session is already in the paUserInfo array.
                      */
