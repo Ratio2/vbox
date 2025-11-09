@@ -202,8 +202,6 @@ static VBGLGSTPROPCLIENT        g_VMInfoGuestPropSvcClient;
  * @note This for handling out-of-memory situations in what we hope is a
  *       reasonable manner... */
 static uint32_t                 g_cVMInfoLoggedInUsers = 0;
-/** The previously reported number of network interfaces. */
-static uint32_t                 g_cVMInfoPreviousIfsReported = UINT32_MAX;
 /** The guest property cache. */
 static VBOXSERVICEVEPROPCACHE   g_VMInfoPropCache;
 static const char              *g_pszPropCacheValLoggedInUsersList = "/VirtualBox/GuestInfo/OS/LoggedInUsersList";
@@ -1251,7 +1249,13 @@ static int vgsvcVMInfoWriteUsers(void)
 static int vgsvcVMInfoWriteNetwork(void)
 {
     uint32_t    cIfsReported = 0;
-    char        szPropPath[256];
+    char        szPropPath[GUEST_PROP_MAX_VALUE_LEN];
+
+    /*
+     * Mark the properties under "/VirtualBox/GuestInfo/Net/" as potentially stale, so
+     * if an interface is removed, we'll delete any items related to it.
+     */
+    VGSvcPropCacheMarkNotUpdatedByPath(&g_VMInfoPropCache, "/VirtualBox/GuestInfo/Net/");
 
 #ifdef RT_OS_WINDOWS
     /*
@@ -1720,24 +1724,6 @@ static int vgsvcVMInfoWriteNetwork(void)
         VGSvcError("VMInfo/Network: Network enumeration for interface %RU32 failed with error %Rrc\n", cIfsReported, rc);
 
 #endif /* !RT_OS_WINDOWS */
-
-    /*
-     * Zap all stale network interface data if the former (saved) network ifaces count
-     * is bigger than the current one.
-     */
-    uint32_t const cPreviousIfsReported = g_cVMInfoPreviousIfsReported;
-    g_cVMInfoPreviousIfsReported = cIfsReported;
-    if (cPreviousIfsReported != cIfsReported && cPreviousIfsReported != UINT32_MAX)
-    {
-        VGSvcVerbose(3, "VMInfo/Network: Stale interface data detected (%RU32 old vs. %RU32 current)\n",
-                     cPreviousIfsReported, cIfsReported);
-
-        for (uint32_t idxDelete = 0; idxDelete < cPreviousIfsReported; idxDelete++)
-        {
-            VGSvcVerbose(3, "VMInfo/Network: Deleting stale data of interface %d ...\n", idxDelete);
-            VGSvcPropCacheUpdateByPath(&g_VMInfoPropCache, NULL, "/VirtualBox/GuestInfo/Net/%RU32", idxDelete);
-        }
-    }
 
     /*
      * This property is a beacon which is _always_ written, even if the network configuration

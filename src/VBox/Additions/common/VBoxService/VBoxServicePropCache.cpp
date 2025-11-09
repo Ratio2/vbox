@@ -264,7 +264,7 @@ int VGSvcPropCacheDeclareEntry(PVBOXSERVICEVEPROPCACHE pCache, const char *pszNa
 
 
 /**
- * Core of VGSvcPropCacheUpdate shared with VGSvcPropCacheUpdateByPath.
+ * Core of VGSvcPropCacheUpdate.
  */
 static int vgsvcPropCacheUpdateNode(PVBOXSERVICEVEPROPCACHE pCache, PVBOXSERVICEVEPROPCACHEENTRY pNode,
                                     const char *pszValue, bool fNew)
@@ -521,63 +521,6 @@ int VGSvcPropCacheUpdateExF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName,
         return VERR_BUFFER_OVERFLOW;
     }
     return VGSvcPropCacheUpdateEx(pCache, pszName, NULL, fFlags, pszValueReset);
-}
-
-
-/**
- * Updates all cache values which are starting with the specified path prefix.
- *
- * @returns VBox status code.
- * @param   pCache          The property cache.
- * @param   pszValue        The value to set.  A NULL will delete the value.
- * @param   pszPathFormat   The path prefix format string.  May not be null and
- *                          has to be an absolute path.
- * @param   ...             Format arguments.
- */
-int VGSvcPropCacheUpdateByPath(PVBOXSERVICEVEPROPCACHE pCache, const char *pszValue, const char *pszPathFormat, ...)
-{
-    AssertPtrReturn(pCache, VERR_INVALID_POINTER);
-    AssertPtrReturn(pszPathFormat, VERR_INVALID_POINTER);
-
-    /*
-     * Format the value first.
-     */
-    int rc;
-    char szPath[GUEST_PROP_MAX_NAME_LEN];
-    va_list va;
-    va_start(va, pszPathFormat);
-    ssize_t const cchPath = RTStrPrintf2V(szPath, sizeof(szPath), pszPathFormat, va);
-    va_end(va);
-    if (cchPath > 0)
-    {
-        rc = RTCritSectEnter(&pCache->CritSect);
-        AssertRC(rc);
-        if (RT_SUCCESS(rc))
-        {
-            /*
-             * Iterate through all nodes, update those starting with the given path.
-             */
-            rc = VERR_NOT_FOUND;
-            PVBOXSERVICEVEPROPCACHEENTRY pNodeIt;
-            RTListForEach(&pCache->NodeHead, pNodeIt, VBOXSERVICEVEPROPCACHEENTRY, NodeSucc)
-            {
-                if (RTStrNCmp(pNodeIt->pszName, szPath, (size_t)cchPath) == 0)
-                {
-                    int const rc2 = vgsvcPropCacheUpdateNode(pCache, pNodeIt, pszValue, false /*fNew*/);
-                    if (rc != VERR_NOT_FOUND && RT_FAILURE(rc2))
-                        rc = rc2 == VINF_NO_CHANGE ? VINF_SUCCESS : rc2;
-                }
-            }
-
-            RTCritSectLeave(&pCache->CritSect);
-        }
-    }
-    else
-    {
-        AssertFailed();
-        rc = VERR_FILENAME_TOO_LONG;
-    }
-    return rc;
 }
 
 

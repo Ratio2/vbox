@@ -326,8 +326,6 @@ extern int                      VGSvcPropCacheUpdateExF(PVBOXSERVICEVEPROPCACHE 
 extern int                      VGSvcPropCacheUpdateTdtr(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, const char *pszValue);
 extern int                      VGSvcPropCacheUpdateTdtrF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName,
                                                           const char *pszValueFormat, ...) RT_IPRT_FORMAT_ATTR(3, 4);
-extern int                      VGSvcPropCacheUpdateByPath(PVBOXSERVICEVEPROPCACHE pCache, const char *pszValue,
-                                                           const char *pszPathFormat, ...);
 extern int                      VGSvcPropCacheMarkNotUpdatedByPath(PVBOXSERVICEVEPROPCACHE pCache, const char *pszPath);
 extern int                      VGSvcPropCachedDeleteNotUpdated(PVBOXSERVICEVEPROPCACHE pCache);
 extern int                      VGSvcPropCacheFlush(PVBOXSERVICEVEPROPCACHE pCache);
