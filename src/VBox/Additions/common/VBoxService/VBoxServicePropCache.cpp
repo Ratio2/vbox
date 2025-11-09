@@ -39,9 +39,9 @@
 
 #include <VBox/VBoxGuestLib.h>
 #include <VBox/HostServices/GuestPropertySvc.h> /* For GUEST_PROP_MAX_VALUE_LEN */
+
 #include "VBoxServiceInternal.h"
 #include "VBoxServiceUtils.h"
-#include "VBoxServicePropCache.h"
 
 
 /**

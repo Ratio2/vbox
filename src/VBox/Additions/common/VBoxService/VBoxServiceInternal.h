@@ -195,6 +195,26 @@ typedef struct VBOXSERVICEVEPROPCACHEENTRY
 typedef VBOXSERVICEVEPROPCACHEENTRY *PVBOXSERVICEVEPROPCACHEENTRY;
 /* forward decl. */
 struct VBOXSERVICEVMINFOUSERLIST;
+
+/** @name VGSVCPROPCACHE_FLAG_XXX - Guest Property Cache Flags.
+ * @{ */
+/** Indicates wheter a guest property is temporary and either should
+ *  - a) get a "reset" value assigned (via VBoxServicePropCacheUpdateEntry)
+ *       as soon as the property cache gets destroyed, or
+ *  - b) get deleted when no reset value is specified.
+ */
+# define VGSVCPROPCACHE_FLAGS_TEMPORARY             RT_BIT_32(0)
+/** Indicates whether a property every time needs to be updated, regardless
+ *  if its real value changed or not. */
+# define VGSVCPROPCACHE_FLAGS_ALWAYS_UPDATE         RT_BIT_32(1)
+/** The guest property gets deleted when the VM gets shutdown, rebooted, reset,
+ *  or powered off.  Maps directly to the guest property TRANSRESET flag. */
+# define VGSVCPROPCACHE_FLAGS_TRANSIENT             RT_BIT_32(2)
+
+/** Same as VGSVCPROPCACHE_FLAGS_TEMPORARY|VGSVCPROPCACHE_FLAGS_TEMPORARY to
+ *  convey intention at reset. */
+# define VGSVCPROPCACHE_FLAGS_TMP_DEL_TRANSRESET    (VGSVCPROPCACHE_FLAGS_TEMPORARY | VGSVCPROPCACHE_FLAGS_TRANSIENT)
+/** @}  */
 #endif /* VBOX_WITH_GUEST_PROPS */
 
 RT_C_DECLS_BEGIN
@@ -292,6 +312,25 @@ extern int                      VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct 
 extern int                      VGSvcVMInfoWinWriteComponentVersions(PVBGLGSTPROPCLIENT pClient);
 extern uint32_t                                 g_uVMInfoUserIdleThresholdMS;
 # endif
+extern int                      VGSvcPropCacheInit(PVBOXSERVICEVEPROPCACHE pCache, PVBGLGSTPROPCLIENT pClient);
+extern void                     VGSvcPropCacheTerm(PVBOXSERVICEVEPROPCACHE pCache);
+extern int                      VGSvcPropCacheDeclareEntry(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, uint32_t fFlags,
+                                                           const char *pszValueReset = NULL);
+extern int                      VGSvcPropCacheUpdate(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, const char *pszValue);
+extern int                      VGSvcPropCacheUpdateF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName,
+                                                      const char *pszValueFormat, ...) RT_IPRT_FORMAT_ATTR(3, 4);
+extern int                      VGSvcPropCacheUpdateEx(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, const char *pszValue,
+                                                       uint32_t fFlags, const char *pszValueReset);
+extern int                      VGSvcPropCacheUpdateExF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, uint32_t fFlags,
+                                                        const char *pszValueReset, const char *pszValueFormat, ...) RT_IPRT_FORMAT_ATTR(5, 6);
+extern int                      VGSvcPropCacheUpdateTdtr(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, const char *pszValue);
+extern int                      VGSvcPropCacheUpdateTdtrF(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName,
+                                                          const char *pszValueFormat, ...) RT_IPRT_FORMAT_ATTR(3, 4);
+extern int                      VGSvcPropCacheUpdateByPath(PVBOXSERVICEVEPROPCACHE pCache, const char *pszValue,
+                                                           const char *pszPathFormat, ...);
+extern int                      VGSvcPropCacheMarkNotUpdatedByPath(PVBOXSERVICEVEPROPCACHE pCache, const char *pszPath);
+extern int                      VGSvcPropCachedDeleteNotUpdated(PVBOXSERVICEVEPROPCACHE pCache);
+extern int                      VGSvcPropCacheFlush(PVBOXSERVICEVEPROPCACHE pCache);
 #endif /* VBOX_WITH_GUEST_PROPS */
 
 #ifdef VBOX_WITH_MEMBALLOON
