@@ -186,6 +186,10 @@ typedef struct VBOXSERVICEVEPROPCACHEENTRY
     char       *pszValueReset;
     /** Flags. */
     uint32_t    fFlags;
+    /** Used to delete stale entries under /VirtualBox/GuestInfo/User/.
+     * This is set by calling VGSvcPropCacheMarkNotUpdatedByPath() and cleared
+     * automatically when any of the update functions are called. */
+    bool        fNotUpdated;
 } VBOXSERVICEVEPROPCACHEENTRY;
 /** Pointer to a cached guest property. */
 typedef VBOXSERVICEVEPROPCACHEENTRY *PVBOXSERVICEVEPROPCACHEENTRY;
