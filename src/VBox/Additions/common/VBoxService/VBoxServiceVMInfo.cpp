@@ -202,6 +202,8 @@ static VBGLGSTPROPCLIENT        g_VMInfoGuestPropSvcClient;
  * @note This for handling out-of-memory situations in what we hope is a
  *       reasonable manner... */
 static uint32_t                 g_cVMInfoLoggedInUsers = 0;
+/** The previously reported number of network interfaces. */
+static uint32_t                 g_cVMInfoPreviousIfsReported = UINT32_MAX;
 /** The guest property cache. */
 static VBOXSERVICEVEPROPCACHE   g_VMInfoPropCache;
 static const char              *g_pszPropCacheValLoggedInUsersList = "/VirtualBox/GuestInfo/OS/LoggedInUsersList";
@@ -1719,32 +1721,23 @@ static int vgsvcVMInfoWriteNetwork(void)
 
 #endif /* !RT_OS_WINDOWS */
 
-#if 1 /* Zapping not enabled yet, needs more testing first. */
     /*
      * Zap all stale network interface data if the former (saved) network ifaces count
      * is bigger than the current one.
      */
-    uint32_t cIfsReportedOld; /** @todo r=bird: Cache this internally instead of reading it? */
-    rc = VGSvcReadPropUInt32(&g_VMInfoGuestPropSvcClient, g_pszPropCacheValNetCount,
-                             &cIfsReportedOld, 0 /*u32Min*/, _1K /*u32Max*/);
-    if (RT_SUCCESS(rc))
+    uint32_t const cPreviousIfsReported = g_cVMInfoPreviousIfsReported;
+    g_cVMInfoPreviousIfsReported = cIfsReported;
+    if (cPreviousIfsReported != cIfsReported && cPreviousIfsReported != UINT32_MAX)
     {
-        if (cIfsReportedOld > cIfsReported)
-        {
-            VGSvcVerbose(3, "VMInfo/Network: Stale interface data detected (%RU32 old vs. %RU32 current)\n",
-                         cIfsReportedOld, cIfsReported);
+        VGSvcVerbose(3, "VMInfo/Network: Stale interface data detected (%RU32 old vs. %RU32 current)\n",
+                     cPreviousIfsReported, cIfsReported);
 
-            uint32_t uIfaceDeleteIdx = cIfsReported;
-            for (uint32_t idxDelete = 0; idxDelete < cIfsReportedOld; idxDelete++)
-            {
-                VGSvcVerbose(3, "VMInfo/Network: Deleting stale data of interface %d ...\n", uIfaceDeleteIdx);
-                VGSvcPropCacheUpdateByPath(&g_VMInfoPropCache, NULL, "/VirtualBox/GuestInfo/Net/%RU32", idxDelete);
-            }
+        for (uint32_t idxDelete = 0; idxDelete < cPreviousIfsReported; idxDelete++)
+        {
+            VGSvcVerbose(3, "VMInfo/Network: Deleting stale data of interface %d ...\n", idxDelete);
+            VGSvcPropCacheUpdateByPath(&g_VMInfoPropCache, NULL, "/VirtualBox/GuestInfo/Net/%RU32", idxDelete);
         }
     }
-    else if (rc != VERR_NOT_FOUND)
-        VGSvcError("VMInfo/Network: Failed retrieving old network interfaces count with error %Rrc\n", rc);
-#endif
 
     /*
      * This property is a beacon which is _always_ written, even if the network configuration
