@@ -149,7 +149,7 @@ if defined(VBOX_WITH_TESTCASES) || defined(VBOX_WITH_VBOX_IMG)
  	../VCICache.cpp \
  	../VDIfVfs.cpp
  ifdef VBOX_WITH_PLUGIN_CRYPT
-   vbox-img_SOURCES += \
+  vbox-img_SOURCES += \
   	../VDFilterCrypt.cpp \
   	../VDKeyStore.cpp
  endif
