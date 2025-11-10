@@ -913,7 +913,7 @@ static void doQueuesLoop()
     }
 #endif /* WITH_OPENSSL */
 
-    soap.accept_timeout = 60;
+    soap.accept_timeout = 15;
     soap.bind_flags |= SO_REUSEADDR;
             // avoid EADDRINUSE on bind()
 
@@ -944,7 +944,11 @@ static void doQueuesLoop()
             s = soap_accept(&soap);
             if (!soap_valid_socket(s))
             {
-                if (soap.errnum != SOAP_EINTR)
+                if (   soap.errnum != SOAP_EINTR
+                    && (   soap.error != SOAP_TCP_ERROR
+                        || soap_fault_string(&soap) == NULL
+                        || strcmp(soap_fault_string(&soap), "Timeout") != 0)
+                   )
                     WebLogSoapError(&soap);
                 continue;
             }
