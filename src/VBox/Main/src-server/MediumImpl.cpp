@@ -64,11 +64,6 @@
 typedef std::list<Guid> GuidList;
 
 
-#ifdef VBOX_WITH_EXTPACK
-static const char g_szVDPlugin[] = "VDPluginCrypt";
-#endif
-
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Medium data definition
@@ -4047,31 +4042,7 @@ HRESULT Medium::getEncryptionSettings(AutoCaller &autoCaller, com::Utf8Str &aCip
         if (it == pBase->m->mapProperties.end())
             throw VBOX_E_NOT_SUPPORTED;
 
-# ifdef VBOX_WITH_EXTPACK
-        ExtPackManager *pExtPackManager = m->pVirtualBox->i_getExtPackManager();
-        if (pExtPackManager->i_isExtPackUsable(ORACLE_PUEL_EXTPACK_NAME))
-        {
-            /* Load the plugin */
-            Utf8Str strPlugin;
-            hrc = pExtPackManager->i_getLibraryPathForExtPack(g_szVDPlugin, ORACLE_PUEL_EXTPACK_NAME, &strPlugin);
-            if (SUCCEEDED(hrc))
-            {
-                int vrc = VDPluginLoadFromFilename(strPlugin.c_str());
-                if (RT_FAILURE(vrc))
-                    throw setErrorBoth(VBOX_E_NOT_SUPPORTED, vrc,
-                                       tr("Retrieving encryption settings of the image failed because the encryption plugin could not be loaded (%s)"),
-                                       i_vdError(vrc).c_str());
-            }
-            else
-                throw setError(VBOX_E_NOT_SUPPORTED,
-                               tr("Encryption is not supported because the extension pack '%s' is missing the encryption plugin (old extension pack installed?)"),
-                               ORACLE_PUEL_EXTPACK_NAME);
-        }
-        else
-            throw setError(VBOX_E_NOT_SUPPORTED,
-                           tr("Encryption is not supported because the extension pack '%s' is missing"),
-                           ORACLE_PUEL_EXTPACK_NAME);
-
+# ifdef VBOX_WITH_PLUGIN_CRYPT
         PVDISK pDisk = NULL;
         int vrc = VDCreate(m->vdDiskIfaces, i_convertDeviceType(), &pDisk);
         ComAssertRCThrow(vrc, E_FAIL);
@@ -4097,7 +4068,7 @@ HRESULT Medium::getEncryptionSettings(AutoCaller &autoCaller, com::Utf8Str &aCip
         VDDestroy(pDisk);
 # else
         throw setError(VBOX_E_NOT_SUPPORTED,
-                       tr("Encryption is not supported because extension pack support is not built in"));
+                       tr("Encryption is not supported because disk encryption support is not built in"));
 # endif
     }
     catch (HRESULT hrcXcpt) { hrc = hrcXcpt; }
@@ -4123,31 +4094,7 @@ HRESULT Medium::checkEncryptionPassword(const com::Utf8Str &aPassword)
             throw setError(E_INVALIDARG,
                            tr("The given password must not be empty"));
 
-# ifdef VBOX_WITH_EXTPACK
-        ExtPackManager *pExtPackManager = m->pVirtualBox->i_getExtPackManager();
-        if (pExtPackManager->i_isExtPackUsable(ORACLE_PUEL_EXTPACK_NAME))
-        {
-            /* Load the plugin */
-            Utf8Str strPlugin;
-            hrc = pExtPackManager->i_getLibraryPathForExtPack(g_szVDPlugin, ORACLE_PUEL_EXTPACK_NAME, &strPlugin);
-            if (SUCCEEDED(hrc))
-            {
-                int vrc = VDPluginLoadFromFilename(strPlugin.c_str());
-                if (RT_FAILURE(vrc))
-                    throw setErrorBoth(VBOX_E_NOT_SUPPORTED, vrc,
-                                       tr("Retrieving encryption settings of the image failed because the encryption plugin could not be loaded (%s)"),
-                                       i_vdError(vrc).c_str());
-            }
-            else
-                throw setError(VBOX_E_NOT_SUPPORTED,
-                               tr("Encryption is not supported because the extension pack '%s' is missing the encryption plugin (old extension pack installed?)"),
-                               ORACLE_PUEL_EXTPACK_NAME);
-        }
-        else
-            throw setError(VBOX_E_NOT_SUPPORTED,
-                           tr("Encryption is not supported because the extension pack '%s' is missing"),
-                           ORACLE_PUEL_EXTPACK_NAME);
-
+# ifdef VBOX_WITH_PLUGIN_CRYPT
         PVDISK pDisk = NULL;
         int vrc = VDCreate(m->vdDiskIfaces, i_convertDeviceType(), &pDisk);
         ComAssertRCThrow(vrc, E_FAIL);
@@ -4168,7 +4115,7 @@ HRESULT Medium::checkEncryptionPassword(const com::Utf8Str &aPassword)
         VDDestroy(pDisk);
 # else
         throw setError(VBOX_E_NOT_SUPPORTED,
-                       tr("Encryption is not supported because extension pack support is not built in"));
+                       tr("Encryption is not supported because disk encryption support is not built in"));
 # endif
     }
     catch (HRESULT hrcXcpt) { hrc = hrcXcpt; }
@@ -8684,32 +8631,8 @@ HRESULT Medium::i_openForIO(bool fWritable, SecretKeyStore *pKeyStore, PVDISK *p
         settings::StringsMap::iterator itKeyStore = pBase->m->mapProperties.find("CRYPT/KeyStore");
         if (itKeyStore != pBase->m->mapProperties.end())
         {
-#ifdef VBOX_WITH_EXTPACK
+#ifdef VBOX_WITH_PLUGIN_CRYPT
             settings::StringsMap::iterator itKeyId = pBase->m->mapProperties.find("CRYPT/KeyId");
-
-            ExtPackManager *pExtPackManager = m->pVirtualBox->i_getExtPackManager();
-            if (pExtPackManager->i_isExtPackUsable(ORACLE_PUEL_EXTPACK_NAME))
-            {
-                /* Load the plugin */
-                Utf8Str strPlugin;
-                hrc = pExtPackManager->i_getLibraryPathForExtPack(g_szVDPlugin, ORACLE_PUEL_EXTPACK_NAME, &strPlugin);
-                if (SUCCEEDED(hrc))
-                {
-                    vrc = VDPluginLoadFromFilename(strPlugin.c_str());
-                    if (RT_FAILURE(vrc))
-                        throw setErrorBoth(VBOX_E_NOT_SUPPORTED, vrc,
-                                           tr("Retrieving encryption settings of the image failed because the encryption plugin could not be loaded (%s)"),
-                                           i_vdError(vrc).c_str());
-                }
-                else
-                    throw setError(VBOX_E_NOT_SUPPORTED,
-                                   tr("Encryption is not supported because the extension pack '%s' is missing the encryption plugin (old extension pack installed?)"),
-                                   ORACLE_PUEL_EXTPACK_NAME);
-            }
-            else
-                throw setError(VBOX_E_NOT_SUPPORTED,
-                               tr("Encryption is not supported because the extension pack '%s' is missing"),
-                               ORACLE_PUEL_EXTPACK_NAME);
 
             if (itKeyId == pBase->m->mapProperties.end())
                 throw setError(VBOX_E_INVALID_OBJECT_STATE,
@@ -8741,7 +8664,7 @@ HRESULT Medium::i_openForIO(bool fWritable, SecretKeyStore *pKeyStore, PVDISK *p
 #else
             RT_NOREF(pKeyStore, pCryptoSettings);
             throw setError(VBOX_E_NOT_SUPPORTED,
-                           tr("Encryption is not supported because extension pack support is not built in"));
+                           tr("Encryption is not supported because disk encryption support is not built in"));
 #endif /* VBOX_WITH_EXTPACK */
         }
 
@@ -10980,31 +10903,7 @@ HRESULT Medium::i_taskEncryptHandler(Medium::EncryptTask &task)
 
     try
     {
-# ifdef VBOX_WITH_EXTPACK
-        ExtPackManager *pExtPackManager = m->pVirtualBox->i_getExtPackManager();
-        if (pExtPackManager->i_isExtPackUsable(ORACLE_PUEL_EXTPACK_NAME))
-        {
-            /* Load the plugin */
-            Utf8Str strPlugin;
-            hrc = pExtPackManager->i_getLibraryPathForExtPack(g_szVDPlugin, ORACLE_PUEL_EXTPACK_NAME, &strPlugin);
-            if (SUCCEEDED(hrc))
-            {
-                int vrc = VDPluginLoadFromFilename(strPlugin.c_str());
-                if (RT_FAILURE(vrc))
-                    throw setErrorBoth(VBOX_E_NOT_SUPPORTED, vrc,
-                                       tr("Encrypting the image failed because the encryption plugin could not be loaded (%s)"),
-                                       i_vdError(vrc).c_str());
-            }
-            else
-                throw setError(VBOX_E_NOT_SUPPORTED,
-                               tr("Encryption is not supported because the extension pack '%s' is missing the encryption plugin (old extension pack installed?)"),
-                               ORACLE_PUEL_EXTPACK_NAME);
-        }
-        else
-            throw setError(VBOX_E_NOT_SUPPORTED,
-                           tr("Encryption is not supported because the extension pack '%s' is missing"),
-                           ORACLE_PUEL_EXTPACK_NAME);
-
+# ifdef VBOX_WITH_PLUGIN_CRYPT
         PVDISK pDisk = NULL;
         int vrc = VDCreate(m->vdDiskIfaces, i_convertDeviceType(), &pDisk);
         ComAssertRCThrow(vrc, E_FAIL);
@@ -11163,7 +11062,7 @@ HRESULT Medium::i_taskEncryptHandler(Medium::EncryptTask &task)
         VDDestroy(pDisk);
 # else
         throw setError(VBOX_E_NOT_SUPPORTED,
-                       tr("Encryption is not supported because extension pack support is not built in"));
+                       tr("Encryption is not supported because disk encryption support is not built in"));
 # endif
     }
     catch (HRESULT hrcXcpt) { hrc = hrcXcpt; }

@@ -56,6 +56,10 @@ extern const VDIMAGEBACKEND g_VBoxIsoMakerBackend;
 
 extern const VDCACHEBACKEND g_VciCacheBackend;
 
+#ifdef VBOX_WITH_PLUGIN_CRYPT
+extern const VDFILTERBACKEND g_VDFilterCrypt;
+#endif
+
 RT_C_DECLS_END
 
 #endif /* !VBOX_INCLUDED_SRC_Storage_VDBackends_h */

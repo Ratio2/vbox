@@ -64,21 +64,14 @@ if !defined(VBOX_ONLY_EXTPACKS)
  	CUE.cpp \
  	VISO.cpp \
  	VCICache.cpp
-endif # !VBOX_ONLY_EXTPACKS
 
-if defined(VBOX_WITH_EXTPACK_PUEL) && defined(VBOX_WITH_EXTPACK_PUEL_BUILD)
  if defined(VBOX_WITH_PLUGIN_CRYPT)
-  DLLS += VDPluginCrypt
-  VDPluginCrypt_TEMPLATE      = VBoxR3ExtPackPuelWithOpenSsl
-  VDPluginCrypt_LDFLAGS.linux = $(VBOX_GCC_NO_UNDEFINED)
-  VDPluginCrypt_DEFS          = $(if $(VD_WITH_IPRT_CRYPTO),VD_WITH_IPRT_CRYPTO,)
-  VDPluginCrypt_SOURCES  = \
+  StorageLib_DEFS    += VBOX_WITH_PLUGIN_CRYPT
+  StorageLib_SOURCES += \
   	VDFilterCrypt.cpp \
   	VDKeyStore.cpp
-  VDPluginCrypt_SOURCES.win = \
-  	VDPluginCrypt.rc
  endif
-endif # VBOX_WITH_EXTPACK_PUEL
+endif # !VBOX_ONLY_EXTPACKS
 
 #StorageLibNoDB_TEMPLATE = VBoxR3Dll
 #StorageLibNoDB_DEFS     = IN_VBOXDDU VBOX_HDD_NO_DYNAMIC_BACKENDS

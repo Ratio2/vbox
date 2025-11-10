@@ -127,6 +127,14 @@ static PCVDFILTERBACKEND *g_apFilterBackends = NULL;
 /** Array of handles to the corresponding plugin. */
 static PRTLDRMOD g_pahFilterBackendPlugins = NULL;
 #endif
+#ifdef VBOX_WITH_PLUGIN_CRYPT
+/** Builtin filter backends. */
+static PCVDFILTERBACKEND aStaticFilterBackends[] =
+{
+    &g_VDFilterCrypt,
+    NULL
+};
+#endif
 
 
 /*********************************************************************************************************************************
@@ -206,6 +214,44 @@ static int vdAddCacheBackends(RTLDRMOD hPlugin, PCVDCACHEBACKEND *ppBackends, un
     return VINF_SUCCESS;
 }
 
+
+/**
+ * Add several filter backends.
+ *
+ * @returns VBox status code.
+ * @param   hPlugin       Plugin handle to add.
+ * @param   ppBackends    Array of filter backends to add.
+ * @param   cBackends     Number of backends to add.
+ */
+static int vdAddFilterBackends(RTLDRMOD hPlugin, PCVDFILTERBACKEND *ppBackends, unsigned cBackends)
+{
+    PCVDFILTERBACKEND *pTmp = (PCVDFILTERBACKEND*)RTMemReallocTag(g_apFilterBackends,
+                                                                 (g_cFilterBackends + cBackends) * sizeof(PCVDFILTERBACKEND),
+                                                                 "may-leak:vdAddFilterBackend");
+    if (RT_UNLIKELY(!pTmp))
+        return VERR_NO_MEMORY;
+    g_apFilterBackends = pTmp;
+    memcpy(&g_apFilterBackends[g_cFilterBackends], ppBackends, cBackends * sizeof(PCVDFILTERBACKEND));
+
+#ifndef VBOX_HDD_NO_DYNAMIC_BACKENDS
+    PRTLDRMOD pTmpPlugins = (PRTLDRMOD)RTMemReallocTag(g_pahFilterBackendPlugins,
+                                                    (g_cFilterBackends + cBackends) * sizeof(RTLDRMOD),
+                                                    "may-leak:vdAddFilterBackend");
+    if (RT_UNLIKELY(!pTmpPlugins))
+        return VERR_NO_MEMORY;
+
+    g_pahFilterBackendPlugins = pTmpPlugins;
+    for (unsigned i = g_cFilterBackends; i < g_cFilterBackends + cBackends; i++)
+        g_pahFilterBackendPlugins[i] = hPlugin;
+#else
+    RT_NOREF(hPlugin);
+#endif
+
+    g_cFilterBackends += cBackends;
+    return VINF_SUCCESS;
+}
+
+
 #ifndef VBOX_HDD_NO_DYNAMIC_BACKENDS
 /**
  * Add a single image format backend to the list of known image formats.
@@ -232,41 +278,6 @@ DECLINLINE(int) vdAddBackend(RTLDRMOD hPlugin, PCVDIMAGEBACKEND pBackend)
 DECLINLINE(int) vdAddCacheBackend(RTLDRMOD hPlugin, PCVDCACHEBACKEND pBackend)
 {
     return vdAddCacheBackends(hPlugin, &pBackend, 1);
-}
-
-
-/**
- * Add several filter backends.
- *
- * @returns VBox status code.
- * @param   hPlugin       Plugin handle to add.
- * @param   ppBackends    Array of filter backends to add.
- * @param   cBackends     Number of backends to add.
- */
-static int vdAddFilterBackends(RTLDRMOD hPlugin, PCVDFILTERBACKEND *ppBackends, unsigned cBackends)
-{
-    PCVDFILTERBACKEND *pTmp = (PCVDFILTERBACKEND *)RTMemRealloc(g_apFilterBackends,
-           (g_cFilterBackends + cBackends) * sizeof(PCVDFILTERBACKEND));
-    if (RT_UNLIKELY(!pTmp))
-        return VERR_NO_MEMORY;
-    g_apFilterBackends = pTmp;
-
-#ifndef VBOX_HDD_NO_DYNAMIC_BACKENDS
-    PRTLDRMOD pTmpPlugins = (PRTLDRMOD)RTMemRealloc(g_pahFilterBackendPlugins,
-                                                    (g_cFilterBackends + cBackends) * sizeof(RTLDRMOD));
-    if (RT_UNLIKELY(!pTmpPlugins))
-        return VERR_NO_MEMORY;
-
-    g_pahFilterBackendPlugins = pTmpPlugins;
-    memcpy(&g_apFilterBackends[g_cFilterBackends], ppBackends, cBackends * sizeof(PCVDFILTERBACKEND));
-    for (unsigned i = g_cFilterBackends; i < g_cFilterBackends + cBackends; i++)
-        g_pahFilterBackendPlugins[i] = hPlugin;
-#else
-    RT_NOREF(hPlugin);
-#endif
-
-    g_cFilterBackends += cBackends;
-    return VINF_SUCCESS;
 }
 
 
@@ -888,13 +899,19 @@ DECLHIDDEN(int) vdPluginInit(void)
     if (RT_SUCCESS(rc))
     {
         rc = vdAddCacheBackends(NIL_RTLDRMOD, aStaticCacheBackends, RT_ELEMENTS(aStaticCacheBackends));
-#ifndef VBOX_HDD_NO_DYNAMIC_BACKENDS
         if (RT_SUCCESS(rc))
         {
-            RTListInit(&g_ListPluginsLoaded);
-            rc = vdLoadDynamicBackends();
-        }
+#ifdef VBOX_WITH_PLUGIN_CRYPT
+            rc = vdAddFilterBackends(NIL_RTLDRMOD, aStaticFilterBackends, RT_ELEMENTS(aStaticFilterBackends));
 #endif
+#ifndef VBOX_HDD_NO_DYNAMIC_BACKENDS
+            if (RT_SUCCESS(rc))
+            {
+                RTListInit(&g_ListPluginsLoaded);
+                rc = vdLoadDynamicBackends();
+            }
+#endif
+        }
     }
 
     return rc;
