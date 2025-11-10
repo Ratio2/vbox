@@ -2427,8 +2427,10 @@ static int vboxWinDrvUninstallPerform(PVBOXWINDRVINSTINTERNAL pCtx, PVBOXWINDRVI
             rc = vboxWinDrvQueryFromDriverStore(pCtx, pParms, &pList);
             if (RT_SUCCESS(rc))
             {
+#if 0 /* Disabled for now, needs more work first. */
                 rc = vboxWinDrvUninstallFromFs(pCtx, pParms, pList);
                 if (RT_SUCCESS(rc))
+#endif
                     rc = vboxWinDrvUninstallFromDriverStore(pCtx, pParms, pList);
 
                 VBoxWinDrvStoreListFree(pList);
