@@ -731,6 +731,7 @@ DECLVBGL(int) VbglGuestPropEnum(PVBGLGSTPROPCLIENT pClient,
                                 char const **ppszFlags)
 {
     AssertPtrReturn(pClient, VERR_INVALID_HANDLE);
+    *ppHandle = NULL;
 
     /* Create the handle. */
     PVBGLGUESTPROPENUM pHandle = (PVBGLGUESTPROPENUM)RTMemAllocZ(sizeof(VBGLGUESTPROPENUM));
