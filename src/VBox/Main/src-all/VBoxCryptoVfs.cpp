@@ -284,25 +284,25 @@ static int vboxCryptoFileWriteChunkWithId(PVBOXCRYPTOFILEVFS pThis, uint64_t idC
     /* Clear out any free space at the end with the random bytes. */
     if (cbDataInChunk < pThis->cbPayloadPerUnit)
     {
-        int rc = RTCrRandBytes(&pbPayload[cbDataInChunk], pThis->cbPayloadPerUnit - cbDataInChunk);
-        if (RT_FAILURE(rc))
-            return rc;
+        int vrc = RTCrRandBytes(&pbPayload[cbDataInChunk], pThis->cbPayloadPerUnit - cbDataInChunk);
+        if (RT_FAILURE(vrc))
+            return vrc;
     }
 
     size_t cbEncrypted = 0;
-    int rc = vboxCryptoCtxEncrypt(pThis->hCryptoCtx, false, NULL, 0, pcbPayload, pThis->cbPayloadPerUnit + sizeof(uint32_t),
-                                  &idChunk, sizeof(idChunk),
-                                  pThis->pbEncrypted, pThis->cbUnit, &cbEncrypted);
-    AssertRC(rc);
-    if (RT_SUCCESS(rc))
+    int vrc = vboxCryptoCtxEncrypt(pThis->hCryptoCtx, false, NULL, 0, pcbPayload, pThis->cbPayloadPerUnit + sizeof(uint32_t),
+                                   &idChunk, sizeof(idChunk),
+                                   pThis->pbEncrypted, pThis->cbUnit, &cbEncrypted);
+    AssertRC(vrc);
+    if (RT_SUCCESS(vrc))
     {
         RTFOFF offChunk = vboxCryptoFileGetOffsetForChunkId(pThis, idChunk);
 
-        rc = RTVfsIoStrmWriteAt(pThis->hIos, offChunk, pThis->pbEncrypted, cbEncrypted,
-                                true /*fBlocking*/, NULL /*pcbWritten*/);
+        vrc = RTVfsIoStrmWriteAt(pThis->hIos, offChunk, pThis->pbEncrypted, cbEncrypted,
+                                 true /*fBlocking*/, NULL /*pcbWritten*/);
     }
 
-    return rc;
+    return vrc;
 }
 
 
@@ -317,16 +317,16 @@ static int vboxCryptoFileAppendChunk(PVBOXCRYPTOFILEVFS pThis, bool fEos)
 {
     AssertReturn(pThis->cbDataInChunk, VERR_INVALID_STATE);
 
-    int rc = vboxCryptoFileWriteChunkWithId(pThis, pThis->idChunkAppend, pThis->pcbPayloadAppend, pThis->pbPayloadAppend,
-                                            pThis->cbDataInChunk, fEos);
-    if (RT_SUCCESS(rc))
+    int vrc = vboxCryptoFileWriteChunkWithId(pThis, pThis->idChunkAppend, pThis->pcbPayloadAppend, pThis->pbPayloadAppend,
+                                             pThis->cbDataInChunk, fEos);
+    if (RT_SUCCESS(vrc))
     {
         pThis->idChunkAppend++;
         pThis->cbDataInChunk = 0;
         pThis->fPadEndOfFile = true; /* Appending anything means padding needs to be restored. */
     }
 
-    return rc;
+    return vrc;
 }
 
 
@@ -343,12 +343,12 @@ static int vboxCryptoFileWriteModifiedChunk(PVBOXCRYPTOFILEVFS pThis)
     if (!pThis->fChunkNeedsWriting)
         return VINF_SUCCESS;
 
-    int rc = vboxCryptoFileWriteChunkWithId(pThis, pThis->idChunk, pThis->pcbPayload, pThis->pbPayload,
-                                            pThis->cbPayloadPerUnit, pThis->fChunkEos);
-    if (RT_SUCCESS(rc))
+    int vrc = vboxCryptoFileWriteChunkWithId(pThis, pThis->idChunk, pThis->pcbPayload, pThis->pbPayload,
+                                             pThis->cbPayloadPerUnit, pThis->fChunkEos);
+    if (RT_SUCCESS(vrc))
         pThis->fChunkNeedsWriting = false;
 
-    return rc;
+    return vrc;
 }
 
 
@@ -362,24 +362,24 @@ static int vboxCryptoFileWriteModifiedChunk(PVBOXCRYPTOFILEVFS pThis)
 static int vboxCryptoFileReadChunkById(PVBOXCRYPTOFILEVFS pThis, uint64_t idChunk)
 {
     /* Write the currently chunk out if it was modified. */
-    int rc = vboxCryptoFileWriteModifiedChunk(pThis);
-    if (RT_FAILURE(rc))
-        return rc;
+    int vrc = vboxCryptoFileWriteModifiedChunk(pThis);
+    if (RT_FAILURE(vrc))
+        return vrc;
 
     RTFOFF offChunk = vboxCryptoFileGetOffsetForChunkId(pThis, idChunk);
 
     size_t cbRead = 0;
-    rc = RTVfsIoStrmReadAt(pThis->hIos, offChunk, pThis->pbEncrypted, pThis->cbUnit,
-                           true /*fBlocking*/, &cbRead);
-    if (RT_SUCCESS(rc))
+    vrc = RTVfsIoStrmReadAt(pThis->hIos, offChunk, pThis->pbEncrypted, pThis->cbUnit,
+                            true /*fBlocking*/, &cbRead);
+    if (RT_SUCCESS(vrc))
     {
         size_t cbDecrypted = 0;
-        rc = vboxCryptoCtxDecrypt(pThis->hCryptoCtx, false, pThis->pbEncrypted, cbRead,
-                                  &idChunk, sizeof(idChunk),
-                                  pThis->pcbPayload, pThis->cbPayloadPerUnit + sizeof(uint32_t), &cbDecrypted);
-        AssertRC(rc);
-        if (RT_FAILURE(rc))
-            return rc;
+        vrc = vboxCryptoCtxDecrypt(pThis->hCryptoCtx, false, pThis->pbEncrypted, cbRead,
+                                   &idChunk, sizeof(idChunk),
+                                   pThis->pcbPayload, pThis->cbPayloadPerUnit + sizeof(uint32_t), &cbDecrypted);
+        AssertRC(vrc);
+        if (RT_FAILURE(vrc))
+            return vrc;
         if (cbDecrypted != pThis->cbPayloadPerUnit + sizeof(uint32_t))
             return VERR_PARSE_ERROR;
 
@@ -395,7 +395,7 @@ static int vboxCryptoFileReadChunkById(PVBOXCRYPTOFILEVFS pThis, uint64_t idChun
         pThis->idChunk       = idChunk;
     }
 
-    return rc;
+    return vrc;
 }
 
 
@@ -419,9 +419,9 @@ static int vboxCryptoFileQueryChunkBuf(PVBOXCRYPTOFILEVFS pThis, uint64_t idChun
         && pThis->cbDataInChunk == pThis->cbPayloadPerUnit
         && fWrite)
     {
-        int rc = vboxCryptoFileAppendChunk(pThis, false /*fEos*/);
-        if (RT_FAILURE(rc))
-            return rc;
+        int vrc = vboxCryptoFileAppendChunk(pThis, false /*fEos*/);
+        if (RT_FAILURE(vrc))
+            return vrc;
 
         Assert(idChunk == pThis->idChunkAppend);
     }
@@ -446,10 +446,10 @@ static int vboxCryptoFileQueryChunkBuf(PVBOXCRYPTOFILEVFS pThis, uint64_t idChun
     }
 
     /* Try to read in the chunk if it differs from the currently loaded one. */
-    int rc = VINF_SUCCESS;
+    int vrc = VINF_SUCCESS;
     if (idChunk != pThis->idChunk)
-        rc = vboxCryptoFileReadChunkById(pThis, idChunk);
-    if (RT_SUCCESS(rc))
+        vrc = vboxCryptoFileReadChunkById(pThis, idChunk);
+    if (RT_SUCCESS(vrc))
     {
         *ppbChunk       = pThis->pbPayload;
         *pcbDataInChunk = pThis->cbPayloadPerUnit;
@@ -458,7 +458,7 @@ static int vboxCryptoFileQueryChunkBuf(PVBOXCRYPTOFILEVFS pThis, uint64_t idChun
     else
         pThis->idChunk = UINT64_MAX;
 
-    return rc;
+    return vrc;
 }
 
 
@@ -478,8 +478,8 @@ static int vboxCryptoFileDeterminePayloadSize(PVBOXCRYPTOFILEVFS pThis, uint64_t
          * be completely filled. Works only with seekable streams though.
          */
         size_t cbPadding = pThis->cbUnit - pThis->cbSkipped; /* Need to skip the padding at the end. */
-        int rc = RTVfsFileSeek(pThis->hFile, -(RTFOFF)(cbPadding + pThis->cbUnit), RTFILE_SEEK_END, NULL /*poffActual*/);
-        if (RT_SUCCESS(rc))
+        int vrc = RTVfsFileSeek(pThis->hFile, -(RTFOFF)(cbPadding + pThis->cbUnit), RTFILE_SEEK_END, NULL /*poffActual*/);
+        if (RT_SUCCESS(vrc))
         {
             /* Allocate append buffer and read the data into it. */
             Assert(!pThis->pcbPayloadAppend);
@@ -491,22 +491,22 @@ static int vboxCryptoFileDeterminePayloadSize(PVBOXCRYPTOFILEVFS pThis, uint64_t
 
                 /* Read into the buffer and decrypt. */
                 size_t cbRead = 0;
-                rc = RTVfsFileRead(pThis->hFile, pThis->pbEncrypted, pThis->cbUnit, &cbRead);
-                if (   RT_SUCCESS(rc)
+                vrc = RTVfsFileRead(pThis->hFile, pThis->pbEncrypted, pThis->cbUnit, &cbRead);
+                if (   RT_SUCCESS(vrc)
                     && cbRead == pThis->cbUnit)
                 {
                     /* Seek back */
-                    rc = RTVfsFileSeek(pThis->hFile, (RTFOFF)(sizeof(ENCFILEHDR) + pThis->cbSkipped), RTFILE_SEEK_BEGIN, NULL /*poffActual*/);
-                    AssertRCReturn(rc, rc);
+                    vrc = RTVfsFileSeek(pThis->hFile, (RTFOFF)(sizeof(ENCFILEHDR) + pThis->cbSkipped), RTFILE_SEEK_BEGIN, NULL /*poffActual*/);
+                    AssertRCReturn(vrc, vrc);
 
                     size_t cbDecrypted = 0;
                     uint64_t idChunk = vboxCryptoFileGetChunkCount(pThis, cbFile) - 1;
-                    rc = vboxCryptoCtxDecrypt(pThis->hCryptoCtx, false, pThis->pbEncrypted, cbRead,
-                                              &idChunk, sizeof(idChunk),
-                                              pThis->pcbPayloadAppend, pThis->cbPayloadPerUnit + sizeof(uint32_t), &cbDecrypted);
-                    AssertRC(rc);
-                    if (RT_FAILURE(rc))
-                        return rc;
+                    vrc = vboxCryptoCtxDecrypt(pThis->hCryptoCtx, false, pThis->pbEncrypted, cbRead,
+                                               &idChunk, sizeof(idChunk),
+                                               pThis->pcbPayloadAppend, pThis->cbPayloadPerUnit + sizeof(uint32_t), &cbDecrypted);
+                    AssertRC(vrc);
+                    if (RT_FAILURE(vrc))
+                        return vrc;
                     if (cbDecrypted != pThis->cbPayloadPerUnit + sizeof(uint32_t))
                         return VERR_PARSE_ERROR;
 
@@ -525,7 +525,7 @@ static int vboxCryptoFileDeterminePayloadSize(PVBOXCRYPTOFILEVFS pThis, uint64_t
                     pThis->cbPayload += cbDataInChunk; /* Add the amount of data in the last chunk. */
                     return VINF_SUCCESS;
                 }
-                else if (   RT_SUCCESS(rc)
+                else if (   RT_SUCCESS(vrc)
                          && cbRead != pThis->cbUnit)
                     return VERR_PARSE_ERROR; /* The file got truncated/corrupted. */
             }
@@ -551,20 +551,20 @@ static int vboxCryptoFileDeterminePayloadSize(PVBOXCRYPTOFILEVFS pThis, uint64_t
  */
 static int vboxCryptoFilePadWithRandomData(PVBOXCRYPTOFILEVFS pThis, uint64_t cbPadding)
 {
-    int rc = VINF_SUCCESS;
+    int vrc = VINF_SUCCESS;
     uint8_t abRnd[_1K];
     size_t cbPaddingLeft = cbPadding;
     while (   cbPaddingLeft
-           && RT_SUCCESS(rc))
+           && RT_SUCCESS(vrc))
     {
         size_t cbThisPad = RT_MIN(cbPaddingLeft, sizeof(abRnd));
-        rc = RTCrRandBytes(&abRnd[0], sizeof(abRnd));
-        if (RT_SUCCESS(rc))
-            rc = RTVfsIoStrmWrite(pThis->hIos, &abRnd[0], cbThisPad, true /*fBlocking*/, NULL /*pcbWritten*/);
+        vrc = RTCrRandBytes(&abRnd[0], sizeof(abRnd));
+        if (RT_SUCCESS(vrc))
+            vrc = RTVfsIoStrmWrite(pThis->hIos, &abRnd[0], cbThisPad, true /*fBlocking*/, NULL /*pcbWritten*/);
         cbPaddingLeft -= cbThisPad;
     }
 
-    return rc;
+    return vrc;
 }
 
 
@@ -578,8 +578,8 @@ static int vboxCryptoFileEncryptedHdrCheck(PVBOXCRYPTOFILEVFS pThis)
 {
     uint8_t abBuf[512]; /**< For the header and random data which we might skip. */
 
-    int rc = RTVfsIoStrmRead(pThis->hIos, &abBuf[0], sizeof(ENCFILEHDR), true /*fBlocking*/, NULL /*pcbRead*/);
-    if (RT_SUCCESS(rc))
+    int vrc = RTVfsIoStrmRead(pThis->hIos, &abBuf[0], sizeof(ENCFILEHDR), true /*fBlocking*/, NULL /*pcbRead*/);
+    if (RT_SUCCESS(vrc))
     {
         PENCFILEHDR pHdr = (PENCFILEHDR)&abBuf[0];
 
@@ -590,36 +590,36 @@ static int vboxCryptoFileEncryptedHdrCheck(PVBOXCRYPTOFILEVFS pThis)
                 pThis->cbUnit = RT_LE2H_U32(pHdr->cbUnit);
                 if (pThis->cbUnit <= _1M)
                 {
-                    rc = vboxCryptoCtxCalculatePaddingSplit(pThis->hCryptoCtx, pThis->cbUnit, pHdr, sizeof(*pHdr),
-                                                            &pThis->cbSkipped);
-                    if (RT_SUCCESS(rc))
+                    vrc = vboxCryptoCtxCalculatePaddingSplit(pThis->hCryptoCtx, pThis->cbUnit, pHdr, sizeof(*pHdr),
+                                                             &pThis->cbSkipped);
+                    if (RT_SUCCESS(vrc))
                     {
                         /* Read and skip the random data in case the underlying I/O stream doesn't support seeking. */
                         size_t cbSkipLeft = pThis->cbSkipped;
-                        while (   RT_SUCCESS(rc)
+                        while (   RT_SUCCESS(vrc)
                                && cbSkipLeft)
                         {
                             size_t cbThisSkip = RT_MIN(sizeof(abBuf), cbSkipLeft);
 
-                            rc = RTVfsIoStrmRead(pThis->hIos, &abBuf[0], cbThisSkip, true /*fBlocking*/, NULL /*pcbRead*/);
+                            vrc = RTVfsIoStrmRead(pThis->hIos, &abBuf[0], cbThisSkip, true /*fBlocking*/, NULL /*pcbRead*/);
                             cbSkipLeft -= cbThisSkip;
                         }
 
-                        if (RT_SUCCESS(rc))
-                            rc = vboxCryptoCtxQueryDecryptedSize(pThis->hCryptoCtx, pThis->cbUnit, &pThis->cbPayloadPerUnit);
+                        if (RT_SUCCESS(vrc))
+                            vrc = vboxCryptoCtxQueryDecryptedSize(pThis->hCryptoCtx, pThis->cbUnit, &pThis->cbPayloadPerUnit);
                     }
                 }
                 else
-                    rc = VERR_PARSE_ERROR;
+                    vrc = VERR_PARSE_ERROR;
             }
             else
-                rc = VERR_NOT_SUPPORTED;
+                vrc = VERR_NOT_SUPPORTED;
         }
         else
-            rc = VERR_INVALID_MAGIC;
+            vrc = VERR_INVALID_MAGIC;
     }
 
-    return rc;
+    return vrc;
 }
 
 
@@ -631,10 +631,10 @@ static int vboxCryptoFileEncryptedHdrCheck(PVBOXCRYPTOFILEVFS pThis)
  */
 static int vboxCryptoFileEncryptedHdrWrite(PVBOXCRYPTOFILEVFS pThis)
 {
-    int rc = vboxCryptoCtxQueryEncryptedSize(pThis->hCryptoCtx, BUF_DATA_SIZE, &pThis->cbUnit);
-    if (RT_SUCCESS(rc))
-        rc = vboxCryptoCtxQueryDecryptedSize(pThis->hCryptoCtx, pThis->cbUnit, &pThis->cbPayloadPerUnit);
-    if (RT_SUCCESS(rc))
+    int vrc = vboxCryptoCtxQueryEncryptedSize(pThis->hCryptoCtx, BUF_DATA_SIZE, &pThis->cbUnit);
+    if (RT_SUCCESS(vrc))
+        vrc = vboxCryptoCtxQueryDecryptedSize(pThis->hCryptoCtx, pThis->cbUnit, &pThis->cbPayloadPerUnit);
+    if (RT_SUCCESS(vrc))
     {
         ENCFILEHDR Hdr; RT_ZERO(Hdr);
 
@@ -646,22 +646,22 @@ static int vboxCryptoFileEncryptedHdrWrite(PVBOXCRYPTOFILEVFS pThis)
          * Fill the remainder of the header with random data so we get different padding splits even when the
          * DEK is the same.
          */
-        rc = RTCrRandBytes(&Hdr.abRnd[0], sizeof(Hdr.abRnd));
-        if (RT_SUCCESS(rc))
+        vrc = RTCrRandBytes(&Hdr.abRnd[0], sizeof(Hdr.abRnd));
+        if (RT_SUCCESS(vrc))
         {
             /*
              * Calculate the padding split to hide where the first data block starts in the file.
              */
-            rc = vboxCryptoCtxCalculatePaddingSplit(pThis->hCryptoCtx, pThis->cbUnit, &Hdr, sizeof(Hdr),
-                                                    &pThis->cbSkipped);
-            if (RT_SUCCESS(rc))
+            vrc = vboxCryptoCtxCalculatePaddingSplit(pThis->hCryptoCtx, pThis->cbUnit, &Hdr, sizeof(Hdr),
+                                                     &pThis->cbSkipped);
+            if (RT_SUCCESS(vrc))
             {
                 /* Write the header and random data for the padding. */
-                rc = RTVfsIoStrmWrite(pThis->hIos, &Hdr, sizeof(Hdr), true /*fBlocking*/, NULL /*pcbWritten*/);
-                if (RT_SUCCESS(rc))
+                vrc = RTVfsIoStrmWrite(pThis->hIos, &Hdr, sizeof(Hdr), true /*fBlocking*/, NULL /*pcbWritten*/);
+                if (RT_SUCCESS(vrc))
                 {
-                    rc = vboxCryptoFilePadWithRandomData(pThis, pThis->cbSkipped);
-                    if (RT_SUCCESS(rc))
+                    vrc = vboxCryptoFilePadWithRandomData(pThis, pThis->cbSkipped);
+                    if (RT_SUCCESS(vrc))
                     {
                         pThis->fPadEndOfFile = true;
                         pThis->idChunkAppend = 0;
@@ -671,10 +671,10 @@ static int vboxCryptoFileEncryptedHdrWrite(PVBOXCRYPTOFILEVFS pThis)
             }
         }
         else
-            rc = VERR_NO_MEMORY;
+            vrc = VERR_NO_MEMORY;
     }
 
-    return rc;
+    return vrc;
 }
 
 
@@ -686,20 +686,20 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Close(void *pvThis)
     PVBOXCRYPTOFILEVFS pThis = (PVBOXCRYPTOFILEVFS)pvThis;
 
     /* Write out any modified chunks. */
-    int rc = vboxCryptoFileWriteModifiedChunk(pThis);
+    int vrc = vboxCryptoFileWriteModifiedChunk(pThis);
 
     /* Append any pending chunk now. */
-    if (   RT_SUCCESS(rc)
+    if (   RT_SUCCESS(vrc)
         && pThis->cbDataInChunk)
-        rc = vboxCryptoFileAppendChunk(pThis, true /*fEos*/);
+        vrc = vboxCryptoFileAppendChunk(pThis, true /*fEos*/);
 
     /*
      * Pad the end of the file with random data to make figuring out the chunk boundaries
      * much more difficult.
      */
-    if (   RT_SUCCESS(rc)
+    if (   RT_SUCCESS(vrc)
         && pThis->fPadEndOfFile)
-        rc = vboxCryptoFilePadWithRandomData(pThis, pThis->cbUnit - pThis->cbSkipped);
+        vrc = vboxCryptoFilePadWithRandomData(pThis, pThis->cbUnit - pThis->cbSkipped);
 
     /* Release references to the underlying storage object. */
     RTVfsIoStrmRelease(pThis->hIos);
@@ -721,7 +721,7 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Close(void *pvThis)
         pThis->pcbPayloadAppend = NULL;
         pThis->pbPayloadAppend  = NULL;
     }
-    return rc;
+    return vrc;
 }
 
 
@@ -731,14 +731,14 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Close(void *pvThis)
 static DECLCALLBACK(int) vboxCryptoFileVfs_QueryInfo(void *pvThis, PRTFSOBJINFO pObjInfo, RTFSOBJATTRADD enmAddAttr)
 {
     PVBOXCRYPTOFILEVFS pThis = (PVBOXCRYPTOFILEVFS)pvThis;
-    int rc = RTVfsIoStrmQueryInfo(pThis->hIos, pObjInfo, enmAddAttr);
-    if (RT_SUCCESS(rc))
+    int vrc = RTVfsIoStrmQueryInfo(pThis->hIos, pObjInfo, enmAddAttr);
+    if (RT_SUCCESS(vrc))
     {
         /* Adjust the file size to exclude all the metadata. */
         pObjInfo->cbObject = (RTFOFF)pThis->cbPayload;
     }
 
-    return rc;
+    return vrc;
 }
 
 
@@ -758,7 +758,7 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Read(void *pvThis, RTFOFF off, PRTSGB
 
 #if 0 /** @todo r=bird: can't decode comment. */
     /* Read in the first chunk if it is not matching. */
-    int rc = VINF_SUCCESS;
+    int vrc = VINF_SUCCESS;
     size_t cbLeftToRead = pSgBuf->paSegs[0].cbSeg;
     if (RT_SUCCESS(rc))
     {
@@ -771,15 +771,15 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Read(void *pvThis, RTFOFF off, PRTSGB
     size_t       cbLeftToRead     = 0;
     uint8_t     *pbDst            = (uint8_t *)RTSgBufGetCurrentSegment(pSgBuf, ~(size_t)0, &cbLeftToRead);
     size_t const cbInitialRequest = cbLeftToRead;
-    int          rc               = VINF_SUCCESS;
+    int          vrc              = VINF_SUCCESS;
     for (;;)
     {
         size_t cbData;
         bool fEos = false;
         uint8_t *pbSrc = NULL;
 
-        rc = vboxCryptoFileQueryChunkBuf(pThis, idChunk, false /*fWrite*/, &pbSrc, &cbData, &fEos);
-        if (RT_FAILURE(rc))
+        vrc = vboxCryptoFileQueryChunkBuf(pThis, idChunk, false /*fWrite*/, &pbSrc, &cbData, &fEos);
+        if (RT_FAILURE(vrc))
             break;
 
         size_t cbThisRead = RT_MIN(cbLeftToRead, cbData - offChunk);
@@ -794,7 +794,7 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Read(void *pvThis, RTFOFF off, PRTSGB
 
         if (fEos)
         {
-            rc = VERR_EOF;
+            vrc = VERR_EOF;
             break;
         }
 
@@ -806,17 +806,17 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Read(void *pvThis, RTFOFF off, PRTSGB
         *pcbRead = cbInitialRequest - cbLeftToRead;
     RTSgBufAdvance(pSgBuf, cbInitialRequest - cbLeftToRead);
 
-    if (   RT_FAILURE(rc)
+    if (   RT_FAILURE(vrc)
         && pcbRead)
     {
-        if (*pcbRead == 0 && rc == VERR_EOF)
-            rc = VINF_EOF;
+        if (*pcbRead == 0 && vrc == VERR_EOF)
+            vrc = VINF_EOF;
         else
-            rc = VINF_SUCCESS;
+            vrc = VINF_SUCCESS;
     }
 
     pThis->offPayloadPos = offUnsigned;
-    return rc;
+    return vrc;
 }
 
 
@@ -837,7 +837,7 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Write(void *pvThis, RTFOFF off, PRTSG
     size_t         cbLeftToWrite    = 0;
     uint8_t const *pbSrc            = (uint8_t const *)RTSgBufGetCurrentSegment(pSgBuf, ~(size_t)0, &cbLeftToWrite);
     size_t const   cbInitialRequest = cbLeftToWrite;
-    int            rc               = VINF_SUCCESS;
+    int            vrc              = VINF_SUCCESS;
 
     for (;;)
     {
@@ -845,8 +845,8 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Write(void *pvThis, RTFOFF off, PRTSG
         bool fEos = false;
         uint8_t *pbDst = NULL;
 
-        rc = vboxCryptoFileQueryChunkBuf(pThis, idChunk, true /*fWrite*/, &pbDst, &cbData, &fEos);
-        if (RT_FAILURE(rc))
+        vrc = vboxCryptoFileQueryChunkBuf(pThis, idChunk, true /*fWrite*/, &pbDst, &cbData, &fEos);
+        if (RT_FAILURE(vrc))
             break;
 
         size_t cbThisWrite = RT_MIN(cbLeftToWrite, pThis->cbPayloadPerUnit - offChunk);
@@ -866,8 +866,8 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Write(void *pvThis, RTFOFF off, PRTSG
             if (   pThis->cbDataInChunk == pThis->cbPayloadPerUnit
                 && cbLeftToWrite)
             {
-                rc = vboxCryptoFileAppendChunk(pThis, false /*fEos*/);
-                if (RT_FAILURE(rc))
+                vrc = vboxCryptoFileAppendChunk(pThis, false /*fEos*/);
+                if (RT_FAILURE(vrc))
                     break;
             }
         }
@@ -889,15 +889,15 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Write(void *pvThis, RTFOFF off, PRTSG
     size_t const cbWritten = cbInitialRequest - cbLeftToWrite;
     if (pcbWritten)
         *pcbWritten = cbWritten;
-    if (   RT_FAILURE(rc)
+    if (   RT_FAILURE(vrc)
         && pcbWritten)
     {
         RTSgBufAdvance(pSgBuf, cbWritten);
-        rc = VINF_SUCCESS;
+        vrc = VINF_SUCCESS;
     }
 
     pThis->offPayloadPos = offUnsigned;
-    return rc;
+    return vrc;
 }
 
 
@@ -948,9 +948,9 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_SetMode(void *pvThis, RTFMODE fMode, 
     AssertReturn(pThis->hFile != NIL_RTVFSFILE, VERR_NOT_SUPPORTED);
 
     RT_NOREF_PV(fMode); RT_NOREF_PV(fMask);
-    int rc = VERR_NOT_SUPPORTED;
+    int vrc = VERR_NOT_SUPPORTED;
 
-    return rc;
+    return vrc;
 }
 
 
@@ -964,10 +964,10 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_SetTimes(void *pvThis, PCRTTIMESPEC p
     AssertReturn(pThis->hFile != NIL_RTVFSFILE, VERR_NOT_SUPPORTED);
 
     RT_NOREF_PV(pAccessTime); RT_NOREF_PV(pModificationTime); RT_NOREF_PV(pChangeTime); RT_NOREF_PV(pBirthTime);
-    /// @todo int rc = RTVfsFileSetTimes(pThis->hFile, pAccessTime, pModificationTime, pChangeTime, pBirthTime);
-    int rc = VERR_NOT_SUPPORTED;
+    /// @todo int vrc = RTVfsFileSetTimes(pThis->hFile, pAccessTime, pModificationTime, pChangeTime, pBirthTime);
+    int vrc = VERR_NOT_SUPPORTED;
 
-    return rc;
+    return vrc;
 }
 
 
@@ -980,10 +980,10 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_SetOwner(void *pvThis, RTUID uid, RTG
     AssertReturn(pThis->hFile != NIL_RTVFSFILE, VERR_NOT_SUPPORTED);
 
     RT_NOREF_PV(uid); RT_NOREF_PV(gid);
-    /// @todo int rc = RTVfsFileSetOwner(pThis->hFile, uid, gid);
-    int rc = VERR_NOT_SUPPORTED;
+    /// @todo int vrc = RTVfsFileSetOwner(pThis->hFile, uid, gid);
+    int vrc = VERR_NOT_SUPPORTED;
 
-    return rc;
+    return vrc;
 }
 
 
@@ -1011,9 +1011,9 @@ static DECLCALLBACK(int) vboxCryptoFileVfs_Seek(void *pvThis, RTFOFF offSeek, un
 
         case RTFILE_SEEK_END:
         {
-            int rc = RTVfsFileQuerySize(pThis->hFile, &offWrt);
-            if (RT_FAILURE(rc))
-                return rc;
+            int vrc = RTVfsFileQuerySize(pThis->hFile, &offWrt);
+            if (RT_FAILURE(vrc))
+                return vrc;
 
             offWrt = pThis->cbPayload;
             break;
@@ -1182,8 +1182,8 @@ static int vboxCryptoFileCreateInstance(RTVFSIOSTREAM hVfsIosSrc, RTVFSFILE hVfs
                                         PRTVFSIOSTREAM phVfsIos, PRTVFSFILE phVfsFile)
 {
     VBOXCRYPTOCTX hCryptoCtx;
-    int rc = vboxCryptoCtxLoad(pszKeyStore, pszPassword, &hCryptoCtx);
-    if (RT_SUCCESS(rc))
+    int vrc = vboxCryptoCtxLoad(pszKeyStore, pszPassword, &hCryptoCtx);
+    if (RT_SUCCESS(vrc))
     {
         /*
          * Create a file or I/O stream instance.
@@ -1194,12 +1194,12 @@ static int vboxCryptoFileCreateInstance(RTVFSIOSTREAM hVfsIosSrc, RTVFSFILE hVfs
         RTVFSIOSTREAM      hVfsIosCrypto  = NIL_RTVFSIOSTREAM;
         PVBOXCRYPTOFILEVFS pThis;
         if (hVfsFileSrc != NIL_RTVFSFILE)
-            rc = RTVfsNewFile(&g_VBoxCryptoVfsFileOps, sizeof(*pThis), RTFILE_O_READWRITE, NIL_RTVFS, NIL_RTVFSLOCK,
-                              &hVfsFileCrypto, (void **)&pThis);
+            vrc = RTVfsNewFile(&g_VBoxCryptoVfsFileOps, sizeof(*pThis), RTFILE_O_READWRITE, NIL_RTVFS, NIL_RTVFSLOCK,
+                               &hVfsFileCrypto, (void **)&pThis);
         else
-            rc = RTVfsNewIoStream(&g_VBoxCryptoVfsIosOps, sizeof(*pThis), RTFILE_O_READWRITE, NIL_RTVFS, NIL_RTVFSLOCK,
-                                  &hVfsIosCrypto, (void **)&pThis);
-        if (RT_SUCCESS(rc))
+            vrc = RTVfsNewIoStream(&g_VBoxCryptoVfsIosOps, sizeof(*pThis), RTFILE_O_READWRITE, NIL_RTVFS, NIL_RTVFSLOCK,
+                                   &hVfsIosCrypto, (void **)&pThis);
+        if (RT_SUCCESS(vrc))
         {
             pThis->hCryptoCtx           = hCryptoCtx;
             pThis->hFile                = hVfsFileSrc;
@@ -1210,12 +1210,12 @@ static int vboxCryptoFileCreateInstance(RTVFSIOSTREAM hVfsIosSrc, RTVFSFILE hVfs
             pThis->idChunkAppend        = UINT64_MAX;
 
             if (cbFile)
-                rc = vboxCryptoFileEncryptedHdrCheck(pThis);
+                vrc = vboxCryptoFileEncryptedHdrCheck(pThis);
             else
-                rc = vboxCryptoFileEncryptedHdrWrite(pThis);
+                vrc = vboxCryptoFileEncryptedHdrWrite(pThis);
 
             /* Allocate the required data buffers. */
-            if (RT_SUCCESS(rc))
+            if (RT_SUCCESS(vrc))
             {
                 pThis->cbPayloadPerUnit -= sizeof(uint32_t); /* For the size indicator. */
                 pThis->pcbPayload = (uint32_t *)RTMemPageAllocZ(pThis->cbUnit);
@@ -1226,16 +1226,16 @@ static int vboxCryptoFileCreateInstance(RTVFSIOSTREAM hVfsIosSrc, RTVFSFILE hVfs
                     if (RT_LIKELY(pThis->pbEncrypted))
                     {
                         /* Try to determine the correct payload size of an existing stream. */
-                        if (   RT_SUCCESS(rc)
+                        if (   RT_SUCCESS(vrc)
                             && cbFile)
-                            rc = vboxCryptoFileDeterminePayloadSize(pThis, cbFile);
+                            vrc = vboxCryptoFileDeterminePayloadSize(pThis, cbFile);
 
                         /* Read in the first chunk if there is data available. */
-                        if (   RT_SUCCESS(rc)
+                        if (   RT_SUCCESS(vrc)
                             && cbFile)
-                            rc = vboxCryptoFileReadChunkById(pThis, 0 /*idChunk*/);
+                            vrc = vboxCryptoFileReadChunkById(pThis, 0 /*idChunk*/);
 
-                        if (RT_SUCCESS(rc))
+                        if (RT_SUCCESS(vrc))
                         {
                             /*
                              * We're good.
@@ -1262,15 +1262,15 @@ static int vboxCryptoFileCreateInstance(RTVFSIOSTREAM hVfsIosSrc, RTVFSFILE hVfs
                     pThis->pbPayload  = NULL;
                 }
                 else
-                    rc = VERR_NO_MEMORY;
+                    vrc = VERR_NO_MEMORY;
             }
         }
 
-        int rc2 = vboxCryptoCtxDestroy(hCryptoCtx);
-        AssertRC(rc2); RT_NOREF(rc2);
+        int vrc2 = vboxCryptoCtxDestroy(hCryptoCtx);
+        AssertRC(vrc2); RT_NOREF(vrc2);
     }
 
-    return rc;
+    return vrc;
 }
 
 
@@ -1297,8 +1297,8 @@ DECL_HIDDEN_CALLBACK(int) vboxCryptoFileFromVfsFile(RTVFSFILE hVfsFile, const ch
     AssertReturnStmt(cRefs != UINT32_MAX, RTVfsIoStrmRelease(hVfsIos), VERR_INVALID_HANDLE);
 
     uint64_t cbFile = 0;
-    int rc = RTVfsFileQuerySize(hVfsFile, &cbFile);
-    AssertRCReturn(rc, rc);
+    int vrc = RTVfsFileQuerySize(hVfsFile, &cbFile);
+    AssertRCReturn(vrc, vrc);
 
     /*
      * Do the job. (This always consumes the above retained references.)
@@ -1361,9 +1361,9 @@ DECL_HIDDEN_CALLBACK(int) vboxCryptoIoStrmFromVfsIoStrmDecrypt(RTVFSIOSTREAM hVf
     RTVFSFILE hVfsFile = RTVfsIoStrmToFile(hVfsIosIn);
 
     RTFSOBJINFO ObjInfo;
-    int rc = RTVfsIoStrmQueryInfo(hVfsIosIn, &ObjInfo, RTFSOBJATTRADD_UNIX);
-    if (RT_FAILURE(rc))
-        return rc;
+    int vrc = RTVfsIoStrmQueryInfo(hVfsIosIn, &ObjInfo, RTFSOBJATTRADD_UNIX);
+    if (RT_FAILURE(vrc))
+        return vrc;
 
     /*
      * Do the job. (This always consumes the above retained references.)

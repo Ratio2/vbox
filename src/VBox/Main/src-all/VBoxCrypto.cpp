@@ -215,27 +215,27 @@ static int vboxCryptoCtxEncryptAesXts(PVBOXCRYPTOCTXINT pThis, const void *pvDat
     AssertReturn(pThis->cbKey == 32 || pThis->cbKey == 64, VERR_INTERNAL_ERROR);
 
     RTCRCIPHER hCipher;
-    int rc = RTCrCipherOpenByType(&hCipher,
-                                    pThis->cbKey == 32
-                                  ? RTCRCIPHERTYPE_XTS_AES_128
-                                  : RTCRCIPHERTYPE_XTS_AES_256,
-                                  0);
-    if (RT_SUCCESS(rc))
+    int vrc = RTCrCipherOpenByType(&hCipher,
+                                     pThis->cbKey == 32
+                                   ? RTCRCIPHERTYPE_XTS_AES_128
+                                   : RTCRCIPHERTYPE_XTS_AES_256,
+                                   0);
+    if (RT_SUCCESS(vrc))
     {
         size_t  cbEncrypted = 0;
         uint8_t abIv[16];
         RT_ZERO(abIv);
-        rc = RTCrCipherEncrypt(hCipher, pThis->pbKey, pThis->cbKey, &abIv[0], sizeof(abIv),
-                               pvData, cbData,
-                               pvEncrypted, cbBufEncrypted, &cbEncrypted);
-        if (RT_SUCCESS(rc))
+        vrc = RTCrCipherEncrypt(hCipher, pThis->pbKey, pThis->cbKey, &abIv[0], sizeof(abIv),
+                                pvData, cbData,
+                                pvEncrypted, cbBufEncrypted, &cbEncrypted);
+        if (RT_SUCCESS(vrc))
             AssertReturn(cbEncrypted == cbBufEncrypted, VERR_INTERNAL_ERROR);
 
         uint32_t cRefs = RTCrCipherRelease(hCipher);
         Assert(cRefs == 0); RT_NOREF_PV(cRefs);
     }
 
-    return rc;
+    return vrc;
 }
 
 
@@ -258,24 +258,24 @@ DECLHIDDEN(int) vboxCryptoCtxCalculatePaddingSplit(VBOXCRYPTOCTX hCryptoCtx, siz
     PVBOXCRYPTOCTXINT pThis = hCryptoCtx;
 
     RTCRDIGEST hDigest;
-    int rc = RTCrDigestCreateByType(&hDigest, RTDIGESTTYPE_SHA256);
-    if (RT_SUCCESS(rc))
+    int vrc = RTCrDigestCreateByType(&hDigest, RTDIGESTTYPE_SHA256);
+    if (RT_SUCCESS(vrc))
     {
-        rc = RTCrDigestUpdate(hDigest, pvData, cbData);
-        if (RT_SUCCESS(rc))
+        vrc = RTCrDigestUpdate(hDigest, pvData, cbData);
+        if (RT_SUCCESS(vrc))
         {
             uint8_t abHash[256 / 8];
             AssertReturn(sizeof(abHash) == RTCrDigestGetHashSize(hDigest), VERR_INTERNAL_ERROR);
 
-            rc = RTCrDigestFinal(hDigest, &abHash[0], sizeof(abHash));
-            if (RT_SUCCESS(rc))
+            vrc = RTCrDigestFinal(hDigest, &abHash[0], sizeof(abHash));
+            if (RT_SUCCESS(vrc))
             {
                 /* Encrypt the hash in XTS mode with the DEK. */
                 uint16_t abHashEncrypted[sizeof(abHash) / sizeof(uint16_t)];
 
-                rc = vboxCryptoCtxEncryptAesXts(pThis, &abHash[0], sizeof(abHash),
-                                                &abHashEncrypted[0], sizeof(abHashEncrypted));
-                if (RT_SUCCESS(rc))
+                vrc = vboxCryptoCtxEncryptAesXts(pThis, &abHash[0], sizeof(abHash),
+                                                 &abHashEncrypted[0], sizeof(abHashEncrypted));
+                if (RT_SUCCESS(vrc))
                 {
                     uint16_t cbSplit = 0;
                     for (uint16_t i = 0; i < RT_ELEMENTS(abHashEncrypted); i++)
@@ -288,7 +288,7 @@ DECLHIDDEN(int) vboxCryptoCtxCalculatePaddingSplit(VBOXCRYPTOCTX hCryptoCtx, siz
         RTCrDigestRelease(hDigest);
     }
 
-    return rc;
+    return vrc;
 }
 
 
@@ -319,11 +319,11 @@ static int vboxCryptoKeyStoreDekCreate(PVBOXCRYPTOCTXINT pThis)
 {
     pThis->cbKey = pThis->pCipherAlgo->cbKey;
 
-    int rc = RTMemSaferAllocZEx((void **)&pThis->pbKey, pThis->cbKey, 0 /* fFlags */);
-    if (RT_SUCCESS(rc))
-        rc = RTCrRandBytes((void *)pThis->pbKey, pThis->cbKey);
+    int vrc = RTMemSaferAllocZEx((void **)&pThis->pbKey, pThis->cbKey, 0 /* fFlags */);
+    if (RT_SUCCESS(vrc))
+        vrc = RTCrRandBytes((void *)pThis->pbKey, pThis->cbKey);
 
-    return rc;
+    return vrc;
 }
 
 
@@ -342,16 +342,16 @@ static DECLCALLBACK(int) vboxCryptoCtxCreate(const char *pszCipher, const char *
     if (!pCipherAlgo)
         return VERR_INVALID_PARAMETER;
 
-    int rc = VINF_SUCCESS;
+    int vrc = VINF_SUCCESS;
     PVBOXCRYPTOCTXINT pThis = (PVBOXCRYPTOCTXINT)RTMemAllocZ(sizeof(*pThis));
     if (RT_LIKELY(pThis))
     {
         pThis->pCipherAlgo = pCipherAlgo;
-        rc = vboxCryptoKeyStoreDekCreate(pThis);
-        if (RT_SUCCESS(rc))
+        vrc = vboxCryptoKeyStoreDekCreate(pThis);
+        if (RT_SUCCESS(vrc))
         {
-            rc = vboxCryptoKeyStoreCreate(pszPassword, pThis->pbKey, pThis->cbKey, pszCipher, &pThis->pszEncStore);
-            if (RT_SUCCESS(rc))
+            vrc = vboxCryptoKeyStoreCreate(pszPassword, pThis->pbKey, pThis->cbKey, pszCipher, &pThis->pszEncStore);
+            if (RT_SUCCESS(vrc))
             {
                 *phCryptoCtx = pThis;
                 return VINF_SUCCESS;
@@ -363,9 +363,9 @@ static DECLCALLBACK(int) vboxCryptoCtxCreate(const char *pszCipher, const char *
         RTMemFree(pThis);
     }
     else
-        rc = VERR_NO_MEMORY;
+        vrc = VERR_NO_MEMORY;
 
-    return rc;
+    return vrc;
 }
 
 
@@ -380,7 +380,7 @@ DECL_HIDDEN_CALLBACK(int) vboxCryptoCtxLoad(const char *pszStoredCtx, const char
     AssertReturn(*pszPassword != '\0', VERR_INVALID_PARAMETER);
     AssertReturn(phCryptoCtx, VERR_INVALID_PARAMETER);
 
-    int rc = VINF_SUCCESS;
+    int vrc = VINF_SUCCESS;
     PVBOXCRYPTOCTXINT pThis = (PVBOXCRYPTOCTXINT)RTMemAllocZ(sizeof(*pThis));
     if (RT_LIKELY(pThis))
     {
@@ -388,8 +388,8 @@ DECL_HIDDEN_CALLBACK(int) vboxCryptoCtxLoad(const char *pszStoredCtx, const char
         if (RT_LIKELY(pThis->pszEncStore))
         {
             char *pszCipher = NULL;
-            rc = vboxCryptoKeyStoreGetDekFromEncoded(pszStoredCtx, pszPassword, &pThis->pbKey, &pThis->cbKey, &pszCipher);
-            if (RT_SUCCESS(rc))
+            vrc = vboxCryptoKeyStoreGetDekFromEncoded(pszStoredCtx, pszPassword, &pThis->pbKey, &pThis->cbKey, &pszCipher);
+            if (RT_SUCCESS(vrc))
             {
                 pThis->pCipherAlgo = vboxCryptoQueryAlgorithmMapping(pszCipher);
                 if (RT_LIKELY(pThis->pCipherAlgo))
@@ -398,7 +398,7 @@ DECL_HIDDEN_CALLBACK(int) vboxCryptoCtxLoad(const char *pszStoredCtx, const char
                     return VINF_SUCCESS;
                 }
                 else
-                    rc = VERR_NOT_SUPPORTED;
+                    vrc = VERR_NOT_SUPPORTED;
                 RTStrFree(pszCipher);
             }
 
@@ -406,14 +406,14 @@ DECL_HIDDEN_CALLBACK(int) vboxCryptoCtxLoad(const char *pszStoredCtx, const char
             pThis->pszEncStore = NULL;
         }
         else
-            rc = VERR_NO_MEMORY;
+            vrc = VERR_NO_MEMORY;
 
         RTMemFree(pThis);
     }
     else
-        rc = VERR_NO_MEMORY;
+        vrc = VERR_NO_MEMORY;
 
-    return rc;
+    return vrc;
 }
 
 
@@ -463,12 +463,12 @@ static DECLCALLBACK(int) vboxCryptoCtxPasswordChange(VBOXCRYPTOCTX hCryptoCtx, c
 
     const char *pszCipher = pThis->pCipherAlgo->pszName;
     char *pszOldEncStore = pThis->pszEncStore;
-    int rc = vboxCryptoKeyStoreCreate(pszPassword, pThis->pbKey, pThis->cbKey, pszCipher, &pThis->pszEncStore);
+    int vrc = vboxCryptoKeyStoreCreate(pszPassword, pThis->pbKey, pThis->cbKey, pszCipher, &pThis->pszEncStore);
 
-    if (RT_SUCCESS(rc) && pszOldEncStore)
+    if (RT_SUCCESS(vrc) && pszOldEncStore)
         RTStrFree(pszOldEncStore);
 
-    return rc;
+    return vrc;
 }
 
 
@@ -545,8 +545,8 @@ static int vboxCryptoCtxEncryptAes(PVBOXCRYPTOCTXINT pThis, bool fPartial, void 
                                    void *pvEncrypted, size_t cbEncrypted, size_t *pcbEncrypted)
 {
     size_t cbEncryptedReq;
-    int rc = vboxCryptoCtxQueryEncryptedSize(pThis, cbPlainText, &cbEncryptedReq);
-    AssertRCReturn(rc, rc);
+    int vrc = vboxCryptoCtxQueryEncryptedSize(pThis, cbPlainText, &cbEncryptedReq);
+    AssertRCReturn(vrc, vrc);
 
     /** @todo Review! */
     if (   (   (!fPartial || (fPartial && pThis->hCipher == NIL_RTCRCIPHER))
@@ -571,19 +571,19 @@ static int vboxCryptoCtxEncryptAes(PVBOXCRYPTOCTXINT pThis, bool fPartial, void 
         uint8_t *pbEncrypted = (uint8_t *)pvEncrypted;
         if (pThis->hCipher == NIL_RTCRCIPHER)
         {
-            rc = RTCrCipherOpenByType(&pThis->hCipher, pThis->pCipherAlgo->enmCipherType, 0);
-            AssertRCReturnStmt(rc, pThis->hCipher = NIL_RTCRCIPHER, rc);
+            vrc = RTCrCipherOpenByType(&pThis->hCipher, pThis->pCipherAlgo->enmCipherType, 0);
+            AssertRCReturnStmt(vrc, pThis->hCipher = NIL_RTCRCIPHER, vrc);
 
             /* CTR mode: <IV 16 bytes><data> */
             if (pvIV != NULL)
                 memcpy(pvEncrypted, pvIV, 16);
             else
-                rc = RTCrRandBytes(pvEncrypted, 16);
+                vrc = RTCrRandBytes(pvEncrypted, 16);
 
-            if (RT_SUCCESS(rc))
-                rc = RTCrCipherCtxEncryptInit(pThis->hCipher, (const void *)pThis->pbKey, pThis->cbKey,
-                                              pvEncrypted, 16, NULL, 0, &pThis->pCipherCtx);
-            if (RT_FAILURE(rc))
+            if (RT_SUCCESS(vrc))
+                vrc = RTCrCipherCtxEncryptInit(pThis->hCipher, (const void *)pThis->pbKey, pThis->cbKey,
+                                               pvEncrypted, 16, NULL, 0, &pThis->pCipherCtx);
+            if (RT_FAILURE(vrc))
             {
                 RTCrCipherCtxFree(pThis->pCipherCtx);
                 pThis->pCipherCtx = NIL_RTCRCIPHERCTX;
@@ -599,15 +599,15 @@ static int vboxCryptoCtxEncryptAes(PVBOXCRYPTOCTXINT pThis, bool fPartial, void 
         }
         size_t cbEncrypted1 = 0;
         /* Initialization without encrypting is allowed in partial mode */
-        if (RT_SUCCESS(rc) && pvPlainText && cbPlainText > 0)
-            rc = RTCrCipherCtxEncryptProcess(pThis->pCipherCtx, pvPlainText, cbPlainText,
-                                             (void *)pbEncrypted, cbEncrypted, &cbEncrypted1);
+        if (RT_SUCCESS(vrc) && pvPlainText && cbPlainText > 0)
+            vrc = RTCrCipherCtxEncryptProcess(pThis->pCipherCtx, pvPlainText, cbPlainText,
+                                              (void *)pbEncrypted, cbEncrypted, &cbEncrypted1);
         size_t cbEncrypted2 = 0;
-        if (RT_SUCCESS(rc) && !fPartial)
+        if (RT_SUCCESS(vrc) && !fPartial)
         {
-            rc = RTCrCipherCtxEncryptFinish(pThis->pCipherCtx, (void *)&pbEncrypted[cbEncrypted1],
-                                            &cbEncrypted2, NULL, 0, NULL);
-            if (RT_SUCCESS(rc))
+            vrc = RTCrCipherCtxEncryptFinish(pThis->pCipherCtx, (void *)&pbEncrypted[cbEncrypted1],
+                                             &cbEncrypted2, NULL, 0, NULL);
+            if (RT_SUCCESS(vrc))
             {
                 RTCrCipherCtxFree(pThis->pCipherCtx);
                 pThis->pCipherCtx = NIL_RTCRCIPHERCTX;
@@ -615,14 +615,14 @@ static int vboxCryptoCtxEncryptAes(PVBOXCRYPTOCTXINT pThis, bool fPartial, void 
                 pThis->hCipher = NIL_RTCRCIPHER;
             }
         }
-        if (RT_SUCCESS(rc) && pcbEncrypted)
+        if (RT_SUCCESS(vrc) && pcbEncrypted)
             *pcbEncrypted = cbEncryptedIV + cbEncrypted1 + cbEncrypted2;
     }
     else
     {
         RTCRCIPHER hCipher = NULL;
-        rc = RTCrCipherOpenByType(&hCipher, pThis->pCipherAlgo->enmCipherType, 0);
-        AssertRCReturnStmt(rc, hCipher = NIL_RTCRCIPHER, rc);
+        vrc = RTCrCipherOpenByType(&hCipher, pThis->pCipherAlgo->enmCipherType, 0);
+        AssertRCReturnStmt(vrc, hCipher = NIL_RTCRCIPHER, vrc);
 
         uint8_t *pbEncrypted = (uint8_t *)pvEncrypted;
         /*
@@ -647,19 +647,19 @@ static int vboxCryptoCtxEncryptAes(PVBOXCRYPTOCTXINT pThis, bool fPartial, void 
         if (pvIV != NULL)
             memcpy(pvEncrypted, pvIV, cbIV);
         else
-            rc = RTCrRandBytes(pvEncrypted, cbIV);
-        if (RT_SUCCESS(rc))
+            vrc = RTCrRandBytes(pvEncrypted, cbIV);
+        if (RT_SUCCESS(vrc))
         {
             size_t cbEnc = 0;
             size_t cbTag1 = 0;
-            rc = RTCrCipherEncryptEx(hCipher, (const void *)pThis->pbKey, pThis->cbKey,
-                                    pvEncrypted, cbIV, pvAuth, cbAuth, pvPlainText, cbPlainText,
-                                    (void *)&pbEncrypted[idxEnc], cbEncrypted - idxEnc, &cbEnc,
-                                    pTag, cbTag, &cbTag1);
-            if (RT_SUCCESS(rc))
+            vrc = RTCrCipherEncryptEx(hCipher, (const void *)pThis->pbKey, pThis->cbKey,
+                                     pvEncrypted, cbIV, pvAuth, cbAuth, pvPlainText, cbPlainText,
+                                     (void *)&pbEncrypted[idxEnc], cbEncrypted - idxEnc, &cbEnc,
+                                     pTag, cbTag, &cbTag1);
+            if (RT_SUCCESS(vrc))
             {
                 if (cbTag1 != cbTag)
-                    rc = VERR_INTERNAL_ERROR;
+                    vrc = VERR_INTERNAL_ERROR;
                 else
                     *pcbEncrypted = cbEnc + idxEnc;
             }
@@ -667,7 +667,7 @@ static int vboxCryptoCtxEncryptAes(PVBOXCRYPTOCTXINT pThis, bool fPartial, void 
         RTCrCipherRelease(hCipher);
         pThis->hCipher = NIL_RTCRCIPHER;
     }
-    return rc;
+    return vrc;
 }
 
 
@@ -676,8 +676,8 @@ static int vboxCryptoCtxDecryptAes(PVBOXCRYPTOCTXINT pThis, bool fPartial, const
                                    void *pvPlainText, size_t cbPlainText, size_t *pcbPlainText)
 {
     size_t cbDecryptedReq;
-    int rc = vboxCryptoCtxQueryDecryptedSize(pThis, cbPlainText, &cbDecryptedReq);
-    AssertRCReturn(rc, rc);
+    int vrc = vboxCryptoCtxQueryDecryptedSize(pThis, cbPlainText, &cbDecryptedReq);
+    AssertRCReturn(vrc, vrc);
 
     /** @todo Review! */
     if (   (   (!fPartial || (fPartial && pThis->hCipher == NIL_RTCRCIPHER))
@@ -696,15 +696,15 @@ static int vboxCryptoCtxDecryptAes(PVBOXCRYPTOCTXINT pThis, bool fPartial, const
         uint8_t *pbEncrypted = (uint8_t *)pvEncrypted;
         if (pThis->hCipher == NIL_RTCRCIPHER)
         {
-            rc = RTCrCipherOpenByType(&pThis->hCipher, pThis->pCipherAlgo->enmCipherType, 0);
-            AssertRCReturnStmt(rc, pThis->hCipher = NIL_RTCRCIPHER, rc);
+            vrc = RTCrCipherOpenByType(&pThis->hCipher, pThis->pCipherAlgo->enmCipherType, 0);
+            AssertRCReturnStmt(vrc, pThis->hCipher = NIL_RTCRCIPHER, vrc);
 
             /* CTR mode: <IV 16 bytes><data> */
 
-            if (RT_SUCCESS(rc))
-                rc = RTCrCipherCtxDecryptInit(pThis->hCipher, (const void *)pThis->pbKey, pThis->cbKey,
-                                              pvEncrypted, 16, NULL, 0, NULL, 0, &pThis->pCipherCtx);
-            if (RT_FAILURE(rc))
+            if (RT_SUCCESS(vrc))
+                vrc = RTCrCipherCtxDecryptInit(pThis->hCipher, (const void *)pThis->pbKey, pThis->cbKey,
+                                               pvEncrypted, 16, NULL, 0, NULL, 0, &pThis->pCipherCtx);
+            if (RT_FAILURE(vrc))
             {
                 RTCrCipherCtxFree(pThis->pCipherCtx);
                 pThis->pCipherCtx = NIL_RTCRCIPHERCTX;
@@ -718,15 +718,15 @@ static int vboxCryptoCtxDecryptAes(PVBOXCRYPTOCTXINT pThis, bool fPartial, const
             }
         }
         size_t cbDecrypted1 = 0;
-        if (RT_SUCCESS(rc))
-            rc = RTCrCipherCtxDecryptProcess(pThis->pCipherCtx, (void *)pbEncrypted, cbEncrypted,
-                                             pvPlainText, cbPlainText, &cbDecrypted1);
+        if (RT_SUCCESS(vrc))
+            vrc = RTCrCipherCtxDecryptProcess(pThis->pCipherCtx, (void *)pbEncrypted, cbEncrypted,
+                                              pvPlainText, cbPlainText, &cbDecrypted1);
         size_t cbDecrypted2 = 0;
         uint8_t *pbPlainText = (uint8_t *)pvPlainText;
-        if (RT_SUCCESS(rc) && !fPartial)
+        if (RT_SUCCESS(vrc) && !fPartial)
         {
-            rc = RTCrCipherCtxDecryptFinish(pThis->pCipherCtx, (void *)&pbPlainText[cbDecrypted1], &cbDecrypted2);
-            if (RT_SUCCESS(rc))
+            vrc = RTCrCipherCtxDecryptFinish(pThis->pCipherCtx, (void *)&pbPlainText[cbDecrypted1], &cbDecrypted2);
+            if (RT_SUCCESS(vrc))
             {
                 RTCrCipherCtxFree(pThis->pCipherCtx);
                 pThis->pCipherCtx = NIL_RTCRCIPHERCTX;
@@ -734,14 +734,14 @@ static int vboxCryptoCtxDecryptAes(PVBOXCRYPTOCTXINT pThis, bool fPartial, const
                 pThis->hCipher = NIL_RTCRCIPHER;
             }
         }
-        if (RT_SUCCESS(rc) && pcbPlainText)
+        if (RT_SUCCESS(vrc) && pcbPlainText)
             *pcbPlainText = cbDecrypted1 + cbDecrypted2;
     }
     else
     {
         RTCRCIPHER hCipher = NULL;
-        rc = RTCrCipherOpenByType(&hCipher, pThis->pCipherAlgo->enmCipherType, 0);
-        AssertRCReturnStmt(rc, hCipher = NIL_RTCRCIPHER, rc);
+        vrc = RTCrCipherOpenByType(&hCipher, pThis->pCipherAlgo->enmCipherType, 0);
+        AssertRCReturnStmt(vrc, hCipher = NIL_RTCRCIPHER, vrc);
 
         /*
          * GCM mode: <IV 12 bytes><TAG 16 bytes><data>
@@ -765,16 +765,16 @@ static int vboxCryptoCtxDecryptAes(PVBOXCRYPTOCTXINT pThis, bool fPartial, const
             cbAuth = 0;
         }
         size_t cbDec = 0;
-        rc = RTCrCipherDecryptEx(hCipher, (const void *)pThis->pbKey, pThis->cbKey,
-                                pvEncrypted, cbIV, pvAuth, cbAuth,
-                                pTag, cbTag, (void *)&pbEncrypted[idxEnc], cbEncrypted - idxEnc,
-                                pvPlainText, cbPlainText, &cbDec);
-        if (RT_SUCCESS(rc))
+        vrc = RTCrCipherDecryptEx(hCipher, (const void *)pThis->pbKey, pThis->cbKey,
+                                 pvEncrypted, cbIV, pvAuth, cbAuth,
+                                 pTag, cbTag, (void *)&pbEncrypted[idxEnc], cbEncrypted - idxEnc,
+                                 pvPlainText, cbPlainText, &cbDec);
+        if (RT_SUCCESS(vrc))
             *pcbPlainText = cbDec;
         RTCrCipherRelease(hCipher);
         pThis->hCipher = NIL_RTCRCIPHER;
     }
-    return rc;
+    return vrc;
 }
 
 
@@ -798,10 +798,10 @@ DECL_HIDDEN_CALLBACK(int) vboxCryptoCtxEncrypt(VBOXCRYPTOCTX hCryptoCtx, bool fP
     {
         case VBOXCRYPTALGO_XOR:
         {
-            int rc = vboxCryptoCtxXor(pThis, pvPlainText, cbPlainText, pvEncrypted, cbEncrypted);
-            if (RT_SUCCESS(rc))
+            int vrc = vboxCryptoCtxXor(pThis, pvPlainText, cbPlainText, pvEncrypted, cbEncrypted);
+            if (RT_SUCCESS(vrc))
                 *pcbEncrypted = cbEncrypted;
-            return rc;
+            return vrc;
         }
         case VBOXCRYPTALGO_AES_GCM128:
         case VBOXCRYPTALGO_AES_GCM256:
@@ -838,10 +838,10 @@ DECL_HIDDEN_CALLBACK(int) vboxCryptoCtxDecrypt(VBOXCRYPTOCTX hCryptoCtx, bool fP
     {
         case VBOXCRYPTALGO_XOR:
         {
-            int rc = vboxCryptoCtxXor(pThis, pvEncrypted, cbEncrypted, pvPlainText, cbPlainText);
-            if (RT_SUCCESS(rc))
+            int vrc = vboxCryptoCtxXor(pThis, pvEncrypted, cbEncrypted, pvPlainText, cbPlainText);
+            if (RT_SUCCESS(vrc))
                 *pcbPlainText = cbEncrypted;
-            return rc;
+            return vrc;
         }
         case VBOXCRYPTALGO_AES_GCM128:
         case VBOXCRYPTALGO_AES_GCM256:
@@ -895,10 +895,10 @@ static uint32_t vboxCryptoKeyStoreIterationCountBenchmark(RTDIGESTTYPE enmDigest
 
         while (RTTimeMilliTS() < tsStart + msCompute)
         {
-            int rc = RTCrPkcs5Pbkdf2Hmac(pbInput, cbInput, &abSalt[0],
-                                         sizeof(abSalt), VBOX_KEYSTORE_ITERATIONS_MIN,
-                                         enmDigestType, cbResult, pbOutput);
-            if (RT_SUCCESS(rc))
+            int vrc = RTCrPkcs5Pbkdf2Hmac(pbInput, cbInput, &abSalt[0],
+                                          sizeof(abSalt), VBOX_KEYSTORE_ITERATIONS_MIN,
+                                          enmDigestType, cbResult, pbOutput);
+            if (RT_SUCCESS(vrc))
             { /* likely */ }
             else
             {
@@ -997,14 +997,14 @@ static int vboxCryptoKeyStoreDeriveKeyFromPassword(const char *pszPassword, PVBo
     /* Allocate enough memory for the derived key. */
     void *pvDerivKey = NULL;
     size_t cbDerivKey = vboxCryptoKeyStoreGetKeySizeForCipher(vboxCryptoKeyStoreGetCipherForDek(pKeyStore));
-    int rc = RTMemSaferAllocZEx(&pvDerivKey, cbDerivKey, 0 /* fFlags */);
-    if (RT_SUCCESS(rc))
+    int vrc = RTMemSaferAllocZEx(&pvDerivKey, cbDerivKey, 0 /* fFlags */);
+    if (RT_SUCCESS(vrc))
     {
         /* Do the key deriviation. */
-        rc = RTCrPkcs5Pbkdf2Hmac(pszPassword, strlen(pszPassword), &pKeyStore->abDekSalt[0],
-                                 sizeof(pKeyStore->abDekSalt), pKeyStore->cDekIterations,
-                                 vboxCryptoKeyStoreGetDigest(pKeyStore), cbDerivKey, pvDerivKey);
-        if (RT_SUCCESS(rc))
+        vrc = RTCrPkcs5Pbkdf2Hmac(pszPassword, strlen(pszPassword), &pKeyStore->abDekSalt[0],
+                                  sizeof(pKeyStore->abDekSalt), pKeyStore->cDekIterations,
+                                  vboxCryptoKeyStoreGetDigest(pKeyStore), cbDerivKey, pvDerivKey);
+        if (RT_SUCCESS(vrc))
         {
             *ppbDerivKey = (uint8_t *)pvDerivKey;
             *pcbDerivKey = cbDerivKey;
@@ -1013,7 +1013,7 @@ static int vboxCryptoKeyStoreDeriveKeyFromPassword(const char *pszPassword, PVBo
             RTMemSaferFree(pvDerivKey, cbDerivKey);
     }
 
-    return rc;
+    return vrc;
 }
 
 
@@ -1031,20 +1031,20 @@ static int vboxCryptoKeyStoreDekDecryptWithKey(PVBoxKeyStore pKeyStore, const ui
                                                const size_t cbKey, uint8_t **ppbDekDecrypted)
 {
     RTCRCIPHER hCipher;
-    int rc = RTCrCipherOpenByType(&hCipher, vboxCryptoKeyStoreGetCipherForDek(pKeyStore), 0);
-    if (RT_SUCCESS(rc))
+    int vrc = RTCrCipherOpenByType(&hCipher, vboxCryptoKeyStoreGetCipherForDek(pKeyStore), 0);
+    if (RT_SUCCESS(vrc))
     {
         void *pvDek = NULL;
-        rc = RTMemSaferAllocZEx(&pvDek, pKeyStore->cbKey, 0 /* fFlags */);
-        if (RT_SUCCESS(rc))
+        vrc = RTMemSaferAllocZEx(&pvDek, pKeyStore->cbKey, 0 /* fFlags */);
+        if (RT_SUCCESS(vrc))
         {
             size_t  cbDecrypted = 0;
             uint8_t abIv[16];
             RT_ZERO(abIv);
-            rc = RTCrCipherDecrypt(hCipher, pbKey, cbKey, &abIv[0], sizeof(abIv),
-                                   &pKeyStore->abDekEnc[0], pKeyStore->cbDekEnc,
-                                   pvDek, pKeyStore->cbKey, &cbDecrypted);
-            if (RT_SUCCESS(rc))
+            vrc = RTCrCipherDecrypt(hCipher, pbKey, cbKey, &abIv[0], sizeof(abIv),
+                                    &pKeyStore->abDekEnc[0], pKeyStore->cbDekEnc,
+                                    pvDek, pKeyStore->cbKey, &cbDecrypted);
+            if (RT_SUCCESS(vrc))
             {
                 Assert(cbDecrypted == pKeyStore->cbKey);
                 *ppbDekDecrypted = (uint8_t *)pvDek;
@@ -1055,7 +1055,7 @@ static int vboxCryptoKeyStoreDekDecryptWithKey(PVBoxKeyStore pKeyStore, const ui
         uint32_t cRefs = RTCrCipherRelease(hCipher);
         Assert(cRefs == 0); RT_NOREF_PV(cRefs);
     }
-    return rc;
+    return vrc;
 }
 
 
@@ -1071,7 +1071,7 @@ static int vboxCryptoKeyStoreDekDecryptWithKey(PVBoxKeyStore pKeyStore, const ui
 static int vboxCryptoKeyStoreCheckDekAgainstDigest(PVBoxKeyStore pKeyStore, const uint8_t *pbDek)
 {
     /* Query key derivation function. */
-    int rc;
+    int vrc;
     RTDIGESTTYPE enmDigestType = vboxCryptoKeyStoreGetDigest(pKeyStore);
     if (enmDigestType != RTDIGESTTYPE_INVALID)
     {
@@ -1081,22 +1081,22 @@ static int vboxCryptoKeyStoreCheckDekAgainstDigest(PVBoxKeyStore pKeyStore, cons
         if (pbDekDigest)
         {
             /* Do the magic and compare outcome. */
-            rc = RTCrPkcs5Pbkdf2Hmac(pbDek, pKeyStore->cbKey, &pKeyStore->abDekDigestSalt[0],
-                                     sizeof(pKeyStore->abDekDigestSalt), pKeyStore->cDekDigestIterations,
-                                     enmDigestType, pKeyStore->cbDekDigest, pbDekDigest);
-            if (   RT_SUCCESS(rc)
+            vrc = RTCrPkcs5Pbkdf2Hmac(pbDek, pKeyStore->cbKey, &pKeyStore->abDekDigestSalt[0],
+                                      sizeof(pKeyStore->abDekDigestSalt), pKeyStore->cDekDigestIterations,
+                                      enmDigestType, pKeyStore->cbDekDigest, pbDekDigest);
+            if (   RT_SUCCESS(vrc)
                 && memcmp(pbDekDigest, pKeyStore->abDekDigest, cbDekDigest) == 0)
-                rc = VINF_SUCCESS;
+                vrc = VINF_SUCCESS;
             else
-                rc = VERR_VD_PASSWORD_INCORRECT;
+                vrc = VERR_VD_PASSWORD_INCORRECT;
             RTMemTmpFree(pbDekDigest);
         }
         else
-            rc = VERR_NO_MEMORY;
+            vrc = VERR_NO_MEMORY;
     }
     else
-        rc = VERR_INVALID_PARAMETER;
-    return rc;
+        vrc = VERR_INVALID_PARAMETER;
+    return vrc;
 }
 
 
@@ -1110,33 +1110,33 @@ static int vboxCryptoKeyStoreCheckDekAgainstDigest(PVBoxKeyStore pKeyStore, cons
 static int vboxCryptoKeyStoreDekDigestGenerate(PVBoxKeyStore pKeyStore, const uint8_t *pbDek)
 {
     /* Query key derivation function. */
-    int rc;
+    int vrc;
     RTDIGESTTYPE enmDigestType = vboxCryptoKeyStoreGetDigest(pKeyStore);
     if (enmDigestType != RTDIGESTTYPE_INVALID)
     {
         /* Create salt. */
-        rc = RTCrRandBytes(&pKeyStore->abDekDigestSalt[0], sizeof(pKeyStore->abDekDigestSalt));
-        if (RT_SUCCESS(rc))
+        vrc = RTCrRandBytes(&pKeyStore->abDekDigestSalt[0], sizeof(pKeyStore->abDekDigestSalt));
+        if (RT_SUCCESS(vrc))
         {
             pKeyStore->cDekDigestIterations = VBOX_KEYSTORE_ITERATIONS_MIN;
 
             /* Generate digest. */
             uint32_t const cbDekDigest = RTCrDigestTypeToHashSize(enmDigestType);
-            rc = RTCrPkcs5Pbkdf2Hmac(pbDek, pKeyStore->cbKey, &pKeyStore->abDekDigestSalt[0],
-                                     sizeof(pKeyStore->abDekDigestSalt), pKeyStore->cDekDigestIterations,
-                                     enmDigestType, cbDekDigest, &pKeyStore->abDekDigest[0]);
-            if (RT_SUCCESS(rc))
+            vrc = RTCrPkcs5Pbkdf2Hmac(pbDek, pKeyStore->cbKey, &pKeyStore->abDekDigestSalt[0],
+                                      sizeof(pKeyStore->abDekDigestSalt), pKeyStore->cDekDigestIterations,
+                                      enmDigestType, cbDekDigest, &pKeyStore->abDekDigest[0]);
+            if (RT_SUCCESS(vrc))
             {
                 pKeyStore->cbDekDigest = cbDekDigest;
-                rc = VINF_SUCCESS;
+                vrc = VINF_SUCCESS;
             }
             else
-                rc = VERR_ACCESS_DENIED; /** @todo Better status code. */
+                vrc = VERR_ACCESS_DENIED; /** @todo Better status code. */
         }
     }
     else
-        rc = VERR_INVALID_PARAMETER;
-    return rc;
+        vrc = VERR_INVALID_PARAMETER;
+    return vrc;
 }
 
 
@@ -1153,22 +1153,22 @@ static int vboxCryptoKeyStoreDekEncryptWithKey(PVBoxKeyStore pKeyStore, const ui
                                                const size_t cbKey, const uint8_t *pbDek)
 {
     RTCRCIPHER hCipher;
-    int rc = RTCrCipherOpenByType(&hCipher, vboxCryptoKeyStoreGetCipherForDek(pKeyStore), 0);
-    if (RT_SUCCESS(rc))
+    int vrc = RTCrCipherOpenByType(&hCipher, vboxCryptoKeyStoreGetCipherForDek(pKeyStore), 0);
+    if (RT_SUCCESS(vrc))
     {
         size_t  cbEncrypted = 0;
         uint8_t abIv[16];
         RT_ZERO(abIv);
-        rc = RTCrCipherEncrypt(hCipher, pbKey, cbKey, &abIv[0], sizeof(abIv),
-                               pbDek, pKeyStore->cbKey,
-                               &pKeyStore->abDekEnc[0], sizeof(pKeyStore->abDekEnc), &cbEncrypted);
-        if (RT_SUCCESS(rc))
+        vrc = RTCrCipherEncrypt(hCipher, pbKey, cbKey, &abIv[0], sizeof(abIv),
+                                pbDek, pKeyStore->cbKey,
+                                &pKeyStore->abDekEnc[0], sizeof(pKeyStore->abDekEnc), &cbEncrypted);
+        if (RT_SUCCESS(vrc))
             pKeyStore->cbDekEnc = (uint32_t)cbEncrypted;
 
         uint32_t cRefs = RTCrCipherRelease(hCipher);
         Assert(cRefs == 0); RT_NOREF_PV(cRefs);
     }
-    return rc;
+    return vrc;
 }
 
 
@@ -1195,12 +1195,12 @@ static int vboxCryptoKeyStoreEncode(PVBoxKeyStore pKeyStore, char **ppszEnc)
     if (!pszEnc)
         return VERR_NO_MEMORY;
 
-    int rc = RTBase64Encode(pKeyStore, sizeof(*pKeyStore), pszEnc, cbEncoded, NULL);
-    if (RT_SUCCESS(rc))
+    int vrc = RTBase64Encode(pKeyStore, sizeof(*pKeyStore), pszEnc, cbEncoded, NULL);
+    if (RT_SUCCESS(vrc))
         *ppszEnc = pszEnc;
     else
         RTMemFree(pszEnc);
-    return rc;
+    return vrc;
 }
 
 
@@ -1213,9 +1213,9 @@ static DECLCALLBACK(int) vboxCryptoKeyStoreGetDekFromEncoded(const char *pszEnc,
     VBoxKeyStore KeyStore;
 
     /* Convert to binary data and host endianess. */
-    int rc = RTBase64Decode(pszEnc, &KeyStore, sizeof(VBoxKeyStore), NULL, NULL);
-    if (RT_FAILURE(rc))
-        return rc;
+    int vrc = RTBase64Decode(pszEnc, &KeyStore, sizeof(VBoxKeyStore), NULL, NULL);
+    if (RT_FAILURE(vrc))
+        return vrc;
 
     KeyStore.u32Magic             = RT_LE2H_U32(KeyStore.u32Magic);
     KeyStore.u16Version           = RT_LE2H_U16(KeyStore.u16Version);
@@ -1246,17 +1246,17 @@ static DECLCALLBACK(int) vboxCryptoKeyStoreGetDekFromEncoded(const char *pszEnc,
 
     uint8_t *pbDerivKey = NULL;
     size_t   cbDerivKey = 0;
-    rc = vboxCryptoKeyStoreDeriveKeyFromPassword(pszPassword, &KeyStore, &pbDerivKey, &cbDerivKey);
-    if (RT_SUCCESS(rc))
+    vrc = vboxCryptoKeyStoreDeriveKeyFromPassword(pszPassword, &KeyStore, &pbDerivKey, &cbDerivKey);
+    if (RT_SUCCESS(vrc))
     {
         /* Use the derived key to decrypt the DEK. */
         uint8_t *pbDekDecrypted = NULL;
-        rc = vboxCryptoKeyStoreDekDecryptWithKey(&KeyStore, pbDerivKey, cbDerivKey, &pbDekDecrypted);
-        if (RT_SUCCESS(rc))
+        vrc = vboxCryptoKeyStoreDekDecryptWithKey(&KeyStore, pbDerivKey, cbDerivKey, &pbDekDecrypted);
+        if (RT_SUCCESS(vrc))
         {
             /* Check the decrypted key with the digest. */
-            rc = vboxCryptoKeyStoreCheckDekAgainstDigest(&KeyStore, pbDekDecrypted);
-            if (RT_SUCCESS(rc))
+            vrc = vboxCryptoKeyStoreCheckDekAgainstDigest(&KeyStore, pbDekDecrypted);
+            if (RT_SUCCESS(vrc))
             {
                 *pcbDek = KeyStore.cbKey;
                 *ppbDek = pbDekDecrypted;
@@ -1270,10 +1270,10 @@ static DECLCALLBACK(int) vboxCryptoKeyStoreGetDekFromEncoded(const char *pszEnc,
     if (pbDerivKey)
         RTMemSaferFree(pbDerivKey, cbDerivKey);
 
-    if (RT_FAILURE(rc))
+    if (RT_FAILURE(vrc))
         RTStrFree(pszCipher);
 
-    return rc;
+    return vrc;
 }
 
 
@@ -1290,11 +1290,11 @@ static DECLCALLBACK(int) vboxCryptoKeyStoreCreate(const char *pszPassword, const
     KeyStore.u16Version     = VBOX_KEYSTORE_VERSION;
 
     /* Generate the salt for the DEK encryption. */
-    int rc = RTCrRandBytes(&KeyStore.abDekSalt[0], sizeof(KeyStore.abDekSalt));
-    if (RT_SUCCESS(rc))
+    int vrc = RTCrRandBytes(&KeyStore.abDekSalt[0], sizeof(KeyStore.abDekSalt));
+    if (RT_SUCCESS(vrc))
     {
-        rc = RTStrCopy(&KeyStore.szCipher[0], sizeof(KeyStore.szCipher), pszCipher);
-        if (RT_SUCCESS(rc))
+        vrc = RTStrCopy(&KeyStore.szCipher[0], sizeof(KeyStore.szCipher), pszCipher);
+        if (RT_SUCCESS(vrc))
         {
             KeyStore.cbKey = (uint32_t)cbDek;
             Assert(KeyStore.cbKey == cbDek);
@@ -1304,28 +1304,28 @@ static DECLCALLBACK(int) vboxCryptoKeyStoreCreate(const char *pszPassword, const
                                                                                 cbDek, VBOX_KEYSTORE_PBKDF2_COMPUTE_MAX);
             if (KeyStore.cDekIterations > 0)
             {
-                rc = vboxCryptoKeyStoreDekDigestGenerate(&KeyStore, pbDek);
-                if (RT_SUCCESS(rc))
+                vrc = vboxCryptoKeyStoreDekDigestGenerate(&KeyStore, pbDek);
+                if (RT_SUCCESS(vrc))
                 {
                     uint8_t *pbDerivKey = NULL;
                     size_t   cbDerivKey = 0;
-                    rc = vboxCryptoKeyStoreDeriveKeyFromPassword(pszPassword, &KeyStore, &pbDerivKey, &cbDerivKey);
-                    if (RT_SUCCESS(rc))
+                    vrc = vboxCryptoKeyStoreDeriveKeyFromPassword(pszPassword, &KeyStore, &pbDerivKey, &cbDerivKey);
+                    if (RT_SUCCESS(vrc))
                     {
-                        rc = vboxCryptoKeyStoreDekEncryptWithKey(&KeyStore, pbDerivKey, cbDerivKey, pbDek);
-                        if (RT_SUCCESS(rc))
-                            rc = vboxCryptoKeyStoreEncode(&KeyStore, ppszEnc);
+                        vrc = vboxCryptoKeyStoreDekEncryptWithKey(&KeyStore, pbDerivKey, cbDerivKey, pbDek);
+                        if (RT_SUCCESS(vrc))
+                            vrc = vboxCryptoKeyStoreEncode(&KeyStore, ppszEnc);
 
                         RTMemSaferFree(pbDerivKey, cbDerivKey);
                     }
                 }
             }
             else
-                rc = VERR_INVALID_STATE;
+                vrc = VERR_INVALID_STATE;
         }
     }
 
-    return rc;
+    return vrc;
 }
 
 
