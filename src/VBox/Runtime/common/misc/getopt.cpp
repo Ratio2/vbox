@@ -694,14 +694,15 @@ RTDECL(int) RTGetOpt(PRTGETOPTSTATE pState, PRTGETOPTUNION pValueUnion)
     /*
      * Reset the variables kept in state.
      */
-    pState->pDef = NULL;
+    pState->pDef   = NULL;
     pState->uIndex = UINT32_MAX;
 
     /*
      * Make sure the union is completely cleared out, whatever happens below.
      */
-    pValueUnion->u64 = 0;
-    pValueUnion->pDef = NULL;
+    pValueUnion->PairU64.uFirst  = 0;
+    pValueUnion->PairU64.uSecond = 0;
+    pValueUnion->pDef            = NULL;
 
     /*
      * The next option.
@@ -986,8 +987,9 @@ RTDECL(int) RTGetOptFetchValue(PRTGETOPTSTATE pState, PRTGETOPTUNION pValueUnion
     /*
      * Make sure the union is completely cleared out, whatever happens below.
      */
-    pValueUnion->u64 = 0;
-    pValueUnion->pDef = NULL;
+    pValueUnion->PairU64.uFirst  = 0;
+    pValueUnion->PairU64.uSecond = 0;
+    pValueUnion->pDef            = NULL;
 
     /*
      * Pop off the next argument and convert it into a value union.
@@ -1004,6 +1006,27 @@ RTDECL(int) RTGetOptFetchValue(PRTGETOPTSTATE pState, PRTGETOPTUNION pValueUnion
     return rtGetOptProcessValue(fFlags, pszValue, pValueUnion);
 }
 RT_EXPORT_SYMBOL(RTGetOptFetchValue);
+
+
+RTDECL(int) RTGetOptStringToValue(const char *pszValue, uint32_t fFlags, PRTGETOPTUNION pValueUnion)
+{
+    /*
+     * Validate input.
+     */
+    AssertReturn(!(fFlags & ~RTGETOPT_VALID_MASK), VERR_INVALID_PARAMETER);
+    AssertReturn((fFlags & RTGETOPT_REQ_MASK) != RTGETOPT_REQ_NOTHING, VERR_INVALID_PARAMETER);
+
+    /*
+     * Make sure the union is completely cleared out, whatever happens, then process
+     * the value we were given as-if it came from argv and the flags came from a option
+     * definition.
+     */
+    pValueUnion->PairU64.uFirst  = 0;
+    pValueUnion->PairU64.uSecond = 0;
+    pValueUnion->pDef            = NULL;
+    return rtGetOptProcessValue(fFlags, pszValue, pValueUnion);
+}
+RT_EXPORT_SYMBOL(RTGetOptStringToValue);
 
 
 RTDECL(char **) RTGetOptNonOptionArrayPtr(PRTGETOPTSTATE pState)

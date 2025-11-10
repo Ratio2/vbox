@@ -1292,6 +1292,7 @@
 # define RTGetOptNonOptionArrayPtr                      RT_MANGLER(RTGetOptNonOptionArrayPtr)
 # define RTGetOptFormatError                            RT_MANGLER(RTGetOptFormatError)
 # define RTGetOptPrintError                             RT_MANGLER(RTGetOptPrintError)
+# define RTGetOptStringToValue                          RT_MANGLER(RTGetOptStringToValue)
 # define RTHandleClose                                  RT_MANGLER(RTHandleClose)
 # define RTHandleGetStandard                            RT_MANGLER(RTHandleGetStandard)
 # define RTHandleTableAlloc                             RT_MANGLER(RTHandleTableAlloc)
