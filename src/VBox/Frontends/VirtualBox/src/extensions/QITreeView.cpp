@@ -83,14 +83,21 @@ public:
     virtual QAccessibleInterface *parent() const RT_OVERRIDE RT_FINAL
     {
         /* Sanity check: */
-        AssertPtrReturn(item(), 0);
+        QITreeViewItem *pItem = item();
+        AssertPtrReturn(pItem, 0);
 
-        /* Return parent-item interface if any: */
-        if (QITreeViewItem *pParentItem = item()->parentItem())
+        /* No parent for root item: */
+        QITreeViewItem *pParentItem = pItem->parentItem();
+        if (!pParentItem)
+            return 0;
+
+        /* Return parent-item interface if parent-item has
+         * own parent (which means parent-item isn't root): */
+        if (pParentItem->parentItem())
             return QAccessible::queryAccessibleInterface(pParentItem);
-
-        /* Return parent-tree interface if any: */
-        if (QITreeView *pParentTree = item()->parentTree())
+        /* Otherwise return parent-tree interface if it's
+         * present (which means parent-item is root): */
+        if (QITreeView *pParentTree = pParentItem->parentTree())
             return QAccessible::queryAccessibleInterface(pParentTree);
 
         /* Null by default: */
