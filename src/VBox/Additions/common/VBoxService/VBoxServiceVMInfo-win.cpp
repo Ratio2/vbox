@@ -1063,7 +1063,7 @@ static int vgsvcVMInfoWinWriteLastInput(PVBOXSERVICEVEPROPCACHE pCache, const ch
                      * user's last input time. This might happen when running on Windows NT4 or older. */
                     && ipcReply.cSecSinceLastInput != UINT32_MAX)
                 {
-                    userState = ipcReply.cSecSinceLastInput * 1000 < g_uVMInfoUserIdleThresholdMS
+                    userState = ipcReply.cSecSinceLastInput * 1000 < g_cMsVMInfoUserIdleThreshold
                               ? VBoxGuestUserState_InUse
                               : VBoxGuestUserState_Idle;
 

@@ -115,6 +115,10 @@
 *********************************************************************************************************************************/
 /** The program name (derived from argv[0]). */
 char                *g_pszProgName =  (char *)"";
+/** Whether to daemonize the service (--foreground clear this). */
+static bool          g_fDaemonize  = true;
+/** The --daemonized option indicator. */
+static bool          g_fDaemonized = false;
 /** The current verbosity level. */
 unsigned             g_cVerbosity = 0;
 char                 g_szLogFile[RTPATH_MAX + 128] = "";
@@ -208,15 +212,11 @@ DECLCALLBACK(int) VGSvcDefaultPreInit(void)
 /**
  * @interface_method_impl{VBOXSERVICE,pfnOption, Default Implementation}
  */
-DECLCALLBACK(int) VGSvcDefaultOption(const char **ppszShort, int argc,
-                                           char **argv, int *pi)
+DECLCALLBACK(RTEXITCODE) VGSvcDefaultOption(int iShort, PCRTGETOPTUNION pValueUnion, bool fCmdLine)
 {
-    NOREF(ppszShort);
-    NOREF(argc);
-    NOREF(argv);
-    NOREF(pi);
-
-    return -1;
+    RT_NOREF(iShort, pValueUnion);
+    AssertMsgFailed(("iShort=%u\n", iShort));
+    return VGSvcSyntax(fCmdLine, "Unexpected option iShort=%u (%#x)!\n", iShort, iShort);
 }
 
 
@@ -455,6 +455,28 @@ RTEXITCODE VGSvcError(const char *pszFormat, ...)
 
 
 /**
+ * Display a syntax error message.
+ *
+ * @returns RTEXITCODE_SYNTAX
+ * @param   fCmdLine    Set if the source is the command line,
+ *                      clear if its the host (guest properties).
+ * @param   pszFormat   The message format string.
+ * @param   ...         Arguments for the message.
+ */
+RTEXITCODE VGSvcSyntax(bool fCmdLine, const char *pszFormat, ...)
+{
+    va_list va;
+    va_start(va, pszFormat);
+    if (fCmdLine)
+        RTMsgSyntaxV(pszFormat, va);
+    else
+        RTMsgWarning("(host option) %N", pszFormat, &va);
+    va_end(va);
+    return RTEXITCODE_SYNTAX;
+}
+
+
+/**
  * Displays a verbose message based on the currently
  * set global verbosity level.
  *
@@ -504,62 +526,6 @@ int VGSvcReportStatus(VBoxGuestFacilityStatus enmStatus)
 
 
 /**
- * Gets a 32-bit value argument.
- * @todo Get rid of this and VGSvcArgString() as soon as we have RTOpt handling.
- *
- * @returns 0 on success, non-zero exit code on error.
- * @param   argc    The argument count.
- * @param   argv    The argument vector
- * @param   psz     Where in *pi to start looking for the value argument.
- * @param   pi      Where to find and perhaps update the argument index.
- * @param   pu32    Where to store the 32-bit value.
- * @param   u32Min  The minimum value.
- * @param   u32Max  The maximum value.
- */
-int VGSvcArgUInt32(int argc, char **argv, const char *psz, int *pi, uint32_t *pu32, uint32_t u32Min, uint32_t u32Max)
-{
-    if (*psz == ':' || *psz == '=')
-        psz++;
-    if (!*psz)
-    {
-        if (*pi + 1 >= argc)
-            return RTMsgErrorExit(RTEXITCODE_SYNTAX, "Missing value for the '%s' argument\n", argv[*pi]);
-        psz = argv[++*pi];
-    }
-
-    char *pszNext;
-    int rc = RTStrToUInt32Ex(psz, &pszNext, 0, pu32);
-    if (RT_FAILURE(rc) || *pszNext)
-        return RTMsgErrorExit(RTEXITCODE_SYNTAX, "Failed to convert interval '%s' to a number\n", psz);
-    if (*pu32 < u32Min || *pu32 > u32Max)
-        return RTMsgErrorExit(RTEXITCODE_SYNTAX, "The timesync interval of %RU32 seconds is out of range [%RU32..%RU32]\n",
-                              *pu32, u32Min, u32Max);
-    return 0;
-}
-
-
-/** @todo Get rid of this and VGSvcArgUInt32() as soon as we have RTOpt handling. */
-static int vgsvcArgString(int argc, char **argv, const char *psz, int *pi, char *pszBuf, size_t cbBuf)
-{
-    AssertPtrReturn(pszBuf, VERR_INVALID_POINTER);
-    AssertReturn(cbBuf, VERR_INVALID_PARAMETER);
-
-    if (*psz == ':' || *psz == '=')
-        psz++;
-    if (!*psz)
-    {
-        if (*pi + 1 >= argc)
-            return RTMsgErrorExit(RTEXITCODE_SYNTAX, "Missing string for the '%s' argument\n", argv[*pi]);
-        psz = argv[++*pi];
-    }
-
-    if (!RTStrPrintf(pszBuf, cbBuf, "%s", psz))
-        return RTMsgErrorExit(RTEXITCODE_FAILURE, "String for '%s' argument too big\n", argv[*pi]);
-    return 0;
-}
-
-
-/**
  * The service thread.
  *
  * @returns Whatever the worker function returns.
@@ -594,7 +560,7 @@ static DECLCALLBACK(int) vgsvcThread(RTTHREAD ThreadSelf, void *pvUser)
 static RTEXITCODE vgsvcLazyPreInit(void)
 {
     for (unsigned j = 0; j < RT_ELEMENTS(g_aServices); j++)
-        if (!g_aServices[j].fPreInited)
+        if (!g_aServices[j].fPreInited && g_aServices[j].fEnabled)
         {
             int rc = g_aServices[j].pDesc->pfnPreInit();
             if (RT_FAILURE(rc))
@@ -829,6 +795,232 @@ int VGSvcStopServices(void)
 
 
 /**
+ * Checks the range of a uint32_t option value, assigning it if within range and
+ * complaining if not.
+ */
+RTEXITCODE VGSvcOptUInt32(uint32_t *puValue, PCRTGETOPTUNION pValueUnion, uint32_t uMin, uint32_t uMax, const char *pszUnit,
+                          const char *pszValueDesc, const char *pszService, bool fCmdLine)
+{
+    uint32_t const uValue = pValueUnion->u32;
+    if (uValue >= uMin && uValue <= uMax)
+        *puValue = uValue;
+    else if (pszService)
+        return VGSvcSyntax(fCmdLine, "The %s sub-service %s of %RU32 %s%sis out of range [%RU32..%RU32]\n",
+                           pszService, pszValueDesc, uValue, pszUnit ? pszUnit : "", pszUnit ? " " : "", uMin, uMax);
+    else
+        return VGSvcSyntax(fCmdLine, "The (global) %s of %RU32 %s%sis out of range [%RU32..%RU32]\n",
+                           pszValueDesc, uValue, pszUnit ? pszUnit : "", pszUnit ? " " : "", uMin, uMax);
+    return RTEXITCODE_SUCCESS;
+}
+
+
+/**
+ * Processes one service option.
+ */
+static RTEXITCODE vgsvcProcessServiceOption(int iShort, PCRTGETOPTUNION pValueUnion, bool fCmdLine, size_t idxService)
+{
+    AssertLogRelReturn(idxService < RT_ELEMENTS(g_aServices), RTEXITCODE_SUCCESS);
+
+    /* Don't bother with options for disabled services. */
+    if (g_aServices[idxService].fEnabled)
+    {
+        /* Make sure it is pre-initialized. */
+        if (!g_aServices[idxService].fPreInited)
+        {
+            int rc = g_aServices[idxService].pDesc->pfnPreInit();
+            if (RT_FAILURE(rc))
+                return VGSvcError("Service '%s' failed pre-init: %Rrc\n", g_aServices[idxService].pDesc->pszName, rc);
+            g_aServices[idxService].fPreInited = true;
+        }
+
+        /* Let the service process the option. */
+        return g_aServices[idxService].pDesc->pfnOption(iShort, pValueUnion, fCmdLine);
+    }
+    return RTEXITCODE_SUCCESS;
+}
+
+
+/**
+ * Processes one global option.
+ */
+static RTEXITCODE vgsvcProcessGlobalOption(int iShort, PCRTGETOPTUNION pValueUnion, bool fCmdLine)
+{
+    size_t cch;
+    switch (iShort)
+    {
+        case 'i':
+            return VGSvcOptUInt32(&g_cSecDefaultInterval, pValueUnion, 1, (UINT32_MAX / 1000) - 1, "seconds", "interval",
+                                  NULL, fCmdLine);
+
+        case 'f':
+            if (fCmdLine)
+                g_fDaemonize = false;
+            break;
+
+        case 'v':
+            g_cVerbosity++;
+            break;
+
+        case 'l':
+            cch = strlen(pValueUnion->psz);
+            if (cch >= sizeof(g_szLogFile))
+                return VGSvcSyntax(fCmdLine, "The log filename is too long: %s\n", pValueUnion->psz);
+            memcpy(g_szLogFile, pValueUnion->psz, cch + 1);
+            break;
+
+        case 'p':
+            if (fCmdLine)
+            {
+                cch = strlen(pValueUnion->psz);
+                if (cch >= sizeof(g_szPidFile))
+                    return VGSvcSyntax(fCmdLine, "The pid-file filename is too long: %s\n", pValueUnion->psz);
+                memcpy(g_szPidFile, pValueUnion->psz, cch + 1);
+            }
+            break;
+
+        default:
+            AssertMsgFailed(("iShort=%u\n", iShort));
+            return RTGetOptPrintError(iShort, pValueUnion);
+    }
+
+    return RTEXITCODE_SUCCESS;
+}
+
+
+/**
+ * Processes option from the host (guest properties).
+ *
+ * @returns RTEXITCODE_SUCCESS or RTEXITCODE_FAILURE. Syntax errors are ignored.
+ */
+static RTEXITCODE vgsvcProcessHostOpts(PCRTGETOPTDEF paOptions, uint8_t const *paidxOptToService, size_t cOptions)
+{
+    RTEXITCODE        rcExit = RTEXITCODE_SUCCESS;
+
+    VBGLGSTPROPCLIENT GuestProcClient;
+    int rc = VbglGuestPropConnect(&GuestProcClient);
+    if (RT_SUCCESS(rc))
+    {
+        /* Note! We don't need to check that the property is RDONLYGUEST, because
+                 the service ensures the guest cannot write properties with the
+                 prefix (path) we're using. */
+        static char const           s_szNamePrefix[] =   "/VirtualBox/GuestAdd/VBoxService/";
+        static const char * const   s_apszPatterns[] = { "/VirtualBox/GuestAdd/VBoxService/--*", };
+        PVBGLGUESTPROPENUM          pEnumHandle      = NULL;
+        const char                 *pszName;
+        const char                 *pszValue;
+        for (rc = VbglGuestPropEnum(&GuestProcClient, s_apszPatterns, RT_ELEMENTS(s_apszPatterns),
+                                    &pEnumHandle, &pszName, &pszValue, NULL, NULL);
+             RT_SUCCESS(rc) && pszName != NULL;
+             rc = VbglGuestPropEnumNext(pEnumHandle, &pszName, &pszValue, NULL, NULL))
+        {
+            /* Skip the prefix and check that it's an option. */
+            AssertContinue(strncmp(pszName, s_szNamePrefix, sizeof(s_szNamePrefix) - 1) == 0); /* paranoia */
+            pszName += sizeof(s_szNamePrefix) - 1;
+            AssertContinue(pszName[0] == '-' && pszName[1] == '-'  && pszName[2] != '\0');
+
+            /* Lookup the option. */
+            for (size_t i = 0; i < cOptions; i++)
+            {
+                if (   paOptions[i].pszLong
+                    && strcmp(pszName, paOptions[i].pszLong) == 0)
+                {
+                    /* Fount it. Process the value, if one is requested. */
+                    RTGETOPTUNION ValueUnion;
+                    ValueUnion.PairU64.uFirst  = 0;
+                    ValueUnion.PairU64.uSecond = 0;
+                    if (paOptions[i].fFlags != RTGETOPT_REQ_NOTHING)
+                    {
+                        rc = RTGetOptStringToValue(pszValue, paOptions[i].fFlags, &ValueUnion);
+                        if (RT_FAILURE(rc))
+                        {
+                            RTMsgWarning("option '%s' is given an incorrect value '%s' via guest properties, ignoring: %Rrc",
+                                         pszName, pszValue, rc);
+                            break;
+                        }
+                    }
+
+                    /*
+                     * Feed the option to the appropriate handler. Ignore syntax errors.
+                     */
+                    uint8_t const idxService = paidxOptToService[i];
+                    RTEXITCODE    rcExit2;
+                    if (idxService != UINT8_MAX)
+                        rcExit2 = vgsvcProcessServiceOption(paOptions[i].iShort, &ValueUnion, false /*fCmdLine*/, idxService);
+                    else
+                        rcExit2 = vgsvcProcessGlobalOption(paOptions[i].iShort, &ValueUnion, false /*fCmdLine*/);
+                    if (rcExit2 == RTEXITCODE_FAILURE)
+                        rcExit = RTEXITCODE_FAILURE;
+                    break;
+                }
+            }
+        }
+        VbglGuestPropEnumFree(pEnumHandle);
+        VbglGuestPropDisconnect(&GuestProcClient);
+    }
+    else
+        RTMsgWarning("Unable to open guest property service for reading command line options: %Rrc", rc);
+
+    return rcExit;
+}
+
+
+/**
+ * Processes the command line options.
+ *
+ * @returns Exit code.
+ * @param   paOptions           The option list.
+ * @param   paidxOptToService   Array running parallel to paOptions that maps
+ *                              them to a service (g_aServices index) or global
+ *                              (UINT8_MAX).
+ * @param   cOptions            Number of entries in the paOptions and
+ *                              paidxOptToService arrays.
+ * @param   argc                Number of arguments in @a argv.
+ * @param   argv                The main() argument vector.
+ */
+static RTEXITCODE vgsvcProcessCmdLineOptions(PCRTGETOPTDEF paOptions, uint8_t const *paidxOptToService,
+                                             size_t cOptions, int argc, char **argv)
+{
+    RTGETOPTSTATE OptState;
+    int rc = RTGetOptInit(&OptState, argc, argv, paOptions, cOptions, 1, 0 /*fFlags*/);
+    AssertRCReturn(rc, RTMsgErrorExitFailure("RTGetOptInit failed: %Rrc", rc));
+
+    RTEXITCODE    rcExit = RTEXITCODE_SUCCESS;
+    RTGETOPTUNION ValueUnion;
+    while ((rc = RTGetOpt(&OptState, &ValueUnion)) != 0)
+        switch (rc)
+        {
+            case 'V':
+            case 'h':
+                AssertFailed(); RT_FALL_THRU();
+            case VINF_GETOPT_NOT_OPTION:
+            case VERR_GETOPT_UNKNOWN_OPTION:
+            case VERR_GETOPT_REQUIRED_ARGUMENT_MISSING:
+            case VERR_GETOPT_INVALID_ARGUMENT_FORMAT:
+            case VERR_GETOPT_INDEX_MISSING:
+                return RTGetOptPrintError(rc, &ValueUnion);
+
+            default:
+                if (rc < kVGSvcOptGlobalStartFirstPassOnly)
+                {
+                    size_t const  iOption    = (size_t)(OptState.pDef - paOptions);
+                    AssertBreak(iOption < cOptions);
+                    uint8_t const idxService = paidxOptToService[iOption];
+                    RTEXITCODE rcExit2;
+                    if (idxService != UINT8_MAX)
+                        rcExit2 = vgsvcProcessServiceOption(paOptions[iOption].iShort, &ValueUnion, true /*fCmdLine*/, idxService);
+                    else
+                        rcExit2 = vgsvcProcessGlobalOption(paOptions[iOption].iShort, &ValueUnion, true /*fCmdLine*/);
+                    if (rcExit2 != RTEXITCODE_SUCCESS)
+                        rcExit = rcExit2;
+                }
+                break;
+        }
+
+    return rcExit;
+}
+
+
+/**
  * Block the main thread until the service shuts down.
  *
  * @remarks Also called from VBoxService-win.cpp, thus not static.
@@ -1002,172 +1194,162 @@ int main(int argc, char **argv)
 #endif
 
     /*
-     * Parse the arguments.
-     *
-     * Note! This code predates RTGetOpt, thus the manual parsing.
+     * Gather the options definitions from all the services.
      */
-    bool fDaemonize = true;
-    bool fDaemonized = false;
-    for (int i = 1; i < argc; i++)
+    static const RTGETOPTDEF s_aGlobalOptions[] =
     {
-        const char *psz = argv[i];
-        if (*psz != '-')
-            return RTMsgErrorExit(RTEXITCODE_SYNTAX, "Unknown argument '%s'\n", psz);
-        psz++;
-
-        /* translate long argument to short */
-        if (*psz == '-')
-        {
-            psz++;
-            size_t cch = strlen(psz);
-#define MATCHES(strconst)       (   cch == sizeof(strconst) - 1 \
-                                 && !memcmp(psz, strconst, sizeof(strconst) - 1) )
-            if (MATCHES("foreground"))
-                psz = "f";
-            else if (MATCHES("verbose"))
-                psz = "v";
-            else if (MATCHES("version"))
-                psz = "V";
-            else if (MATCHES("help"))
-                psz = "h";
-            else if (MATCHES("interval"))
-                psz = "i";
+        { "--foreground",       'f',                              RTGETOPT_REQ_NOTHING },
+        { "--verbose",          'v',                              RTGETOPT_REQ_NOTHING },
+        { "--interval",         'i',                              RTGETOPT_REQ_UINT32 },
 #ifdef RT_OS_WINDOWS
-            else if (MATCHES("register"))
-                psz = "r";
-            else if (MATCHES("unregister"))
-                psz = "u";
+        { "--register",         'r',                              RTGETOPT_REQ_NOTHING },
+        { "--unregister",       'u',                              RTGETOPT_REQ_NOTHING },
 #endif
-            else if (MATCHES("logfile"))
-                psz = "l";
-            else if (MATCHES("pidfile"))
-                psz = "p";
-            else if (MATCHES("daemonized"))
-            {
-                fDaemonized = true;
-                continue;
-            }
-            else
-            {
-                bool fFound = false;
+        { "--logfile",          'l',                              RTGETOPT_REQ_STRING },
+        { "--pidfile",          'p',                              RTGETOPT_REQ_STRING },
+        { "--daemonized",       kVGSvcOptGlobalDaemonzied,        RTGETOPT_REQ_NOTHING },
+        { "--host-opts-first",  kVGSvcOptGlobalHostOptsFirst,     RTGETOPT_REQ_NOTHING },
+        { "--host-opts-last",   kVGSvcOptGlobalHostOptsLast,      RTGETOPT_REQ_NOTHING },
+        { "--no-host-opts",     kVGSvcOptGlobalNoHostOpts,        RTGETOPT_REQ_NOTHING },
+    };
 
-                if (cch > sizeof("enable-") && !memcmp(psz, RT_STR_TUPLE("enable-")))
-                    for (unsigned j = 0; !fFound && j < RT_ELEMENTS(g_aServices); j++)
-                        if ((fFound = !RTStrICmp(psz + sizeof("enable-") - 1, g_aServices[j].pDesc->pszName)))
-                            g_aServices[j].fEnabled = true;
+    static const RTGETOPTDEF s_aTemplateOptions[] =
+    {
+        { "--only-",            kVGSvcOptGlobalOnlyService,       RTGETOPT_REQ_NOTHING },
+        { "--enable-",          kVGSvcOptGlobalEnableService,     RTGETOPT_REQ_NOTHING },
+        { "--disable-",         kVGSvcOptGlobalDisableService,    RTGETOPT_REQ_NOTHING },
+    };
+    AssertCompile(RT_ELEMENTS(g_aServices) < 64);
 
-                if (cch > sizeof("disable-") && !memcmp(psz, RT_STR_TUPLE("disable-")))
-                    for (unsigned j = 0; !fFound && j < RT_ELEMENTS(g_aServices); j++)
-                        if ((fFound = !RTStrICmp(psz + sizeof("disable-") - 1, g_aServices[j].pDesc->pszName)))
-                            g_aServices[j].fEnabled = false;
+    /* Calculate the sizes. */
+    size_t cbTemplateStrings = 0;
+    size_t cchTemplateOptions[RT_ELEMENTS(s_aTemplateOptions)];
+    for (size_t i = 0; i < RT_ELEMENTS(s_aTemplateOptions); i++)
+    {
+        size_t const cchPrefix = strlen(s_aTemplateOptions[i].pszLong);
+        cchTemplateOptions[i]  = cchPrefix;
+        cbTemplateStrings     += cchPrefix + 1;
+    }
 
-                if (cch > sizeof("only-") && !memcmp(psz, RT_STR_TUPLE("only-")))
-                    for (unsigned j = 0; j < RT_ELEMENTS(g_aServices); j++)
-                    {
-                        g_aServices[j].fEnabled = !RTStrICmp(psz + sizeof("only-") - 1, g_aServices[j].pDesc->pszName);
-                        if (g_aServices[j].fEnabled)
-                            fFound = true;
-                    }
+    size_t cOptions        = RT_ELEMENTS(s_aGlobalOptions);
+    size_t cbOptionStrings = 0;
+    for (size_t i = 0; i < RT_ELEMENTS(g_aServices); i++)
+    {
+        cOptions        += g_aServices[i].pDesc->cOptions + RT_ELEMENTS(s_aTemplateOptions);
+        cbOptionStrings += cbTemplateStrings + strlen(g_aServices[i].pDesc->pszName) * RT_ELEMENTS(s_aTemplateOptions);
+    }
 
-                if (!fFound)
-                {
-                    rcExit = vgsvcLazyPreInit();
-                    if (rcExit != RTEXITCODE_SUCCESS)
-                        return rcExit;
-                    for (unsigned j = 0; !fFound && j < RT_ELEMENTS(g_aServices); j++)
-                    {
-                        rc = g_aServices[j].pDesc->pfnOption(NULL, argc, argv, &i);
-                        fFound = rc == VINF_SUCCESS;
-                        if (fFound)
-                            break;
-                        if (rc != -1)
-                            return rc;
-                    }
-                }
-                if (!fFound)
-                    return RTMsgErrorExit(RTEXITCODE_SYNTAX, "Unknown option '%s'\n", argv[i]);
-                continue;
-            }
-#undef MATCHES
+    /* Allocate. */
+    cbOptionStrings = RT_ALIGN_Z(cbOptionStrings, 16);
+    size_t const       cbOptionsAndStrings = sizeof(RTGETOPTDEF) * cOptions + cOptions + cbOptionStrings;
+    PRTGETOPTDEF const paOptions           = (PRTGETOPTDEF)RTMemAllocZ(cbOptionsAndStrings);
+    RTMEM_MAY_LEAK(paOptions);
+    if (!paOptions)
+        return RTMsgErrorExit(RTEXITCODE_FAILURE, "Out of memory!\n");
+    uint8_t * const    paidxOptToService   = (uint8_t *)&paOptions[cOptions];
+    char              *pszDst              = (char *)&paidxOptToService[cOptions];
+
+    /* Copy options into the combined option array. */
+    memcpy(paOptions, s_aGlobalOptions, sizeof(s_aGlobalOptions));
+    for (size_t i = 0; i < RT_ELEMENTS(s_aGlobalOptions); i++)
+        paidxOptToService[i] = UINT8_MAX;
+    size_t iDst = RT_ELEMENTS(s_aGlobalOptions);
+
+    for (size_t i = 0; i < RT_ELEMENTS(g_aServices); i++)
+        if (g_aServices[i].pDesc->cOptions)
+        {
+            memcpy(&paOptions[iDst], g_aServices[i].pDesc->paOptions, sizeof(paOptions[0]) * g_aServices[i].pDesc->cOptions);
+            for (size_t iOpt = 0; iOpt < g_aServices[i].pDesc->cOptions; iOpt++)
+                paidxOptToService[iDst++] = (uint8_t)i;
         }
 
-        /* handle the string of short options. */
-        do
+    /* Add the generic --only-<service>, --disable-<service> and --enable-<service>
+       options.  These cannot be set via guest properties from the host. */
+    size_t const cBaseOptions = cOptions;
+    for (size_t i = 0; i < RT_ELEMENTS(g_aServices); i++)
+    {
+        const char  *pszName = g_aServices[i].pDesc->pszName;
+        size_t const cbName  = strlen(pszName) + 1;
+        for (size_t iTmpl = 0; iTmpl < RT_ELEMENTS(s_aTemplateOptions); iTmpl++)
         {
-            switch (*psz)
+            paOptions[iDst].pszLong = pszDst;
+            size_t const cchPrefix = cchTemplateOptions[iTmpl];
+            memcpy(pszDst, s_aTemplateOptions[iTmpl].pszLong, cchPrefix);
+            memcpy(&pszDst[cchPrefix], pszName, cbName);
+            pszDst += cchPrefix + cbName;
+
+            paOptions[iDst].iShort = s_aTemplateOptions[iTmpl].iShort + (int)i;
+            paOptions[iDst].fFlags = s_aTemplateOptions[iTmpl].fFlags;
+
+            paidxOptToService[iDst++] = (uint8_t)i;
+        }
+    }
+
+    Assert(iDst == cOptions);
+    Assert((uintptr_t)pszDst - (uintptr_t)paOptions <= cbOptionsAndStrings);
+
+    /*
+     * Syntax check the arguments and check if we've got any --help or
+     * --version options that will make us quit without doing anything.
+     * We can skip loading options from the host via guest properties
+     * if this is the case.
+     *
+     * Also, check for --only|enable|disable-<service>, --host-opts-first/last
+     * , --no-host-opts and the windows install/remove service options.
+     */
+    RTGETOPTSTATE OptState;
+    rc = RTGetOptInit(&OptState, argc, argv, paOptions, cOptions, 1, 0 /*fFlags*/);
+    AssertRCReturn(rc, RTMsgErrorExitFailure("RTGetOptInit failed: %Rrc", rc));
+
+    int           iHostOptsOrder = kVGSvcOptGlobalHostOptsFirst;
+    RTGETOPTUNION ValueUnion;
+    while ((rc = RTGetOpt(&OptState, &ValueUnion)) != 0)
+        switch (rc)
+        {
+            case 'V':
+                RTPrintf("%sr%s\n", RTBldCfgVersion(), RTBldCfgRevisionStr());
+                return RTEXITCODE_SUCCESS;
+
+            case 'h':
+                return vgsvcUsage();
+
+            case kVGSvcOptGlobalHostOptsFirst:
+            case kVGSvcOptGlobalHostOptsLast:
+            case kVGSvcOptGlobalNoHostOpts:
+                iHostOptsOrder = rc;
+                break;
+
+            default:
             {
-                case 'i':
-                    rc = VGSvcArgUInt32(argc, argv, psz + 1, &i, &g_cSecDefaultInterval, 1, (UINT32_MAX / 1000) - 1);
-                    if (rc)
-                        return rc;
-                    psz = NULL;
-                    break;
-
-                case 'f':
-                    fDaemonize = false;
-                    break;
-
-                case 'v':
-                    g_cVerbosity++;
-                    break;
-
-                case 'V':
-                    RTPrintf("%sr%s\n", RTBldCfgVersion(), RTBldCfgRevisionStr());
-                    return RTEXITCODE_SUCCESS;
-
-                case 'h':
-                case '?':
-                    return vgsvcUsage();
+                unsigned iService;
+                if ((iService = (unsigned)(rc - kVGSvcOptGlobalEnableService))       < RT_ELEMENTS(g_aServices))
+                    g_aServices[iService].fEnabled = true;
+                else if ((iService = (unsigned)(rc - kVGSvcOptGlobalDisableService)) < RT_ELEMENTS(g_aServices))
+                    g_aServices[iService].fEnabled = false;
+                else if ((iService = (unsigned)(rc - kVGSvcOptGlobalOnlyService))    < RT_ELEMENTS(g_aServices))
+                {
+                    for (size_t i = 0; i < RT_ELEMENTS(g_aServices); i++)
+                        g_aServices[i].fEnabled = false;
+                    g_aServices[iService].fEnabled = true;
+                }
+                break;
+            }
 
 #ifdef RT_OS_WINDOWS
-                case 'r':
-                    return VGSvcWinInstall();
+            case 'r':
+                return VGSvcWinInstall();
 
-                case 'u':
-                    return VGSvcWinUninstall();
+            case 'u':
+                return VGSvcWinUninstall();
 #endif
 
-                case 'l':
-                {
-                    rc = vgsvcArgString(argc, argv, psz + 1, &i, g_szLogFile, sizeof(g_szLogFile));
-                    if (rc)
-                        return rc;
-                    psz = NULL;
-                    break;
-                }
-
-                case 'p':
-                {
-                    rc = vgsvcArgString(argc, argv, psz + 1, &i, g_szPidFile, sizeof(g_szPidFile));
-                    if (rc)
-                        return rc;
-                    psz = NULL;
-                    break;
-                }
-
-                default:
-                {
-                    rcExit = vgsvcLazyPreInit();
-                    if (rcExit != RTEXITCODE_SUCCESS)
-                        return rcExit;
-
-                    bool fFound = false;
-                    for (unsigned j = 0; j < RT_ELEMENTS(g_aServices); j++)
-                    {
-                        rc = g_aServices[j].pDesc->pfnOption(&psz, argc, argv, &i);
-                        fFound = rc == VINF_SUCCESS;
-                        if (fFound)
-                            break;
-                        if (rc != -1)
-                            return rc;
-                    }
-                    if (!fFound)
-                        return RTMsgErrorExit(RTEXITCODE_SYNTAX, "Unknown option '%c' (%s)\n", *psz, argv[i]);
-                    break;
-                }
-            }
-        } while (psz && *++psz);
-    }
+            case VINF_GETOPT_NOT_OPTION:
+            case VERR_GETOPT_UNKNOWN_OPTION:
+            case VERR_GETOPT_REQUIRED_ARGUMENT_MISSING:
+            case VERR_GETOPT_INVALID_ARGUMENT_FORMAT:
+            case VERR_GETOPT_INDEX_MISSING:
+                return RTGetOptPrintError(rc, &ValueUnion);
+        }
 
     /* Now we can report the VBGL failure. */
     if (RT_FAILURE(rcVbgl))
@@ -1176,6 +1358,26 @@ int main(int argc, char **argv)
     /* Check that at least one service is enabled. */
     if (vgsvcCountEnabledServices() == 0)
         return RTMsgErrorExit(RTEXITCODE_SYNTAX, "At least one service must be enabled\n");
+
+    /*
+     * Do the parameter parsing.
+     */
+    /** @todo Allow the host to enable/disable services iff the
+     *        enabled-service-count is higher than 1? */
+    rcExit = RTEXITCODE_SUCCESS;
+    if (iHostOptsOrder == kVGSvcOptGlobalHostOptsFirst)
+        rcExit = vgsvcProcessHostOpts(paOptions, paidxOptToService, cBaseOptions);
+
+    if (rcExit == RTEXITCODE_SUCCESS)
+        rcExit = vgsvcProcessCmdLineOptions(paOptions, paidxOptToService, cOptions, argc, argv);
+
+    if (iHostOptsOrder == kVGSvcOptGlobalHostOptsLast && rcExit == RTEXITCODE_SUCCESS)
+        rcExit = vgsvcProcessHostOpts(paOptions, paidxOptToService, cBaseOptions);
+
+    RTMemFree(paOptions);
+
+    if (rcExit != RTEXITCODE_SUCCESS)
+        return rcExit;
 
     rc = VGSvcLogCreate(g_szLogFile[0] ? g_szLogFile : NULL);
     if (RT_FAILURE(rc))
@@ -1205,11 +1407,6 @@ int main(int argc, char **argv)
      * Note! If the mutex exists CreateMutex will open it and set last error to
      *       ERROR_ALREADY_EXISTS.
      */
-    OSVERSIONINFOEX OSInfoEx;
-    RT_ZERO(OSInfoEx);
-    OSInfoEx.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-
-
     SetLastError(NO_ERROR);
     HANDLE hMutexAppRunning;
     if (RTSystemGetNtVersion() >= RTSYSTEM_MAKE_NT_VERSION(5,0,0)) /* Windows 2000 */
@@ -1240,7 +1437,7 @@ int main(int argc, char **argv)
     /*
      * Daemonize if requested.
      */
-    if (fDaemonize && !fDaemonized)
+    if (g_fDaemonize && !g_fDaemonized)
     {
 #ifdef RT_OS_WINDOWS
         VGSvcVerbose(2, "Starting service dispatcher ...\n");

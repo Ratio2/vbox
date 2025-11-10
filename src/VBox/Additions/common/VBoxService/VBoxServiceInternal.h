@@ -39,6 +39,7 @@
 #include <iprt/critsect.h>
 #include <iprt/path.h> /* RTPATH_MAX */
 #include <iprt/stdarg.h>
+#include <iprt/getopt.h>
 
 #include <VBox/VBoxGuestLib.h>
 #ifdef VBOX_WITH_GUEST_PROPS
@@ -74,13 +75,17 @@
 typedef struct
 {
     /** The short service name. */
-    const char *pszName;
+    const char     *pszName;
     /** The longer service name. */
-    const char *pszDescription;
+    const char     *pszDescription;
     /** The usage options stuff for the --help screen. */
-    const char *pszUsage;
+    const char     *pszUsage;
     /** The option descriptions for the --help screen. */
-    const char *pszOptions;
+    const char     *pszOptions;
+    /** Array of option descriptors for the service. */
+    PCRTGETOPTDEF   paOptions;
+    /** Number of options in paOptions. */
+    size_t          cOptions;
 
     /**
      * Called before parsing arguments.
@@ -89,16 +94,17 @@ typedef struct
     DECLCALLBACKMEMBER(int, pfnPreInit,(void));
 
     /**
-     * Tries to parse the given command line option.
+     * Handles an sub-service option.
      *
-     * @returns 0 if we parsed, -1 if it didn't and anything else means exit.
-     * @param   ppszShort   If not NULL it points to the short option iterator. a short argument.
-     *                      If NULL examine argv[*pi].
-     * @param   argc        The argument count.
-     * @param   argv        The argument vector.
-     * @param   pi          The argument vector index. Update if any value(s) are eaten.
+     * @returns RTEXITCODE_SUCCESS on success, RTEXITCODE_SYNTAX or
+     *          RTEXITCODE_FAILURE on error.
+     *
+     * @param   iShort      The short option (from VBOXSERVICE::paOptions).
+     * @param   pValueUnion Where to find the option value (if any).
+     * @param   fCmdLine    Set if the option came from the command line,
+     *                      clear if it came from the host (guest properties).
      */
-    DECLCALLBACKMEMBER(int, pfnOption,(const char **ppszShort, int argc, char **argv, int *pi));
+    DECLCALLBACKMEMBER(RTEXITCODE, pfnOption,(int iShort, PCRTGETOPTUNION pValueUnion, bool fCmdLine));
 
     /**
      * Called before parsing arguments.
@@ -133,10 +139,50 @@ typedef VBOXSERVICE *PVBOXSERVICE;
 typedef VBOXSERVICE const *PCVBOXSERVICE;
 
 /* Default call-backs for services which do not need special behaviour. */
-DECLCALLBACK(int)  VGSvcDefaultPreInit(void);
-DECLCALLBACK(int)  VGSvcDefaultOption(const char **ppszShort, int argc, char **argv, int *pi);
-DECLCALLBACK(int)  VGSvcDefaultInit(void);
-DECLCALLBACK(void) VGSvcDefaultTerm(void);
+DECLCALLBACK(int)           VGSvcDefaultPreInit(void);
+DECLCALLBACK(RTEXITCODE)    VGSvcDefaultOption(int iShort, PCRTGETOPTUNION pValueUnion, bool fCmdLine);
+DECLCALLBACK(int)           VGSvcDefaultInit(void);
+DECLCALLBACK(void)          VGSvcDefaultTerm(void);
+
+/** Option short numbers. */
+typedef enum VBSVCOPT
+{
+    kVGSvcOptFirst = 1000,
+
+    kVGSvcOptVminfoInterval,
+    kVGSvcOptVminfoUserIdleThreshold,
+
+    kVGSvcOptGstCtrlInterval,
+#ifdef DEBUG
+    kVGSvcOptGstCtrlDumpStdOut,
+    kVGSvcOptGstCtrlDumpStdErr,
+#endif
+
+    kVGSvcOptTimeSyncInterval,
+    kVGSvcOptTimeSyncMinAdjust,
+    kVGSvcOptTimeSyncLatencyFactor,
+    kVGSvcOptTimeSyncMaxLatency,
+    kVGSvcOptTimeSyncSetThreshold,
+    kVGSvcOptTimeSyncSetStart,
+    kVGSvcOptTimeSyncNoSetStart,
+    kVGSvcOptTimeSyncSetOnRestore,
+    kVGSvcOptTimeSyncNoSetOnRestore,
+    kVGSvcOptTimeSyncVerbosity,
+
+    kVGSvcOptGlobalDaemonzied,
+    /** The options following this one, are handled in the first cmdline pass
+     *  and ignored later in vgsvcProcessCmdLineOptions(). */
+    kVGSvcOptGlobalStartFirstPassOnly,
+    kVGSvcOptGlobalHostOptsFirst  = kVGSvcOptGlobalStartFirstPassOnly,
+    kVGSvcOptGlobalHostOptsLast,
+    kVGSvcOptGlobalNoHostOpts,
+    /* These next three options each have a range of 64 and must come last. */
+    kVGSvcOptGlobalOnlyService,
+    kVGSvcOptGlobalDisableService = kVGSvcOptGlobalOnlyService    + 64,
+    kVGSvcOptGlobalEnableService  = kVGSvcOptGlobalDisableService + 64,
+    kVGSvcOptEnd                  = kVGSvcOptGlobalEnableService  + 64
+} VBSVCOPT;
+
 
 /** The service name.
  * @note Used on windows to name the service as well as the global mutex. */
@@ -249,14 +295,14 @@ extern VBOXSERVICE g_DisplayConfig;
 extern RTCRITSECT   g_csLog; /* For guest process stdout dumping. */
 #endif
 
-extern RTEXITCODE               VGSvcSyntax(const char *pszFormat, ...) RT_IPRT_FORMAT_ATTR(1, 2);
+extern RTEXITCODE               VGSvcSyntax(bool fCmdLine, const char *pszFormat, ...) RT_IPRT_FORMAT_ATTR(2, 3);
 extern RTEXITCODE               VGSvcError(const char *pszFormat, ...) RT_IPRT_FORMAT_ATTR(1, 2);
 extern void                     VGSvcVerbose(unsigned iLevel, const char *pszFormat, ...)  RT_IPRT_FORMAT_ATTR(2, 3);
 extern int                      VGSvcLogCreate(const char *pszLogFile);
 extern void                     VGSvcLogV(const char *pszFormat, va_list va) RT_IPRT_FORMAT_ATTR(1, 0);
 extern void                     VGSvcLogDestroy(void);
-extern int                      VGSvcArgUInt32(int argc, char **argv, const char *psz, int *pi, uint32_t *pu32,
-                                               uint32_t u32Min, uint32_t u32Max);
+extern RTEXITCODE               VGSvcOptUInt32(uint32_t *puValue, PCRTGETOPTUNION pValueUnion, uint32_t uMin, uint32_t uMax,
+                                               const char *pszUnit, const char *pszDesc, const char *pszService, bool fCmdLine);
 
 /* Exposing the following bits because of windows: */
 extern int                      VGSvcStartServices(void);
@@ -310,7 +356,7 @@ extern int                      VGSvcVMInfoUpdateUserV(PVBOXSERVICEVEPROPCACHE p
 extern int                      VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct VBOXSERVICEVMINFOUSERLIST *pUserGatherer,
                                                                          PVBOXSERVICEVEPROPCACHE pCache);
 extern int                      VGSvcVMInfoWinWriteComponentVersions(PVBGLGSTPROPCLIENT pClient);
-extern uint32_t                                 g_uVMInfoUserIdleThresholdMS;
+extern uint32_t                                 g_cMsVMInfoUserIdleThreshold;
 # endif
 extern int                      VGSvcPropCacheInit(PVBOXSERVICEVEPROPCACHE pCache, PVBGLGSTPROPCLIENT pClient);
 extern void                     VGSvcPropCacheTerm(PVBOXSERVICEVEPROPCACHE pCache);

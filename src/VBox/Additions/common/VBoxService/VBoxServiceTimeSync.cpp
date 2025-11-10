@@ -103,11 +103,11 @@
 #endif
 
 #include <iprt/assert.h>
-#include <iprt/string.h>
+#include <iprt/errcore.h>
 #include <iprt/semaphore.h>
+#include <iprt/string.h>
 #include <iprt/time.h>
 #include <iprt/thread.h>
-#include <VBox/err.h>
 #include <VBox/VBoxGuestLib.h>
 #include "VBoxServiceInternal.h"
 #include "VBoxServiceUtils.h"
@@ -117,7 +117,7 @@
 *   Global Variables                                                                                                             *
 *********************************************************************************************************************************/
 /** The timesync interval (milliseconds). */
-static uint32_t         g_TimeSyncInterval = 0;
+static uint32_t         g_cMsTimeSyncInterval = 0;
 /**
  * @see pg_vgsvc_timesync
  *
@@ -179,76 +179,7 @@ static DECLCALLBACK(int) vgsvcTimeSyncPreInit(void)
     /* Use global verbosity as default. */
     g_cTimeSyncVerbosity = g_cVerbosity;
 
-#ifdef VBOX_WITH_GUEST_PROPS
-    /** @todo Merge this function with vgsvcTimeSyncOption() to generalize
-     *        the "command line args override guest property values" behavior. */
-
-    /*
-     * Read the service options from the VM's guest properties.
-     * Note that these options can be overridden by the command line options later.
-     */
-    VBGLGSTPROPCLIENT GuestPropClient;
-    int rc = VbglGuestPropConnect(&GuestPropClient);
-    if (RT_FAILURE(rc))
-    {
-        if (rc == VERR_HGCM_SERVICE_NOT_FOUND) /* Host service is not available. */
-        {
-            VGSvcVerbose(0, "VMInfo: Guest property service is not available, skipping\n");
-            rc = VINF_SUCCESS;
-        }
-        else
-            VGSvcError("Failed to connect to the guest property service! Error: %Rrc\n", rc);
-    }
-    else
-    {
-        rc = VGSvcReadPropUInt32(&GuestPropClient, "/VirtualBox/GuestAdd/VBoxService/--timesync-interval",
-                                 &g_TimeSyncInterval, 50, UINT32_MAX - 1);
-        if (   RT_SUCCESS(rc)
-            || rc == VERR_NOT_FOUND)
-            rc = VGSvcReadPropUInt32(&GuestPropClient, "/VirtualBox/GuestAdd/VBoxService/--timesync-min-adjust",
-                                     &g_cMsTimeSyncMinAdjust, 0, 3600000);
-        if (   RT_SUCCESS(rc)
-            || rc == VERR_NOT_FOUND)
-            rc = VGSvcReadPropUInt32(&GuestPropClient, "/VirtualBox/GuestAdd/VBoxService/--timesync-latency-factor",
-                                     &g_TimeSyncLatencyFactor, 1, 1024);
-        if (   RT_SUCCESS(rc)
-            || rc == VERR_NOT_FOUND)
-            rc = VGSvcReadPropUInt32(&GuestPropClient, "/VirtualBox/GuestAdd/VBoxService/--timesync-max-latency",
-                                     &g_cMsTimeSyncMaxLatency, 1, 3600000);
-        if (   RT_SUCCESS(rc)
-            || rc == VERR_NOT_FOUND)
-            rc = VGSvcReadPropUInt32(&GuestPropClient, "/VirtualBox/GuestAdd/VBoxService/--timesync-set-threshold",
-                                     &g_TimeSyncSetThreshold, 0, 7*24*60*60*1000 /* a week */);
-
-        if (VbglGuestPropExist(&GuestPropClient, "/VirtualBox/GuestAdd/VBoxService/--timesync-set-start"))
-            g_fTimeSyncSetOnStart = true;
-
-        if (VbglGuestPropExist(&GuestPropClient, "/VirtualBox/GuestAdd/VBoxService/--timesync-no-set-start"))
-            g_fTimeSyncSetOnStart = false;
-
-
-        if (VbglGuestPropExist(&GuestPropClient, "/VirtualBox/GuestAdd/VBoxService/--timesync-set-on-restore"))
-            g_fTimeSyncSetOnRestore = true;
-
-        if (VbglGuestPropExist(&GuestPropClient, "/VirtualBox/GuestAdd/VBoxService/--timesync-no-set-on-restore"))
-            g_fTimeSyncSetOnRestore = false;
-
-        uint32_t uValue;
-        rc = VGSvcReadPropUInt32(&GuestPropClient, "/VirtualBox/GuestAdd/VBoxService/--timesync-verbosity",
-                                 &uValue, 0 /*uMin*/, 255 /*uMax*/);
-        if (RT_SUCCESS(rc))
-            g_cTimeSyncVerbosity = uValue;
-
-        VbglGuestPropDisconnect(&GuestPropClient);
-    }
-
-    if (rc == VERR_NOT_FOUND) /* If a value is not found, don't be sad! */
-        rc = VINF_SUCCESS;
-    return rc;
-#else
-    /* Nothing to do here yet. */
     return VINF_SUCCESS;
-#endif
 }
 
 
@@ -275,35 +206,52 @@ static void vgsvcTimeSyncLog(unsigned iLevel, const char *pszFormat, ...)
 /**
  * @interface_method_impl{VBOXSERVICE,pfnOption}
  */
-static DECLCALLBACK(int) vgsvcTimeSyncOption(const char **ppszShort, int argc, char **argv, int *pi)
+static DECLCALLBACK(RTEXITCODE) vgsvcTimeSyncOption(int iShort, PCRTGETOPTUNION pValueUnion, bool fCmdLine)
 {
-    int rc = VINF_SUCCESS;
-    if (ppszShort)
-        rc = -1 ;/* no short options */
-    else if (!strcmp(argv[*pi], "--timesync-interval"))
-        rc = VGSvcArgUInt32(argc, argv, "", pi, &g_TimeSyncInterval, 50, UINT32_MAX - 1);
-    else if (!strcmp(argv[*pi], "--timesync-min-adjust"))
-        rc = VGSvcArgUInt32(argc, argv, "", pi, &g_cMsTimeSyncMinAdjust, 0, 3600000);
-    else if (!strcmp(argv[*pi], "--timesync-latency-factor"))
-        rc = VGSvcArgUInt32(argc, argv, "", pi, &g_TimeSyncLatencyFactor, 1, 1024);
-    else if (!strcmp(argv[*pi], "--timesync-max-latency"))
-        rc = VGSvcArgUInt32(argc, argv, "", pi, &g_cMsTimeSyncMaxLatency, 1, 3600000);
-    else if (!strcmp(argv[*pi], "--timesync-set-threshold"))
-        rc = VGSvcArgUInt32(argc, argv, "", pi, &g_TimeSyncSetThreshold, 0, 7*24*60*60*1000); /* a week */
-    else if (!strcmp(argv[*pi], "--timesync-set-start"))
-        g_fTimeSyncSetOnStart = true;
-    else if (!strcmp(argv[*pi], "--timesync-no-set-start"))
-        g_fTimeSyncSetOnStart = false;
-    else if (!strcmp(argv[*pi], "--timesync-set-on-restore"))
-        g_fTimeSyncSetOnRestore = true;
-    else if (!strcmp(argv[*pi], "--timesync-no-set-on-restore"))
-        g_fTimeSyncSetOnRestore = false;
-    else if (!strcmp(argv[*pi], "--timesync-verbosity"))
-        rc = VGSvcArgUInt32(argc, argv, "", pi, &g_cTimeSyncVerbosity, 0 /*uMin*/, 255 /*uMax*/);
-    else
-        rc = -1;
+    switch (iShort)
+    {
+        case kVGSvcOptTimeSyncInterval:
+            return VGSvcOptUInt32(&g_cMsTimeSyncInterval, pValueUnion, 50, UINT32_MAX - 1,  "ms", "interval",
+                                  "time sync", fCmdLine);
 
-    return rc;
+        case kVGSvcOptTimeSyncMinAdjust:
+            return VGSvcOptUInt32(&g_cMsTimeSyncMinAdjust, pValueUnion, 0, 3600000, "ms", "minimum adjust",
+                                  "time sync", fCmdLine);
+
+        case kVGSvcOptTimeSyncLatencyFactor:
+            return VGSvcOptUInt32(&g_TimeSyncLatencyFactor, pValueUnion, 1, 1024, NULL, "latency factor",
+                                  "time sync", fCmdLine);
+
+        case kVGSvcOptTimeSyncMaxLatency:
+            return VGSvcOptUInt32(&g_cMsTimeSyncMaxLatency, pValueUnion, 1, 3600000, "ms", "max latency",
+                                  "time sync", fCmdLine);
+
+        case kVGSvcOptTimeSyncSetThreshold:
+            return VGSvcOptUInt32(&g_TimeSyncSetThreshold, pValueUnion, 0, 7*24*60*60*1000 /* a week */, "ms", "adjust/set threshold",
+                                  "time sync", fCmdLine);
+
+        case kVGSvcOptTimeSyncSetStart:
+            g_fTimeSyncSetOnStart = true;
+            break;
+        case kVGSvcOptTimeSyncNoSetStart:
+            g_fTimeSyncSetOnStart = false;
+            break;
+
+        case kVGSvcOptTimeSyncSetOnRestore:
+            g_fTimeSyncSetOnRestore = true;
+            break;
+        case kVGSvcOptTimeSyncNoSetOnRestore:
+            g_fTimeSyncSetOnRestore = false;
+            break;
+
+        case kVGSvcOptTimeSyncVerbosity:
+            return VGSvcOptUInt32(&g_cTimeSyncVerbosity, pValueUnion, 0 /*uMin*/, 255 /*uMax*/, NULL, "verbosity",
+                                  "time sync", fCmdLine);
+
+        default:
+            return VGSvcDefaultOption(iShort, pValueUnion, fCmdLine);
+    }
+    return RTEXITCODE_SUCCESS;
 }
 
 
@@ -316,10 +264,10 @@ static DECLCALLBACK(int) vgsvcTimeSyncInit(void)
      * If not specified, find the right interval default.
      * Then create the event sem to block on.
      */
-    if (!g_TimeSyncInterval)
-        g_TimeSyncInterval = g_cSecDefaultInterval * 1000;
-    if (!g_TimeSyncInterval)
-        g_TimeSyncInterval = 10 * 1000;
+    if (!g_cMsTimeSyncInterval)
+        g_cMsTimeSyncInterval = g_cSecDefaultInterval * 1000;
+    if (!g_cMsTimeSyncInterval)
+        g_cMsTimeSyncInterval = 10 * 1000;
 
     VbglR3QuerySessionId(&g_idTimeSyncSession);
     /* The status code is ignored as this information is not available with VBox < 3.2.10. */
@@ -694,7 +642,7 @@ static DECLCALLBACK(int) vgsvcTimeSyncWorker(bool volatile *pfShutdown)
          */
         if (*pfShutdown)
             break;
-        int rc2 = RTSemEventMultiWait(g_TimeSyncEvent, g_TimeSyncInterval);
+        int rc2 = RTSemEventMultiWait(g_TimeSyncEvent, g_cMsTimeSyncInterval);
         if (*pfShutdown)
             break;
         if (rc2 != VERR_TIMEOUT && RT_FAILURE(rc2))
@@ -750,6 +698,24 @@ static DECLCALLBACK(void) vgsvcTimeSyncTerm(void)
 
 
 /**
+ * The command line options for the 'timesync' service.
+ */
+static const RTGETOPTDEF g_aVGSvcTimeSyncOptions[] =
+{
+    { "--timesync-interval",            kVGSvcOptTimeSyncInterval,          RTGETOPT_REQ_UINT32 },
+    { "--timesync-min-adjust",          kVGSvcOptTimeSyncMinAdjust,         RTGETOPT_REQ_UINT32 },
+    { "--timesync-latency-factor",      kVGSvcOptTimeSyncLatencyFactor,     RTGETOPT_REQ_UINT32 },
+    { "--timesync-max-latency",         kVGSvcOptTimeSyncMaxLatency,        RTGETOPT_REQ_UINT32 },
+    { "--timesync-set-threshold",       kVGSvcOptTimeSyncSetThreshold,      RTGETOPT_REQ_UINT32 },
+    { "--timesync-set-start",           kVGSvcOptTimeSyncSetStart,          RTGETOPT_REQ_NOTHING },
+    { "--timesync-no-set-start",        kVGSvcOptTimeSyncNoSetStart,        RTGETOPT_REQ_NOTHING },
+    { "--timesync-set-on-restore",      kVGSvcOptTimeSyncSetOnRestore,      RTGETOPT_REQ_NOTHING },
+    { "--timesync-no-set-on-restore",   kVGSvcOptTimeSyncNoSetOnRestore,    RTGETOPT_REQ_NOTHING },
+    { "--timesync-verbosity",           kVGSvcOptTimeSyncVerbosity,         RTGETOPT_REQ_UINT32 },
+};
+
+
+/**
  * The 'timesync' service description.
  */
 VBOXSERVICE g_TimeSync =
@@ -795,6 +761,9 @@ VBOXSERVICE g_TimeSync =
     "    --timesync-verbosity    Sets the verbosity level.  Defaults to service wide\n"
     "                            verbosity level.\n"
     ,
+    /* paOptions, cOptions. */
+    g_aVGSvcTimeSyncOptions,
+    RT_ELEMENTS(g_aVGSvcTimeSyncOptions),
     /* methods */
     vgsvcTimeSyncPreInit,
     vgsvcTimeSyncOption,

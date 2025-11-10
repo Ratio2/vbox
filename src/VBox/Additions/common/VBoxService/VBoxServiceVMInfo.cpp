@@ -220,7 +220,7 @@ static uint64_t                 g_LAClientAttachedTS = 0;
 static VBOXSERVICELACLIENTINFO  g_LAClientInfo;
 /** User idle threshold (in ms). This specifies the minimum time a user is considered
  *  as being idle and then will be reported to the host. Default is 5s. */
-uint32_t                        g_uVMInfoUserIdleThresholdMS = 5 * 1000;
+uint32_t                        g_cMsVMInfoUserIdleThreshold = 5 * 1000;
 
 
 /*********************************************************************************************************************************
@@ -268,29 +268,23 @@ int VGSvcVMInfoSignal(void)
 
 
 /**
- * @interface_method_impl{VBOXSERVICE,pfnPreInit}
- */
-static DECLCALLBACK(int) vbsvcVMInfoPreInit(void)
-{
-    return VINF_SUCCESS;
-}
-
-
-/**
  * @interface_method_impl{VBOXSERVICE,pfnOption}
  */
-static DECLCALLBACK(int) vbsvcVMInfoOption(const char **ppszShort, int argc, char **argv, int *pi)
+static DECLCALLBACK(RTEXITCODE) vbsvcVMInfoOption(int iShort, PCRTGETOPTUNION pValueUnion, bool fCmdLine)
 {
-    /** @todo Use RTGetOpt here. */
+    switch (iShort)
+    {
+        case kVGSvcOptVminfoInterval:
+            return VGSvcOptUInt32(&g_cMsVMInfoInterval, pValueUnion, 50, UINT32_MAX - 1,  "ms", "interval",
+                                  "VM info", fCmdLine);
 
-    int rc = -1;
-    if (ppszShort)
-        /* no short options */;
-    else if (!strcmp(argv[*pi], "--vminfo-interval"))
-        rc = VGSvcArgUInt32(argc, argv, "", pi, &g_cMsVMInfoInterval, 1, UINT32_MAX - 1);
-    else if (!strcmp(argv[*pi], "--vminfo-user-idle-threshold"))
-        rc = VGSvcArgUInt32(argc, argv, "", pi, &g_uVMInfoUserIdleThresholdMS, 1, UINT32_MAX - 1);
-    return rc;
+        case kVGSvcOptVminfoUserIdleThreshold:
+            return VGSvcOptUInt32(&g_cMsVMInfoUserIdleThreshold, pValueUnion, 1, UINT32_MAX - 1, "ms", "user idle threshold",
+                                  "time sync", fCmdLine);
+
+        default:
+            return VGSvcDefaultOption(iShort, pValueUnion, fCmdLine);
+    }
 }
 
 
@@ -342,21 +336,6 @@ static DECLCALLBACK(int) vbsvcVMInfoInit(void)
             rc2 = VGSvcPropCacheDeclareEntry(&g_VMInfoPropCache, g_pszPropCacheValNetCount,
                                              VGSVCPROPCACHE_FLAGS_TMP_DEL_TRANSRESET | VGSVCPROPCACHE_FLAGS_ALWAYS_UPDATE);
             AssertLogRelRC(rc2);
-
-            /*
-             * Get configuration guest properties from the host.
-             * Note: All properties should have sensible defaults in case the lookup here fails.
-             */
-            char *pszValue;
-            rc2 = VGSvcReadHostProp(&g_VMInfoGuestPropSvcClient, "/VirtualBox/GuestAdd/VBoxService/--vminfo-user-idle-threshold",
-                                    true /* Read only */, &pszValue, NULL /* Flags */, NULL /* Timestamp */);
-            if (RT_SUCCESS(rc2))
-            {
-                AssertPtr(pszValue);
-                g_uVMInfoUserIdleThresholdMS = RTStrToUInt32(pszValue);
-                g_uVMInfoUserIdleThresholdMS = RT_CLAMP(g_uVMInfoUserIdleThresholdMS, 1000, UINT32_MAX - 1);
-                RTStrFree(pszValue);
-            }
 
             return VINF_SUCCESS;
         }
@@ -1959,6 +1938,14 @@ static DECLCALLBACK(void) vbsvcVMInfoTerm(void)
 }
 
 
+/** Options. */
+static const RTGETOPTDEF g_aVMInfoOptions[] =
+{
+    { "--vminfo-interval",              kVGSvcOptVminfoInterval,            RTGETOPT_REQ_UINT32 },
+    { "--vminfo-user-idle-threshold",   kVGSvcOptVminfoUserIdleThreshold,   RTGETOPT_REQ_UINT32 },
+};
+
+
 /**
  * The 'vminfo' service description.
  */
@@ -1979,8 +1966,11 @@ VBOXSERVICE g_VMInfo =
     "                            considering a guest user as being idle. The default\n"
     "                            is 5000 (5 seconds).\n"
     ,
+    /* paOptions, cOptions. */
+    g_aVMInfoOptions,
+    RT_ELEMENTS(g_aVMInfoOptions),
     /* methods */
-    vbsvcVMInfoPreInit,
+    VGSvcDefaultPreInit,
     vbsvcVMInfoOption,
     vbsvcVMInfoInit,
     vbsvcVMInfoWorker,
