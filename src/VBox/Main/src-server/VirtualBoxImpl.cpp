@@ -291,9 +291,6 @@ struct VirtualBox::Data
 #if defined(RT_OS_WINDOWS) && defined(VBOXSVC_WITH_CLIENT_WATCHER)
         , fWatcherIsReliable(RTSystemGetNtVersion() >= RTSYSTEM_MAKE_NT_VERSION(6, 0, 0))
 #endif
-        , hLdrModCrypto(NIL_RTLDRMOD)
-        , cRefsCrypto(0)
-        , pCryptoIf(NULL)
 #ifdef VBOX_WITH_MAIN_OBJECT_TRACKER
         , objectTrackerTask(NULL)
 #endif
@@ -421,19 +418,6 @@ struct VirtualBox::Data
      * process, or if the watcher thread gets messed up. */
     bool                                fWatcherIsReliable;
 #endif
-
-    /** @name Members related to the cryptographic support interface.
-     * @{ */
-    /** The loaded module handle if loaded. */
-    RTLDRMOD                            hLdrModCrypto;
-    /** Reference counter tracking how many users of the cryptographic support
-     * are there currently. */
-    volatile uint32_t                   cRefsCrypto;
-    /** Pointer to the cryptographic support interface. */
-    PCVBOXCRYPTOIF                      pCryptoIf;
-    /** Critical section protecting the module handle. */
-    RTCRITSECT                          CritSectModCrypto;
-    /** @} */
 
 #ifdef VBOX_WITH_MAIN_OBJECT_TRACKER
     /** The tracked object collector (better if it'll be a singleton) */
@@ -598,16 +582,6 @@ HRESULT VirtualBox::init()
         LogRel(("Home directory: '%s'\n", m->strHomeDir.c_str()));
 
         i_reportDriverVersions();
-
-        /* Create the critical section protecting the cryptographic module handle. */
-        {
-            int vrc = RTCritSectInit(&m->CritSectModCrypto);
-            if (RT_FAILURE(vrc))
-                throw setErrorBoth(E_FAIL, vrc,
-                                   tr("Could not create the cryptographic module critical section (%Rrc)"),
-                                   vrc);
-
-        }
 
         /* compose the VirtualBox.xml file name */
         unconst(m->strSettingsFilePath) = Utf8StrFmt("%s%c%s",
@@ -1130,22 +1104,6 @@ void VirtualBox::uninit()
         unconst(m->pPerformanceCollector).setNull();
     }
 #endif /* VBOX_WITH_RESOURCE_USAGE_API */
-
-    /*
-     * Unload the cryptographic module if loaded before the extension
-     * pack manager is torn down.
-     */
-    Assert(!m->cRefsCrypto);
-    if (m->hLdrModCrypto != NIL_RTLDRMOD)
-    {
-        m->pCryptoIf = NULL;
-
-        int vrc = RTLdrClose(m->hLdrModCrypto);
-        AssertRC(vrc);
-        m->hLdrModCrypto = NIL_RTLDRMOD;
-    }
-
-    RTCritSectDelete(&m->CritSectModCrypto);
 
     m->mapProgressOperations.clear();
 
@@ -6688,6 +6646,8 @@ HRESULT VirtualBox::getTrackedObjectIds(const com::Utf8Str &aName,
 #endif
 }
 
+extern DECL_HIDDEN_CONST(VBOXCRYPTOIF) g_VBoxCryptoIf;
+
 /**
  * Retains a reference to the default cryptographic interface.
  *
@@ -6703,82 +6663,13 @@ HRESULT VirtualBox::i_retainCryptoIf(PCVBOXCRYPTOIF *ppCryptoIf)
     AutoCaller autoCaller(this);
     AssertComRCReturnRC(autoCaller.hrc());
 
-    /*
-     * No object lock due to some lock order fun with Machine objects.
-     * There is a dedicated critical section to protect against concurrency
-     * issues when loading the module.
-     */
-    RTCritSectEnter(&m->CritSectModCrypto);
-
-    /* Try to load the extension pack module if it isn't currently. */
     HRESULT hrc = S_OK;
-    if (m->hLdrModCrypto == NIL_RTLDRMOD)
-    {
-#ifdef VBOX_WITH_EXTPACK
-        /*
-         * Check that a crypto extension pack name is set and resolve it into a
-         * library path.
-         */
-        Utf8Str strExtPack;
-        hrc = m->pSystemProperties->getDefaultCryptoExtPack(strExtPack);
-        if (FAILED(hrc))
-        {
-            RTCritSectLeave(&m->CritSectModCrypto);
-            return hrc;
-        }
-        if (strExtPack.isEmpty())
-        {
-            RTCritSectLeave(&m->CritSectModCrypto);
-            return setError(VBOX_E_OBJECT_NOT_FOUND,
-                            tr("Ńo extension pack providing a cryptographic support module could be found"));
-        }
-
-        Utf8Str strCryptoLibrary;
-        int vrc = m->ptrExtPackManager->i_getCryptoLibraryPathForExtPack(&strExtPack, &strCryptoLibrary);
-        if (RT_SUCCESS(vrc))
-        {
-            RTERRINFOSTATIC ErrInfo;
-            vrc = SUPR3HardenedLdrLoadPlugIn(strCryptoLibrary.c_str(), &m->hLdrModCrypto, RTErrInfoInitStatic(&ErrInfo));
-            if (RT_SUCCESS(vrc))
-            {
-                /* Resolve the entry point and query the pointer to the cryptographic interface. */
-                PFNVBOXCRYPTOENTRY pfnCryptoEntry = NULL;
-                vrc = RTLdrGetSymbol(m->hLdrModCrypto, VBOX_CRYPTO_MOD_ENTRY_POINT, (void **)&pfnCryptoEntry);
-                if (RT_SUCCESS(vrc))
-                {
-                    vrc = pfnCryptoEntry(&m->pCryptoIf);
-                    if (RT_FAILURE(vrc))
-                        hrc = setErrorBoth(VBOX_E_IPRT_ERROR, vrc,
-                                           tr("Failed to query the interface callback table from the cryptographic support module '%s' from extension pack '%s'"),
-                                           strCryptoLibrary.c_str(), strExtPack.c_str());
-                }
-                else
-                    hrc = setErrorBoth(VBOX_E_IPRT_ERROR, vrc,
-                                       tr("Failed to resolve the entry point for the cryptographic support module '%s' from extension pack '%s'"),
-                                       strCryptoLibrary.c_str(), strExtPack.c_str());
-            }
-            else
-                hrc = setErrorBoth(VBOX_E_IPRT_ERROR, vrc,
-                                   tr("Couldn't load the cryptographic support module '%s' from extension pack '%s' (error: '%s')"),
-                                   strCryptoLibrary.c_str(), strExtPack.c_str(), ErrInfo.Core.pszMsg);
-        }
-        else
-            hrc = setErrorBoth(VBOX_E_IPRT_ERROR, vrc,
-                               tr("Couldn't resolve the library path of the crpytographic support module for extension pack '%s'"),
-                               strExtPack.c_str());
+#ifdef VBOX_WITH_FULL_VM_ENCRYPTION
+    *ppCryptoIf = &g_VBoxCryptoIf;
 #else
-        hrc = setError(VBOX_E_NOT_SUPPORTED,
-                       tr("The cryptographic support module is not supported in this build because extension packs are not supported"));
+    hrc = setError(VBOX_E_NOT_SUPPORTED,
+                   tr("The cryptographic support module is not supported in this build because extension packs are not supported"));
 #endif
-    }
-
-    if (SUCCEEDED(hrc))
-    {
-        ASMAtomicIncU32(&m->cRefsCrypto);
-        *ppCryptoIf = m->pCryptoIf;
-    }
-
-    RTCritSectLeave(&m->CritSectModCrypto);
 
     return hrc;
 }
@@ -6797,9 +6688,8 @@ HRESULT VirtualBox::i_releaseCryptoIf(PCVBOXCRYPTOIF pCryptoIf)
     AutoCaller autoCaller(this);
     AssertComRCReturnRC(autoCaller.hrc());
 
-    AssertReturn(pCryptoIf == m->pCryptoIf, E_INVALIDARG);
+    AssertReturn(pCryptoIf == &g_VBoxCryptoIf, E_INVALIDARG);
 
-    ASMAtomicDecU32(&m->cRefsCrypto);
     return S_OK;
 }
 
@@ -6815,22 +6705,6 @@ HRESULT VirtualBox::i_unloadCryptoIfModule(void)
 {
     AutoCaller autoCaller(this);
     AssertComRCReturnRC(autoCaller.hrc());
-
-    AutoWriteLock wlock(this COMMA_LOCKVAL_SRC_POS);
-
-    if (m->cRefsCrypto)
-        return setError(E_ACCESSDENIED,
-                        tr("The cryptographic support module is in use and can't be unloaded"));
-
-    RTCritSectEnter(&m->CritSectModCrypto);
-    if (m->hLdrModCrypto != NIL_RTLDRMOD)
-    {
-        int vrc = RTLdrClose(m->hLdrModCrypto);
-        AssertRC(vrc);
-        m->hLdrModCrypto = NIL_RTLDRMOD;
-    }
-    RTCritSectLeave(&m->CritSectModCrypto);
-
     return S_OK;
 }
 

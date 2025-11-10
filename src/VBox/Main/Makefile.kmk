@@ -645,6 +645,10 @@ if !defined(VBOX_ONLY_SDK) && !defined(VBOX_ONLY_EXTPACKS) # Note this goes on f
  	src-all/ThreadTask.cpp \
  	src-all/VirtualBoxBase.cpp \
  	src-all/VirtualBoxErrorInfoImpl.cpp \
+ 	$(if $(VBOX_WITH_FULL_VM_ENCRYPTION), \
+ 		src-all/VBoxCrypto.cpp \
+ 		src-all/VBoxCryptoVfs.cpp \
+ 		,) \
  	$(if $(VBOX_WITH_EXTPACK),src-all/ExtPackManagerImpl.cpp src-all/ExtPackUtil.cpp,) \
  	src-server/CertificateImpl.cpp \
  	src-server/ApplianceImpl.cpp \
@@ -1172,6 +1176,10 @@ if !defined(VBOX_ONLY_SDK) && !defined(VBOX_ONLY_EXTPACKS) # Note this goes on f
  	src-all/ThreadTask.cpp \
  	src-all/VirtualBoxBase.cpp \
  	src-all/VirtualBoxErrorInfoImpl.cpp \
+ 	$(if $(VBOX_WITH_FULL_VM_ENCRYPTION), \
+ 		src-all/VBoxCrypto.cpp \
+ 		src-all/VBoxCryptoVfs.cpp \
+ 		,) \
  	$(if $(VBOX_WITH_EXTPACK),src-all/ExtPackManagerImpl.cpp src-all/ExtPackUtil.cpp,) \
  	src-client/UsbWebcamInterface.cpp \
  	$(if $(VBOX_WITH_USB_CARDREADER),src-client/UsbCardReader.cpp,) \
