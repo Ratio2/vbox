@@ -1115,4 +1115,3 @@ VBOXSERVICE g_Clipboard =
     vgsvcClipboardOs2Term
 };
 
-
