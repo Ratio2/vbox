@@ -24,8 +24,8 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-#ifndef VBOX_INCLUDED_SRC_Puel_Crypto_VBoxCryptoInternal_h
-#define VBOX_INCLUDED_SRC_Puel_Crypto_VBoxCryptoInternal_h
+#ifndef MAIN_INCLUDED_SRC_src_all_VBoxCryptoInternal_h
+#define MAIN_INCLUDED_SRC_src_all_VBoxCryptoInternal_h
 #ifndef RT_WITHOUT_PRAGMA_ONCE
 # pragma once
 #endif
@@ -63,5 +63,5 @@ DECL_HIDDEN_CALLBACK(int) vboxCryptoIoStrmFromVfsIoStrmDecrypt(RTVFSIOSTREAM hVf
 
 RT_C_DECLS_END
 
-#endif /* !VBOX_INCLUDED_SRC_Puel_Crypto_VBoxCryptoInternal_h */
+#endif /* !MAIN_INCLUDED_SRC_src_all_VBoxCryptoInternal_h */
 
