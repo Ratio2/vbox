@@ -561,6 +561,9 @@ static DECLCALLBACK(void) drvNATNetworkUp_EndXmit(PPDMINETWORKUP pInterface)
  */
 static void drvNATNotifyNATThread(PDRVNAT pThis, const char *pszWho)
 {
+#ifndef LOG_ENABLED
+    RT_NOREF(pszWho);
+#endif
     Log3(("Notifying NAT Thread. Culprit: %s\n", pszWho));
 #ifdef RT_OS_WINDOWS
     int cbWritten = send(pThis->ahWakeupSockPair[0], "", 1, NULL);
