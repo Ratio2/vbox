@@ -627,39 +627,8 @@ void QITreeView::currentChanged(const QModelIndex &current, const QModelIndex &p
     emit currentItemChanged(current, previous);
     /* Call to base-class: */
     QTreeView::currentChanged(current, previous);
-
-    /* Updating accessibility for newly chosen non-root item if necessary: */
-    if (current.isValid() && current != rootIndex() && QAccessible::isActive())
-    {
-        /* Sanity check: */
-        QAbstractItemModel *pModel = model();
-        AssertPtrReturnVoid(pModel);
-
-        /* Check whether we have proxy model set or source one otherwise: */
-        const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
-        /* Acquire source-model child-index (can be the same as original if there is no proxy model): */
-        const QModelIndex idxSourceCurrent = pProxyModel ? pProxyModel->mapToSource(current) : current;
-
-        /* Get current item: */
-        QITreeViewItem *pCurrentItem = static_cast<QITreeViewItem*>(idxSourceCurrent.internalPointer());
-        AssertPtrReturnVoid(pCurrentItem);
-
-        /* Calculate index of item interface in parent interface: */
-        QAccessibleInterface *pIfaceItem = QAccessible::queryAccessibleInterface(pCurrentItem);
-        AssertPtrReturnVoid(pIfaceItem);
-        //printf("item interface: %s\n", pIfaceItem->text(QAccessible::Name).toUtf8().constData());
-        QAccessibleInterface *pIfaceParent = pIfaceItem->parent();
-        AssertPtrReturnVoid(pIfaceParent);
-        //printf("parent interface: %s\n", pIfaceParent->text(QAccessible::Name).toUtf8().constData());
-        const int iIndexOfItem = pIfaceParent->indexOfChild(pIfaceItem);
-        //printf("index selected: %d\n", iIndexOfItem);
-
-        /* Compose and send accessibility update event: */
-        QAccessibleEvent focusEvent(pIfaceParent, QAccessible::Focus);
-        focusEvent.setChild(iIndexOfItem);
-        QAccessible::updateAccessibility(&focusEvent);
-    }
 }
+
 
 void QITreeView::drawBranches(QPainter *pPainter, const QRect &rect, const QModelIndex &index) const
 {
