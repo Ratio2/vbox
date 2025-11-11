@@ -119,7 +119,7 @@ typedef struct VBOXWINDRVINFLISTENTRY_COPYFILE
     RTLISTNODE Node;
     /** Absolute path to the file on the system. */
     RTUTF16    wszFilePath[RTPATH_MAX];
-} VBOXWINDRVINFLISTENTRY;
+} VBOXWINDRVINFLISTENTRY_COPYFILE;
 /** Pointer to a structure for keeping a single FileCopy file entry. */
 typedef VBOXWINDRVINFLISTENTRY_COPYFILE *PVBOXWINDRVINFLISTENTRY_COPYFILE;
 
