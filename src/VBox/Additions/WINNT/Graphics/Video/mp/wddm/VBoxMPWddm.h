@@ -62,6 +62,8 @@
 #define VBOXWDDM_REG_DISPLAYSETTINGSKEY_PREFIX_WIN7 L"\\Registry\\Machine\\System\\CurrentControlSet\\Hardware Profiles\\UnitedVideo\\CONTROL\\VIDEO\\"
 #define VBOXWDDM_REG_DISPLAYSETTINGSKEY_PREFIX_WIN10_17763 L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\UnitedVideo\\CONTROL\\VIDEO\\"
 
+#define VBOXWDDM_REG_SYSTEM_ENVIRONMENT L"\\Registry\\Machine\\System\\CurrentControlSet\\Control\\Session Manager\\Environment"
+
 #define VBOXWDDM_REG_DISPLAYSETTINGS_ATTACH_RELX L"Attach.RelativeX"
 #define VBOXWDDM_REG_DISPLAYSETTINGS_ATTACH_RELY L"Attach.RelativeY"
 #define VBOXWDDM_REG_DISPLAYSETTINGS_ATTACH_DESKTOP L"Attach.ToDesktop"

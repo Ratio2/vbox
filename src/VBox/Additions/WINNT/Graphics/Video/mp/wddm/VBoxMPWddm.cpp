@@ -5471,7 +5471,7 @@ DriverEntry(
         || !ARGUMENT_PRESENT(RegistryPath))
         return STATUS_INVALID_PARAMETER;
 
-    vboxWddmLoggerCreate(RegistryPath);
+    vboxWddmLoggerCreate();
     vboxWddmDrvCfgInit(RegistryPath);
 
     ULONG major, minor, build;
