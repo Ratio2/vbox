@@ -37,6 +37,7 @@
 
 /* GUI includes: */
 #include "QITreeView.h"
+#include "UIAccessible.h"
 
 /* Other VBox includes: */
 #include "iprt/assert.h"
@@ -281,6 +282,7 @@ class QIAccessibilityInterfaceForQITreeView
 #ifndef VBOX_WS_MAC
     , public QAccessibleSelectionInterface
 #endif
+    , public UIAccessibleAdvancedInterface
 {
 public:
 
@@ -317,6 +319,8 @@ public:
             case QAccessible::SelectionInterface:
                 return static_cast<QAccessibleSelectionInterface*>(this);
 #endif
+            case UIAccessible::Advanced:
+                return static_cast<UIAccessibleAdvancedInterface*>(this);
             default:
                 break;
         }
@@ -339,38 +343,47 @@ public:
     {
         /* Sanity check: */
         AssertReturn(iIndex >= 0, 0);
-        AssertPtrReturn(tree(), 0);
-        QAbstractItemModel *pModel = tree()->model();
+        QITreeView *pTree = tree();
+        AssertPtrReturn(pTree, 0);
+        QAbstractItemModel *pModel = pTree->model();
         AssertPtrReturn(pModel, 0);
 
-        /* Real index might be different: */
-        int iRealIndex = iIndex;
+        /* Prepare child-index: */
+        QModelIndex childIndex;
 
-        // WORKAROUND:
-        // For a tree-views Qt accessibility code has a hard-coded architecture which we do not like
-        // but have to live with, this architecture enumerates children of all levels as children of level 0,
-        // so Qt can try to address our interface with index which surely out of bounds by our laws.
-        // Let's assume that's exactly the case and try to enumerate children like they are a part of the list, not tree.
-        if (iRealIndex >= childCount())
+        /* For Advanced interface enabled we have special processing: */
+        if (isEnabled())
         {
-            // Split delimeter is overall column count:
-            const int iColumnCount = pModel->columnCount();
+            // WORKAROUND:
+            // Qt's qtreeview class has a piece of accessibility code we do not like.
+            // It's located in currentChanged() method and sends us iIndex calculated on
+            // the basis of current model-index, instead of current qtreeviewitem index.
+            // So qtreeview enumerates all tree-view rows/columns as children of level 0.
+            // We are locking interface for the case and have special handling.
+            //printf("Advanced iIndex: %d\n", iIndex);
 
-            // Real row index:
-            iRealIndex = iRealIndex / iColumnCount;
+            // Take into account we also have header with 'column count' indexes,
+            // so we should start enumerating tree indexes since 'column count'.
+            const int iColumnCount = pModel->columnCount();
+            int iCurrentIndex = iColumnCount;
+
+            // Search for sibling with corresponding index:
+            childIndex = pModel->index(0, 0, pTree->rootIndex());
+            while (childIndex.isValid() && iCurrentIndex < iIndex)
+            {
+                ++iCurrentIndex;
+                if (iCurrentIndex % iColumnCount == 0)
+                    childIndex = tree()->indexBelow(childIndex);
+            }
+        }
+        else
+        {
+            //printf("Basic iIndex: %d\n", iIndex);
+
+            /* By default we'll just get top-level index of required row: */
+            childIndex = pModel->index(iIndex, 0, pTree->rootIndex());
         }
 
-        /* Make sure index fits the bounds finally: */
-        if (iRealIndex >= childCount())
-            return 0;
-
-        /* Acquire parent model-index, that can be root-index if specified
-         * or null index otherwise, in that case we will return one of top-level children: */
-        const QModelIndex rootIndex = tree()->rootIndex();
-        const QModelIndex parentIndex = rootIndex.isValid() ? rootIndex : QModelIndex();
-
-        /* Acquire child-index: */
-        const QModelIndex childIndex = pModel->index(iRealIndex, 0, parentIndex);
         /* Check whether we have proxy model set or source one otherwise: */
         const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
         /* Acquire source-model child-index (can be the same as original if there is no proxy model): */
@@ -623,12 +636,25 @@ int QITreeView::childCount() const
 
 void QITreeView::currentChanged(const QModelIndex &current, const QModelIndex &previous)
 {
+    /* A call to base-class needs to be executed by advanced interface: */
+    UIAccessibleAdvancedInterfaceLocker locker(this);
+    Q_UNUSED(locker);
+
     /* Notify listeners about it: */
     emit currentItemChanged(current, previous);
     /* Call to base-class: */
     QTreeView::currentChanged(current, previous);
 }
 
+void QITreeView::selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    /* A call to base-class needs to be executed by advanced interface: */
+    UIAccessibleAdvancedInterfaceLocker locker(this);
+    Q_UNUSED(locker);
+
+    /* Call to base-class: */
+    QTreeView::selectionChanged(selected, deselected);
+}
 
 void QITreeView::drawBranches(QPainter *pPainter, const QRect &rect, const QModelIndex &index) const
 {
