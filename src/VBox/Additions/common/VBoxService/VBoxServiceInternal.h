@@ -263,6 +263,33 @@ struct VBOXSERVICEVMINFOUSERLIST;
 /** @}  */
 #endif /* VBOX_WITH_GUEST_PROPS */
 
+
+/** ID cache entry. */
+typedef struct VGSVCUIDENTRY
+{
+    /** The identifier name. */
+    uint32_t    id;
+    /** Set if UID, clear if GID. */
+    bool        fIsUid;
+    /** The name. */
+    char        szName[128 - 4 - 1];
+} VGSVCUIDENTRY;
+typedef VGSVCUIDENTRY *PVGSVCUIDENTRY;
+
+
+/** ID cache. */
+typedef struct VGSVCIDCACHE
+{
+    /** Number of valid cache entries. */
+    uint32_t                cEntries;
+    /** The next entry to replace. */
+    uint32_t                iNextReplace;
+    /** The cache entries. */
+    VGSVCUIDENTRY           aEntries[16];
+} VGSVCIDCACHE;
+typedef VGSVCIDCACHE *PVGSVCIDCACHE;
+
+
 RT_C_DECLS_BEGIN
 
 extern char        *g_pszProgName;
@@ -343,6 +370,7 @@ extern decltype(LsaNtStatusToWinError)         *g_pfnLsaNtStatusToWinError;
 # endif
 #endif /* RT_OS_WINDOWS */
 
+/* VBoxServiceVMInfo.cpp & VBoxServiceVMInfo-win.cpp */
 extern int                      VGSvcVMInfoSignal(void);
 #ifdef VBOX_WITH_GUEST_PROPS
 extern void                     VGSvcVMInfoAddUserToList(struct VBOXSERVICEVMINFOUSERLIST *pUserGatherer,
@@ -364,6 +392,8 @@ extern void                     VGSvcVMInfoWinStop(void);
 extern void                     VGSvcVMInfoWinTerm(void);
 extern uint32_t                                 g_cMsVMInfoUserIdleThreshold;
 # endif
+
+/* VBoxServicePropCache.cpp */
 extern int                      VGSvcPropCacheInit(PVBOXSERVICEVEPROPCACHE pCache, PVBGLGSTPROPCLIENT pClient);
 extern void                     VGSvcPropCacheTerm(PVBOXSERVICEVEPROPCACHE pCache);
 extern int                      VGSvcPropCacheDeclareEntry(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, uint32_t fFlags,
@@ -383,12 +413,32 @@ extern int                      VGSvcPropCachedDeleteNotUpdated(PVBOXSERVICEVEPR
 extern int                      VGSvcPropCacheFlush(PVBOXSERVICEVEPROPCACHE pCache);
 #endif /* VBOX_WITH_GUEST_PROPS */
 
+/* VBoxServiceBalloon.cpp */
 #ifdef VBOX_WITH_MEMBALLOON
 extern uint32_t                 VGSvcBalloonQueryPages(uint32_t cbPage);
 #endif
+
+/* VBoxServicePageSharing.cpp */
 #if defined(VBOX_WITH_VBOXSERVICE_PAGE_SHARING)
 extern RTEXITCODE               VGSvcPageSharingWorkerChild(void);
 #endif
+
+/* VBoxServiceUtils.cpp */
+#ifdef VBOX_WITH_GUEST_PROPS
+extern int                      VGSvcReadProp(PVBGLGSTPROPCLIENT pGuestPropClient, const char *pszPropName,
+                                              char **ppszValue, char **ppszFlags, uint64_t *puTimestamp);
+extern int                      VGSvcReadPropUInt32(PVBGLGSTPROPCLIENT pGuestPropClient, const char *pszPropName,
+                                                    uint32_t *pu32, uint32_t u32Min, uint32_t u32Max);
+extern int                      VGSvcReadHostProp(PVBGLGSTPROPCLIENT pGuestPropClient, const char *pszPropName, bool fReadOnly,
+                                                  char **ppszValue, char **ppszFlags, uint64_t *puTimestamp);
+extern int                      VGSvcWriteProp(PVBGLGSTPROPCLIENT pGuestPropClient, const char *pszName, const char *pszValue);
+extern int                      VGSvcWritePropF(PVBGLGSTPROPCLIENT pGuestPropClient, const char *pszName,
+                                                const char *pszValueFormat, ...) RT_IPRT_FORMAT_ATTR(3, 4);
+#endif
+extern const char              *VGSvcIdCacheGetUidName(PVGSVCIDCACHE pIdCache, RTUID uid, const char *pszEntry,
+                                                       const char *pszRelativeTo);
+extern const char              *VGSvcIdCacheGetGidName(PVGSVCIDCACHE pIdCache, RTGID gid, const char *pszEntry,
+                                                       const char *pszRelativeTo);
 
 RT_C_DECLS_END
 

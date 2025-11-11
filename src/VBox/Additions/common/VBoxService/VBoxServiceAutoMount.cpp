@@ -59,7 +59,6 @@
 #include <VBox/VBoxGuestLib.h>
 #include <VBox/shflsvc.h>
 #include "VBoxServiceInternal.h"
-#include "VBoxServiceUtils.h"
 
 #ifdef RT_OS_WINDOWS
 #elif defined(RT_OS_OS2)

@@ -46,7 +46,6 @@
 #include <iprt/system.h> /* For RTShutdown. */
 
 #include "VBoxServiceInternal.h"
-#include "VBoxServiceUtils.h"
 #include "VBoxServiceControl.h"
 
 using namespace guestControl;

@@ -71,7 +71,6 @@
 #include <VBox/VBoxGuestLib.h>
 
 #include "VBoxServiceInternal.h"
-#include "VBoxServiceUtils.h"
 
 
 /*********************************************************************************************************************************

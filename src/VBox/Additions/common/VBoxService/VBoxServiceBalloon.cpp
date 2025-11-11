@@ -62,7 +62,6 @@
 #include <VBox/err.h>
 #include <VBox/VBoxGuestLib.h>
 #include "VBoxServiceInternal.h"
-#include "VBoxServiceUtils.h"
 
 #ifdef RT_OS_LINUX
 # include <iprt/param.h>

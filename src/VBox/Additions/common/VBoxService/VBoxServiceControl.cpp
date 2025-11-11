@@ -73,7 +73,6 @@
 #include <VBox/HostServices/GuestControlSvc.h>
 #include "VBoxServiceInternal.h"
 #include "VBoxServiceControl.h"
-#include "VBoxServiceUtils.h"
 
 using namespace guestControl;
 

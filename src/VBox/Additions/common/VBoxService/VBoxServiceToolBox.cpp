@@ -53,7 +53,6 @@
 
 #include "VBoxServiceInternal.h"
 #include "VBoxServiceToolBox.h"
-#include "VBoxServiceUtils.h"
 
 using namespace guestControl;
 

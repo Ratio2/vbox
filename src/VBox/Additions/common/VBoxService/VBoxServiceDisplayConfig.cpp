@@ -32,7 +32,6 @@
 
 #include <VBox/VBoxGuestLib.h>
 #include "VBoxServiceInternal.h"
-#include "VBoxServiceUtils.h"
 
 #undef NTDDI_VERSION
 #define NTDDI_VERSION NTDDI_LONGHORN

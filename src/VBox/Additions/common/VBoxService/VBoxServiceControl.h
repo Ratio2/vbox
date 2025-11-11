@@ -42,7 +42,7 @@
 #include <VBox/GuestHost/GuestControl.h>
 #include <VBox/HostServices/GuestControlSvc.h>
 
-#include "VBoxServiceUtils.h" /* For VGSVCIDCACHE. */
+#include "VBoxServiceInternal.h" /* For VGSVCIDCACHE. */
 
 
 /**

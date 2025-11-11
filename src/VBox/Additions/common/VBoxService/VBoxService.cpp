@@ -101,7 +101,6 @@
 #include <VBox/log.h>
 
 #include "VBoxServiceInternal.h"
-#include "VBoxServiceUtils.h"
 #ifdef VBOX_WITH_VBOXSERVICE_CONTROL
 # include "VBoxServiceControl.h"
 #endif
