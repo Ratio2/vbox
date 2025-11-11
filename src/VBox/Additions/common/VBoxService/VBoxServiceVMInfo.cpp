@@ -274,18 +274,15 @@ static VBOXSERVICELACLIENTINFO  g_LAClientInfo;
 
 
 /**
- * Signals the event so that a re-enumeration of VM-specific
- * information (like logged in users) can happen.
+ * Signals the service thread so that a refresh of VM-specific information (like
+ * logged in users or interface addresses) can happen.
  *
  * @return  IPRT status code.
  */
 int VGSvcVMInfoSignal(void)
 {
-    /* Trigger a re-enumeration of all logged-in users by unblocking
-     * the multi event semaphore of the VMInfo thread. */
-    if (g_hVMInfoEvent)
+    if (g_hVMInfoEvent != NIL_RTSEMEVENTMULTI)
         return RTSemEventMultiSignal(g_hVMInfoEvent);
-
     return VINF_SUCCESS;
 }
 
@@ -1846,8 +1843,6 @@ static int vgsvcVMInfoWriteNetwork(void)
  */
 static DECLCALLBACK(int) vbsvcVMInfoWorker(bool volatile *pfShutdown)
 {
-    int rc;
-
     /*
      * Tell the control thread that it can continue
      * spawning services.
@@ -1888,24 +1883,25 @@ static DECLCALLBACK(int) vbsvcVMInfoWorker(bool volatile *pfShutdown)
     /*
      * Now enter the loop retrieving runtime data continuously.
      */
+    int rc = VINF_SUCCESS;
     for (;;)
     {
-        rc = vgsvcVMInfoWriteUsers();
-        if (RT_FAILURE(rc))
-            break; /** @todo r=bird: This is very questional behaviour! */
-
-        rc = vgsvcVMInfoWriteNetwork();
-        if (RT_FAILURE(rc))
-            break; /** @todo r=bird: This is very questional behaviour! */
+        /*
+         * Refresh the data.
+         */
+        vgsvcVMInfoWriteUsers();
+        vgsvcVMInfoWriteNetwork();
 
         /* delete stale entries. */
         VGSvcPropCachedDeleteNotUpdated(&g_VMInfoPropCache);
 
-        /* Whether to wait for event semaphore or not. */
+        /*
+         * Do VDE connection logging, if enabled.
+         */
 #ifndef WITH_VDE_CONNECTION_MONITORING
-        bool fWait = true;
+        bool const fWait = true;
 #else
-        bool fWait = vbsvcDoVdeConnectionChangePolling();
+        bool const fWait = vbsvcDoVdeConnectionChangePolling();
 #endif
 
         /*
