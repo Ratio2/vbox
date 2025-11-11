@@ -538,7 +538,7 @@ if !defined(VBOX_ONLY_EXTPACKS) && "$(intersects $(KBUILD_TARGET_ARCH),$(VBOX_SU
    	-framework Foundation
   endif
 
- if defined(VBOX_WITH_USB_CARDREADER)
+  if defined(VBOX_WITH_USB_CARDREADER)
    VBoxDD_DEFS    += VBOX_WITH_USB_CARDREADER
    VBoxDD_SOURCES += \
    	Security/UsbCardReader.cpp \
@@ -564,8 +564,8 @@ if !defined(VBOX_ONLY_EXTPACKS) && "$(intersects $(KBUILD_TARGET_ARCH),$(VBOX_SU
     ifn1of ($(KBUILD_TARGET), win)
      VBoxDD_LIBS += pcsclite
     endif
+   endif
   endif
- endif
 
  endif # VBOX_WITH_USB
 
