@@ -241,6 +241,13 @@ extern const PDMDEVREG g_DevicePlatform;
 extern const PDMDRVREG g_DrvGpioButton;
 #endif
 
+#ifdef VBOX_WITH_USB_CARDREADER
+extern const PDMUSBREG g_UsbSCardReader;
+# ifdef VBOX_WITH_USB_CARDREADER_TEST
+extern const PDMDRVREG g_DrvCardReaderReg;
+# endif
+#endif
+
 /* VBoxAcpi.cpp */
 int acpiPrepareDsdt(PPDMDEVINS pDevIns, void **ppvPtr, size_t *pcbDsdt);
 int acpiCleanupDsdt(PPDMDEVINS pDevIns, void *pvPtr);
