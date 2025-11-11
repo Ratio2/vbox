@@ -652,7 +652,7 @@ typedef VBGLR3SHCLCMDCTX *PVBGLR3SHCLCMDCTX;
  * Enumeration specifying a Shared Clipboard event type.
  * @todo r=bird: Surely, this isn't necessary?!
  */
-typedef enum _VBGLR3CLIPBOARDEVENTTYPE
+typedef enum VBGLR3CLIPBOARDEVENTTYPE
 {
     /** No event needed / defined. */
     VBGLR3CLIPBOARDEVENTTYPE_NONE = 0,
@@ -673,7 +673,7 @@ typedef enum _VBGLR3CLIPBOARDEVENTTYPE
 /**
  * Structure for keeping a Shared Clipboard VbglR3 event.
  */
-typedef struct _VBGLR3CLIPBOARDEVENT
+typedef struct VBGLR3CLIPBOARDEVENT
 {
     /** The event type the union contains. */
     VBGLR3CLIPBOARDEVENTTYPE enmType;
