@@ -502,6 +502,11 @@ int VGSvcPropCacheUpdateEx(PVBOXSERVICEVEPROPCACHE pCache, const char *pszName, 
  * @retval  VINF_NO_CHANGE if the value is the same and nothing was written.
  * @param   pCache          The property cache.
  * @param   pszName         The property name.
+ * @param   fFlags          The entry flags for new entries,
+ *                          VGSVCPROPCACHE_FLAGS_XXX.
+ * @param   pszValueReset   The property reset value (only applicable if
+ *                          VGSVCPROPCACHE_FLAGS_TEMPORARY is set) for new
+ *                          entries.
  * @param   pszValueFormat  The property format string.  If this is NULL then
  *                          the property will be deleted (if possible).
  * @param   ...             Format arguments.
