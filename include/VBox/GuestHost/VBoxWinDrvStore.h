@@ -77,7 +77,7 @@ typedef struct VBOXWINDRVSTOREFILEENTRY
     RTLISTNODE               Node;
     /** Full (absolute) path of the file. */
     RTUTF16                  wszFile[RTPATH_MAX];
-} VBOXWINDRVSTOREFILE;
+} VBOXWINDRVSTOREFILEENTRY;
 /** Pointer to a Windows driver store file entry. */
 typedef VBOXWINDRVSTOREFILEENTRY *PVBOXWINDRVSTOREFILEENTRY;
 
