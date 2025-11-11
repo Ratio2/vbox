@@ -34,7 +34,7 @@
 #include <VBox/vmm/pdm.h>
 #include <VBox/vmm/pdmdrv.h>
 #include <VBox/log.h>
-#include <VBox/err.h>
+#include <iprt/errcore.h>
 #include <iprt/assert.h>
 #include <iprt/critsect.h>
 #include <iprt/mem.h>
