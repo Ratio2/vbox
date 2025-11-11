@@ -1966,6 +1966,9 @@ MODULE_LICENSE("GPL");
 #ifdef MODULE_VERSION
 MODULE_VERSION(VBOX_VERSION_STRING " r" RT_XSTR(VBOX_SVN_REV) " (" RT_XSTR(SUPDRV_IOC_VERSION) ")");
 #endif
+#ifdef SUPDRV_LINUX_HAS_KVM_HWVIRT_API
+MODULE_SOFTDEP("pre: kvm_intel kvm_amd");
+#endif
 
 module_param(force_async_tsc, int, 0444);
 MODULE_PARM_DESC(force_async_tsc, "force the asynchronous TSC mode");
