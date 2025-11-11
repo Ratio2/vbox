@@ -79,7 +79,7 @@
 # include <iprt/asm-amd64-x86.h>
 #endif
 
-#if (RTLNX_VER_RANGE(6,16,0, 6,18,0)) && defined(CONFIG_KVM_GENERIC_HARDWARE_ENABLING) && defined(VBOX_WITH_HOST_VMX)
+#if RTLNX_VER_MIN(6,16,0) && defined(CONFIG_MODULES) && defined(CONFIG_KVM_GENERIC_HARDWARE_ENABLING) && defined(VBOX_WITH_HOST_VMX)
 # if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
 #  include <linux/kvm_host.h>
 #  define SUPDRV_LINUX_HAS_KVM_HWVIRT_API
@@ -181,8 +181,20 @@ static int  supdrvLinuxLdrModuleNotifyCallback(struct notifier_block *pBlock,
  * Device extention & session data association structure.
  */
 static SUPDRVDEVEXT         g_DevExt;
+
 #ifdef SUPDRV_LINUX_HAS_KVM_HWVIRT_API
-static bool                 g_fUsingKvmHwvirtApi;
+/** Whether we have called kvm_enable_virtualization(). */
+static bool                 g_fEnabledHwvirtUsingKvm;
+/** Whether we have found the addresses of KVM hardware-virtualization functions. */
+static bool                 g_fFoundKvmHwvirtSymbols;
+/** Function pointer to kvm_enable_virtualization(). */
+static int                  (*g_pfnKvmEnableVirtualization)(void);
+/** Function pointer to kvm_disable_virtualization(). */
+static void                 (*g_pfnKvmDisableVirtualization)(void);
+/** Paranoia: Pull in any exported function from the kvm module to prevent it from
+ *  being unloaded while we use it. __symbol_get() already increments the module
+ *  reference count. */
+PFNRT                       g_apfnKvmDep = (PFNRT)kvm_get_kvm;
 #endif
 
 /** Module parameter.
@@ -348,7 +360,7 @@ DECLINLINE(RTUID) vboxdrvLinuxEuid(void)
  * This is a hack/workaround that attempts to detect whether the kvm_intel/kvm_amd
  * module is likely to be loaded. See @bugref{10963#c14} for details.
  */
-static bool is_kvm_hwvirt_mod_likely_loaded(void)
+static bool supdrvLinuxIsKvmModLikelyLoaded(void)
 {
     /*
      * We don't disable preemption/interrupts here because we assume all CPUs will have
@@ -369,7 +381,47 @@ static bool is_kvm_hwvirt_mod_likely_loaded(void)
 
     return false;
 }
-#endif
+
+
+/**
+ * Initializes usage of KVM hardware-virtualization symbols.
+ */
+static int supdrvLinuxInitKvmSymbols(void)
+{
+    void *pfnEnable = __symbol_get("kvm_enable_virtualization");
+    if (pfnEnable)
+    {
+        void *pfnDisable = __symbol_get("kvm_disable_virtualization");
+        if (pfnDisable)
+        {
+            g_pfnKvmEnableVirtualization  = pfnEnable;
+            g_pfnKvmDisableVirtualization = pfnDisable;
+            g_fFoundKvmHwvirtSymbols      = true;
+            return VINF_SUCCESS;
+        }
+        symbol_put_addr(pfnEnable);
+    }
+    return VERR_NOT_FOUND;
+}
+
+
+/**
+ * Terminates usage of KVM hardware-virtualization symbols.
+ */
+static void supdrvLinuxTermKvmSymbols(void)
+{
+    if (g_pfnKvmEnableVirtualization)
+    {
+        symbol_put_addr(g_pfnKvmEnableVirtualization);
+        g_pfnKvmEnableVirtualization = NULL;
+    }
+    if (g_pfnKvmDisableVirtualization)
+    {
+        symbol_put_addr(g_pfnKvmDisableVirtualization);
+        g_pfnKvmDisableVirtualization = NULL;
+    }
+}
+#endif /* SUPDRV_LINUX_HAS_KVM_HWVIRT_API */
 
 
 /**
@@ -440,6 +492,13 @@ static int __init VBoxDrvLinuxInit(void)
                         if (rc2)
                             printk(KERN_WARNING "vboxdrv: failed to register module notifier! rc2=%d\n", rc2);
 #endif
+#ifdef SUPDRV_LINUX_HAS_KVM_HWVIRT_API
+                        rc2 = supdrvLinuxInitKvmSymbols();
+                        if (RT_SUCCESS(rc2))
+                            printk(KERN_INFO "vboxdrv: Found KVM hardware-virtualization symbols\n");
+                        else
+                            printk(KERN_WARNING "vboxdrv: Failed to find KVM hardware-virtualization symbols\n");
+#endif
                         printk(KERN_INFO "vboxdrv: TSC mode is %s, tentative frequency %llu Hz\n",
                                SUPGetGIPModeName(g_DevExt.pGip), g_DevExt.pGip->u64CpuHz);
                         LogFlow(("VBoxDrv::ModuleInit returning %#x\n", rc));
@@ -479,6 +538,10 @@ static int __init VBoxDrvLinuxInit(void)
 static void __exit VBoxDrvLinuxUnload(void)
 {
     Log(("VBoxDrvLinuxUnload\n"));
+
+#ifdef SUPDRV_LINUX_HAS_KVM_HWVIRT_API
+    supdrvLinuxTermKvmSymbols();
+#endif
 
 #ifdef VBOX_WITH_SUSPEND_NOTIFICATION
     platform_device_unregister(&gPlatformDevice);
@@ -1684,27 +1747,33 @@ int VBOXCALL    supdrvOSMsrProberModify(RTCPUID idCpu, PSUPMSRPROBER pReq)
 int VBOXCALL supdrvOSEnableHwvirt(bool fEnable)
 {
 #ifdef SUPDRV_LINUX_HAS_KVM_HWVIRT_API
+    if (   g_fFoundKvmHwvirtSymbols
+        && supdrvLinuxIsKvmModLikelyLoaded())
+    {
+        Assert(g_pfnKvmEnableVirtualization);
+        Assert(g_pfnKvmDisableVirtualization);
+    }
+    else
+        return VERR_NOT_AVAILABLE;
+
     if (fEnable)
     {
-        if (is_kvm_hwvirt_mod_likely_loaded())
+        /* kvm_enable_virtualization() is guarded by kvm_usage_count reference counter inside a mutex. */
+        int const rc = g_pfnKvmEnableVirtualization();
+        if (!rc)
         {
-            /* kvm_enable_virtualization() is guarded by kvm_usage_count reference counter inside a mutex. */
-            int const rc = kvm_enable_virtualization();
-            if (!rc)
-            {
-                g_fUsingKvmHwvirtApi = true;
-                printk(KERN_INFO "vboxdrv: Using KVM hardware-virtualization API\n");
-                return VINF_SUCCESS;
-            }
-            printk(KERN_ERR "vboxdrv: Failed to enable the KVM kernel API for acquiring VMX/SVM. rc=%d\n", rc);
+            g_fEnabledHwvirtUsingKvm = true;
+            printk(KERN_INFO "vboxdrv: Enabled hardware-virtualization using KVM\n");
+            return VINF_SUCCESS;
         }
+        printk(KERN_ERR "vboxdrv: Failed to enable hardware-virtualization using KVM. rc=%d\n", rc);
         return VERR_NOT_AVAILABLE;
     }
 
-    if (g_fUsingKvmHwvirtApi)
+    if (g_fEnabledHwvirtUsingKvm)
     {
-        kvm_disable_virtualization();
-        g_fUsingKvmHwvirtApi = false;
+        g_pfnKvmDisableVirtualization();
+        g_fEnabledHwvirtUsingKvm = false;
     }
     return VINF_SUCCESS;
 #endif
