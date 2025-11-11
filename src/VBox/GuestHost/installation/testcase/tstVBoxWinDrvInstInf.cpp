@@ -38,6 +38,7 @@
 #include <VBox/GuestHost/VBoxWinDrvInst.h>
 #include <VBox/GuestHost/VBoxWinDrvStore.h>
 
+#include "VBoxWinDrvCommon.h"
 #include "VBoxWinDrvInstInternal.h"
 
 
@@ -129,7 +130,7 @@ VBOXWINDRVINSTTEST g_aTests[] =
     { "testInstallDefaultInstallButNoModelSection.inf", VBOX_WIN_DRIVERINSTALL_F_NONE, VINF_SUCCESS },
     /** Manufacturer, model and section given. */
     { "testInstallManufacturerWithModelSection.inf", VBOX_WIN_DRIVERINSTALL_F_NONE,
-      VINF_SUCCESS, { "VBoxTest" /* Section */, "VBoxTest.NTAMD64" /* Model */, "PCI\\VEN_80ee&DEV_cafe" /* PnP ID */, } }
+      VINF_SUCCESS, { "VBoxTest.NTAMD64" /* Section */, "VBoxTest.NTAMD64" /* Model */, "PCI\\VEN_80ee&DEV_cafe" /* PnP ID */, } }
 };
 typedef VBOXWINDRVINSTTEST *PVBOXWINDRVINSTTEST;
 
@@ -166,7 +167,7 @@ static int tstVBoxDrvInstTestOne(PVBOXWINDRVINSTTESTCTX pCtx, const char *pszInf
                    | VBOX_WIN_DRIVERINSTALL_F_NO_DESTROY;
 
     int rc = VBoxWinDrvInstInstall(pCtx->hInst, pszInfFile, pTest->fFlags);
-    RTTEST_CHECK_MSG_RET(pCtx->hTest, rc == pTest->rc, (pCtx->hTest, "Error: Got %Rrc, expected %Rrc\n", rc, pTest->rc), rc);
+    RTTEST_CHECK_MSG_RET(pCtx->hTest, rc == pTest->rc, (pCtx->hTest, "*** Error: Got %Rrc, expected %Rrc\n", rc, pTest->rc), rc);
     if (RT_FAILURE(rc)) /* Nothing to do here anymore. */
         return VINF_SUCCESS;
 
@@ -178,7 +179,7 @@ static int tstVBoxDrvInstTestOne(PVBOXWINDRVINSTTESTCTX pCtx, const char *pszInf
     {
         RTUtf16ToUtf8(pParms->u.UnInstall.pwszSection, &psz);
         if (RTStrCmp(pTest->Parms.pszSection, psz))
-            RTTestFailed(pCtx->hTest, "Error: Got section %s, expected %s\n", psz, pTest->Parms.pszSection);
+            RTTestFailed(pCtx->hTest, "*** Error: Got section %s, expected %s\n", psz, pTest->Parms.pszSection);
         RTStrFree(psz);
     }
 
@@ -187,7 +188,7 @@ static int tstVBoxDrvInstTestOne(PVBOXWINDRVINSTTESTCTX pCtx, const char *pszInf
     {
         RTUtf16ToUtf8(pParms->u.UnInstall.pwszModel, &psz);
         if (RTStrCmp(pTest->Parms.pszModel, psz))
-            RTTestFailed(pCtx->hTest, "Error: Got model %s, expected %s\n", psz, pTest->Parms.pszModel);
+            RTTestFailed(pCtx->hTest, "*** Error: Got model %s, expected %s\n", psz, pTest->Parms.pszModel);
         RTStrFree(psz);
     }
 
@@ -196,7 +197,7 @@ static int tstVBoxDrvInstTestOne(PVBOXWINDRVINSTTESTCTX pCtx, const char *pszInf
     {
         RTUtf16ToUtf8(pParms->u.UnInstall.pwszPnpId, &psz);
         if (RTStrCmp(pTest->Parms.pszPnpId, psz))
-            RTTestFailed(pCtx->hTest, "Error: Got PnP ID %s, expected %s\n", psz, pTest->Parms.pszPnpId);
+            RTTestFailed(pCtx->hTest, "*** Error: Got PnP ID %s, expected %s\n", psz, pTest->Parms.pszPnpId);
         RTStrFree(psz);
     }
 
@@ -211,10 +212,14 @@ static int tstVBoxDrvInstTestPath(PVBOXWINDRVINSTTESTCTX pCtx, const char *pszPa
     {
         pCtx->idxTest = i; /* Set current test index for callback. */
 
+        RTTestSubF(pCtx->hTest, "Test #%u", pCtx->idxTest);
+
         char szInfPath[RTPATH_MAX];
         RTTEST_CHECK(pCtx->hTest, RTStrPrintf(szInfPath, sizeof(szInfPath), "%s", pszPath) > 0);
         RTTEST_CHECK_RC_OK(pCtx->hTest, RTPathAppend(szInfPath, sizeof(szInfPath), g_aTests[i].pszFile));
         RTTEST_CHECK_RC_OK(pCtx->hTest, tstVBoxDrvInstTestOne(pCtx, szInfPath, &g_aTests[i]));
+
+        RTTestSubDone(pCtx->hTest);
     }
 
     return VINF_SUCCESS;

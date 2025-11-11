@@ -491,6 +491,18 @@ static DECLCALLBACK(RTEXITCODE) vboxDrvInstCmdListMain(PRTGETOPTSTATE pGetState)
                            pCur->wszInfFile, pCur->Ver.wszDriverVer);
             vboxDrvInstLog("    %-36ls | %-40ls\n",
                            pCur->wszModel, pCur->wszPnpId);
+            if (g_uVerbosity)
+            {
+                vboxDrvInstLog("    Installed files:\n");
+                if (pCur->pCopyFileList)
+                {
+                    PVBOXWINDRVINFLISTENTRY_COPYFILE pCFE;
+                    RTListForEach(&pCur->pCopyFileList->List, pCFE, VBOXWINDRVINFLISTENTRY_COPYFILE, Node)
+                        vboxDrvInstLog("        %-36ls\n", pCFE->wszFilePath);
+                }
+                else
+                    vboxDrvInstLog("        <None>\n");
+            }
             cEntries++;
         }
 

@@ -587,6 +587,142 @@ int VBoxWinDrvInfClose(HINF hInf)
 }
 
 /**
+ * Helper for querying a single CopyFiles directive.
+ *
+ * @returns VBox status code.
+ * @param   hInf                Handle of INF file.
+ * @param   infCtxSection       Context of INF section to process.
+ * @param   pCopyFiles          Where to store the CopyFile entries on success.
+ *                              Must be initialized by the caller.
+ */
+static int vboxWinDrvInfQueryCopyFilesSingle(HINF hInf, INFCONTEXT infCtxSection, PVBOXWINDRVINFLIST pCopyFiles)
+{
+    int rc = VINF_SUCCESS;
+
+    /* A section can have multiple CopyFiles directives. */
+    unsigned idxDirectiveCopyFiles = 1;
+    WCHAR    wszSectionCopyFiles[VBOXWINDRVINF_MAX_SECTION_NAME_LEN];
+    while (SetupGetStringFieldW(&infCtxSection, idxDirectiveCopyFiles,
+                                wszSectionCopyFiles, VBOXWINDRVINF_MAX_SECTION_NAME_LEN, NULL))
+    {
+        INFCONTEXT infCtxDir;
+        int        idDir = -1;
+
+        RTUTF16 wszSubDir[MAX_PATH];
+        wszSubDir[0] = L'\0';
+
+        /* Check if there is a specific entry for our CopyFiles directive in the DestinationDirs section.
+         * If not, try using the global DefaultDestDir value. */
+        if (SetupFindFirstLineW(hInf, L"DestinationDirs", wszSectionCopyFiles, &infCtxDir))
+        {
+            if (!SetupGetIntField(&infCtxDir, 1 /* Index */, &idDir))
+            {
+                rc = VERR_INVALID_PARAMETER;
+                break;
+            }
+        }
+        else if (SetupFindFirstLineW(hInf, L"DestinationDirs", L"DefaultDestDir", &infCtxDir))
+        {
+            if (!SetupGetIntField(&infCtxDir, 1 /* Index */, &idDir))
+            {
+                rc = VERR_INVALID_PARAMETER;
+                break;
+            }
+        }
+        else
+        {
+            rc = VERR_INVALID_PARAMETER;
+            break;
+        }
+
+        if (idDir == -1)
+        {
+            rc = VERR_PATH_NOT_FOUND;
+            break;
+        }
+
+        /* Resolve the found directory ID to a path we can work with. */
+        PRTUTF16 pwszPath = VBoxWinDrvInfGetPathFromId(idDir, wszSubDir);
+        if (!pwszPath)
+        {
+            rc = VERR_PATH_NOT_FOUND;
+            break;
+        }
+
+        /* Process all files of the current section. */
+        INFCONTEXT infCtxFile;
+        if (SetupFindFirstLineW(hInf, wszSectionCopyFiles, NULL, &infCtxFile))
+        {
+            do
+            {
+                RTUTF16 wszFileName[MAX_PATH];
+                if (SetupGetStringFieldW(&infCtxFile, 1 /* Index */, wszFileName, MAX_PATH, NULL))
+                {
+                    PVBOXWINDRVINFLISTENTRY_COPYFILE pCFE = (PVBOXWINDRVINFLISTENTRY_COPYFILE)
+                        RTMemAllocZ(sizeof(VBOXWINDRVINFLISTENTRY_COPYFILE));
+                    if (pCFE)
+                    {
+                        if (RTUtf16Printf(pCFE->wszFilePath, RT_ELEMENTS(pCFE->wszFilePath), "%ls\\%ls",
+                                          pwszPath, wszFileName) <= 0)
+                        {
+                            RTMemFree(pCFE);
+                            pCFE = NULL;
+
+                            rc = VERR_BUFFER_OVERFLOW;
+                            break;
+                        }
+
+                        RTListAppend(&pCopyFiles->List, &pCFE->Node);
+                        pCopyFiles->cEntries++;
+                    }
+                    else
+                        rc = VERR_NO_MEMORY;
+                }
+
+            } while (RT_SUCCESS(rc) && SetupFindNextLine(&infCtxFile, &infCtxFile));
+        }
+
+        RTUtf16Free(pwszPath);
+        pwszPath = NULL;
+
+        if (RT_FAILURE(rc))
+            break;
+
+        idxDirectiveCopyFiles++;
+    }
+
+    return rc;
+}
+
+/**
+ * Queries the CopyFile directives in a given INF file section.
+ *
+ * @returns VBox status code.
+ * @param   pCtx                Windows driver installer context.
+ * @param   pwszSection         Section in INF file to query the CopyFile directives for.
+ * @param   pCopyFiles          Where to store the queried entries on success.
+ *                              Must be initialized by the caller.
+ */
+int VBoxWinDrvInfQueryCopyFiles(HINF hInf, PRTUTF16 pwszSection, PVBOXWINDRVINFLIST pCopyFiles)
+{
+    int rc = VINF_SUCCESS;
+
+    /*
+     * Process all "CopyFiles" directives found in the section.
+     */
+    INFCONTEXT infCtxCopyFiles;
+    if (SetupFindFirstLineW(hInf, pwszSection, L"CopyFiles", &infCtxCopyFiles))
+    {
+        do
+        {
+            rc = vboxWinDrvInfQueryCopyFilesSingle(hInf, infCtxCopyFiles, pCopyFiles);
+        } while (RT_SUCCESS(rc) && SetupFindNextMatchLineW(&infCtxCopyFiles, L"CopyFiles", &infCtxCopyFiles)); /* Process next CopyFile directive. */
+    }
+
+    return rc;
+}
+
+/**
  * Queries the first (device) model from an INF file.
  *
  * @returns VBox status code.
@@ -633,6 +769,267 @@ int VBoxWinDrvInfQueryFirstPnPId(HINF hInf, PRTUTF16 pwszModel, PRTUTF16 *ppwszP
     return rc;
 }
 
+/**
+ * Queries (un)installation parameters from an INF file.
+ *
+ * @returns VBox status code.
+ * @retval  VERR_INVALID_PARAMETER if no valid parameters could be determined.
+ * @param   pCtx                Windows driver installer context.
+ * @param   hInf                INF file handle to query parameters from.
+ * @param   pParms              Where to store the determined parameters on success.
+ * @param   fForce              Whether to overwrite already set parameters or not.
+ *
+ * @note    Only can deal with primitive drivers or, for normal drivers, with the first model / PnP ID found for now.
+ */
+int VBoxWinDrvInfQueryParms(HINF hInf, PVBOXWINDRVINFPARMS pParms, bool fForce)
+{
+    /* Get the INF type first. */
+    PRTUTF16 pwszMainSection;
+    VBOXWINDRVINFTYPE enmType = VBoxWinDrvInfGetTypeEx(hInf, &pwszMainSection);
+    if (enmType == VBOXWINDRVINFTYPE_INVALID)
+        return VERR_INVALID_PARAMETER;
+
+    int rc = VINF_SUCCESS;
+
+    if (enmType == VBOXWINDRVINFTYPE_PRIMITIVE)
+    {
+        pParms->pwszSection = RTUtf16Dup(pwszMainSection);
+
+        /* Primitive drivers don't have a model, so make sure it's always NULL. */
+        RTUtf16Free(pParms->pwszModel);
+        pParms->pwszModel = NULL;
+    }
+    else /* VBOXWINDRVINFTYPE_NORMAL */
+    {
+        /*
+         * Determine model.
+         */
+        if (   !pParms->pwszModel
+            || fForce)
+        {
+            if (fForce)
+            {
+                RTUtf16Free(pParms->pwszModel);
+                pParms->pwszModel = NULL;
+            }
+            rc = VBoxWinDrvInfQueryFirstModel(hInf, pwszMainSection, &pParms->pwszModel);
+            if (RT_SUCCESS(rc))
+            {
+                RTUtf16Free(pParms->pwszSection);
+                pParms->pwszSection = NULL;
+
+                /* Now that we have determined the model, try if there is a section in the INF file for this model. */
+                INFCONTEXT InfCtxModel;
+                rc = vboxWinDrvInfQueryContext(hInf, pParms->pwszModel, NULL, &InfCtxModel);
+                if (RT_FAILURE(rc))
+                {
+                    switch (enmType)
+                    {
+                        case VBOXWINDRVINFTYPE_NORMAL:
+                        {
+                            /* No model section to install found, can't continue. */
+                            break;
+                        }
+
+                        case VBOXWINDRVINFTYPE_PRIMITIVE:
+                        {
+                            /* If for the given model there is no install section, set the section to main section
+                             * we got when we determined the INF type.
+                             *
+                             * This will be mostly the case for primitive drivers. */
+                            if (rc == VERR_NOT_FOUND)
+                            {
+                                pParms->pwszSection = RTUtf16Dup(pwszMainSection);
+                                if (pParms->pwszSection)
+                                {
+                                    rc = VINF_SUCCESS;
+                                }
+                                else
+                                    rc = VERR_NO_MEMORY;
+                            }
+                            break;
+                        }
+
+                        default:
+                            AssertFailedStmt(rc = VERR_NOT_IMPLEMENTED);
+                            break;
+                    }
+                }
+                else /* Success -- use the model-specific section. */
+                    pParms->pwszSection = RTUtf16Dup(pParms->pwszModel);
+            }
+        }
+
+        /*
+         * Determine PnP ID.
+         *
+         * Only available in non-primitive drivers.
+         */
+        if (   enmType == VBOXWINDRVINFTYPE_NORMAL
+            && (   !pParms->pwszPnpId
+                || fForce))
+        {
+            if (pParms->pwszModel)
+            {
+                if (fForce)
+                {
+                    RTUtf16Free(pParms->pwszPnpId);
+                    pParms->pwszPnpId = NULL;
+                }
+                /* ignore rc */ VBoxWinDrvInfQueryFirstPnPId(hInf,
+                                                             pParms->pwszModel, &pParms->pwszPnpId);
+            }
+        }
+
+        RTUtf16Free(pwszMainSection);
+    }
+
+    return rc;
+}
+
+/**
+ * Destroys an INF list entry.
+ *
+ * @param   enmType                 Type of entry to destroy.
+ * @param   pvEntry                 Pointer to INF list entry to destroy.
+ *                                  The pointer will be invalid after return.
+ */
+void VBoxWinDrvInfListEntryDestroy(VBOXWINDRVINFLISTENTRY_T enmType, void *pvEntry)
+{
+    RT_NOREF(enmType, pvEntry);
+    /* Nothing to do here yet. */
+}
+
+/**
+ * Initializes an INF list entry, internal version.
+ *
+ * @returns VBox status code.
+ * @param   pInfList                 INF list to initialize.
+ * @param   enmType                  Type of entries to hold.
+ */
+static int vboxWinDrvInfListInitInternal(PVBOXWINDRVINFLIST pInfList, VBOXWINDRVINFLISTENTRY_T enmType)
+{
+    RTListInit(&pInfList->List);
+    pInfList->cEntries = 0;
+    pInfList->enmType  = enmType;
+
+    return VINF_SUCCESS;
+}
+
+/**
+ * Creates (allocates) an INF list.
+ *
+ * @returns New INF list on success. Must be destroyed using VBoxWinDrvInfListDestroy().
+ * @param   enmType                  Type of entries to hold.
+ */
+PVBOXWINDRVINFLIST VBoxWinDrvInfListCreate(VBOXWINDRVINFLISTENTRY_T enmType)
+{
+    PVBOXWINDRVINFLIST pInfList = (PVBOXWINDRVINFLIST)RTMemAlloc(sizeof(VBOXWINDRVINFLIST));
+    if (pInfList)
+    {
+        int const rc = vboxWinDrvInfListInitInternal(pInfList, enmType);
+        if (RT_SUCCESS(rc))
+            return pInfList;
+    }
+
+    VBoxWinDrvInfListDestroy(pInfList);
+    return NULL;
+}
+
+/**
+ * Initializes an INF list.
+ *
+ * @returns VBox status code.
+ * @param   pInfList                 INF list to initialize.
+ * @param   enmType                  Type of entries to hold.
+ */
+int VBoxWinDrvInfListInit(PVBOXWINDRVINFLIST pInfList, VBOXWINDRVINFLISTENTRY_T enmType)
+{
+    return vboxWinDrvInfListInitInternal(pInfList, enmType);
+}
+
+/**
+ * Destroys an INF list.
+ *
+ * @param   pInfList                Pointer to INF list to destroy.
+ *                                  The pointer will be invalid after return.
+ */
+void VBoxWinDrvInfListDestroy(PVBOXWINDRVINFLIST pInfList)
+{
+    if (!pInfList)
+        return;
+
+#define CASE_TYPE(a_Type) \
+    case VBOXWINDRVINFLISTENTRY_T_##a_Type: \
+    { \
+        PVBOXWINDRVINFLISTENTRY_##a_Type pCur, pNext; \
+        RTListForEachSafe(&pInfList->List, pCur, pNext, VBOXWINDRVINFLISTENTRY_##a_Type, Node) \
+        { \
+            VBoxWinDrvInfListEntryDestroy(VBOXWINDRVINFLISTENTRY_T_##a_Type, pCur); \
+            RTListNodeRemove(&pCur->Node); \
+            RTMemFree(pCur); \
+        } \
+        break; \
+    }
+
+    switch (pInfList->enmType)
+    {
+        CASE_TYPE(COPYFILE);
+        default:
+            AssertFailed();
+            break;
+    }
+
+    RTMemFree(pInfList);
+    pInfList = NULL;
+
+#undef CASE_TYPE
+}
+
+/**
+ * Duplicates an INF list.
+ *
+ * @returns Duplicated INF list on success. Must be destroyed using VBoxWinDrvInfListDestroy().
+ * @param   pInfList                INF list to duplicate.
+ */
+PVBOXWINDRVINFLIST VBoxWinDrvInfListDup(PVBOXWINDRVINFLIST pInfList)
+{
+    AssertPtrReturn(pInfList, NULL);
+
+    PVBOXWINDRVINFLIST pInfListDup = (PVBOXWINDRVINFLIST)RTMemAlloc(sizeof(VBOXWINDRVINFLIST));
+    if (pInfListDup)
+    {
+        VBoxWinDrvInfListInit(pInfListDup, pInfList->enmType);
+        pInfListDup->cEntries = pInfList->cEntries;
+
+#define CASE_DUPLICATE_ENTRY(a_Type) \
+    case VBOXWINDRVINFLISTENTRY_T_##a_Type: \
+    { \
+        PVBOXWINDRVINFLISTENTRY_##a_Type pEntry; \
+        RTListForEach(&pInfList->List, pEntry, VBOXWINDRVINFLISTENTRY_##a_Type, Node) \
+        { \
+            PVBOXWINDRVINFLISTENTRY_##a_Type pEntryDup \
+                = (PVBOXWINDRVINFLISTENTRY_##a_Type)RTMemDup(pEntry, sizeof(VBOXWINDRVINFLISTENTRY_##a_Type)); \
+            if (pEntryDup) \
+            { \
+                RTListAppend(&pInfListDup->List, &pEntryDup->Node); \
+            } \
+            else \
+                break; \
+        } \
+        break; \
+    }
+
+        switch (pInfList->enmType)
+        {
+            CASE_DUPLICATE_ENTRY(COPYFILE);
+            default: AssertFailed(); break;
+        }
+    }
+
+#undef CASE_DUPLICATE_ENTRY
+    return pInfListDup;
+}
 
 /**
  * Returns a Setup API error as a string.

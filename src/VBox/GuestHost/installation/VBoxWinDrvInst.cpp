@@ -1649,153 +1649,6 @@ static bool vboxWinDrvParmsAreValid(PVBOXWINDRVINSTINTERNAL pCtx, PVBOXWINDRVINS
 }
 
 /**
- * Determines (un)installation parameters from an INF file.
- *
- * @returns VBox status code.
- * @retval  VERR_INVALID_PARAMETER if no valid parameters could be determined.
- * @param   pCtx                Windows driver installer context.
- * @param   hInf                INF file handle to query parameters from.
- * @param   pParms              Where to store the determined parameters on success.
- * @param   fForce              Whether to overwrite already set parameters or not.
- *
- * @note    Only can deal with primitive drivers or, for normal drivers, with the first model / PnP ID found for now.
- */
-static int vboxWinDrvParmsDetermineFromInf(PVBOXWINDRVINSTINTERNAL pCtx, HINF hInf, PVBOXWINDRVINSTPARMS pParms, bool fForce)
-{
-    /* Get the INF type first. */
-    PRTUTF16 pwszMainSection;
-    VBOXWINDRVINFTYPE enmType = VBoxWinDrvInfGetTypeEx(hInf, &pwszMainSection);
-    if (enmType == VBOXWINDRVINFTYPE_INVALID)
-    {
-        vboxWinDrvInstLogError(pCtx, "INF file is invalid");
-        return VERR_INVALID_PARAMETER;
-    }
-
-    int rc = VINF_SUCCESS;
-
-    vboxWinDrvInstLogVerbose(pCtx, 1, "INF type is: %s",
-                               enmType == VBOXWINDRVINFTYPE_NORMAL
-                             ? "Normal" : "Primitive");
-
-    if (enmType == VBOXWINDRVINFTYPE_PRIMITIVE)
-    {
-        pParms->u.UnInstall.pwszSection = RTUtf16Dup(pwszMainSection);
-
-        /* Primitive drivers don't have a model, so make sure it's always NULL. */
-        RTUtf16Free(pParms->u.UnInstall.pwszModel);
-        pParms->u.UnInstall.pwszModel = NULL;
-    }
-    else /* VBOXWINDRVINFTYPE_NORMAL */
-    {
-        /*
-         * Determine model.
-         */
-        if (   !pParms->u.UnInstall.pwszModel
-            || fForce)
-        {
-            vboxWinDrvInstLogVerbose(pCtx, 1, "Determining model ...");
-            if (fForce)
-            {
-                RTUtf16Free(pParms->u.UnInstall.pwszModel);
-                pParms->u.UnInstall.pwszModel = NULL;
-            }
-            rc = VBoxWinDrvInfQueryFirstModel(hInf, pwszMainSection, &pParms->u.UnInstall.pwszModel);
-            if (RT_SUCCESS(rc))
-            {
-                RTUtf16Free(pParms->u.UnInstall.pwszSection);
-                pParms->u.UnInstall.pwszSection = NULL;
-
-                /* Now that we have determined the model, try if there is a section in the INF file for this model. */
-                if (!VBoxWinDrvInfSectionExists(hInf, pParms->u.UnInstall.pwszModel))
-                {
-                    switch (enmType)
-                    {
-                        case VBOXWINDRVINFTYPE_NORMAL:
-                        {
-                            vboxWinDrvInstLogError(pCtx, "No section to install found, can't continue");
-                            break;
-                        }
-
-                        case VBOXWINDRVINFTYPE_PRIMITIVE:
-                        {
-                            /* If for the given model there is no install section, set the section to main section
-                             * we got when we determined the INF type.
-                             *
-                             * This will be mostly the case for primitive drivers. */
-                            if (rc == VERR_NOT_FOUND)
-                            {
-                                pParms->u.UnInstall.pwszSection = RTUtf16Dup(pwszMainSection);
-                                if (pParms->u.UnInstall.pwszSection)
-                                {
-                                    rc = VINF_SUCCESS;
-                                }
-                                else
-                                    rc = VERR_NO_MEMORY;
-                            }
-                            break;
-                        }
-
-                        default:
-                            AssertFailedStmt(rc = VERR_NOT_IMPLEMENTED);
-                            break;
-                    }
-                }
-                else /* Success -- use the model-specific section. */
-                    pParms->u.UnInstall.pwszSection = RTUtf16Dup(pParms->u.UnInstall.pwszModel);
-            }
-            else
-            {
-                switch (rc)
-                {
-                    case VERR_PLATFORM_ARCH_NOT_SUPPORTED:
-                    {
-                        vboxWinDrvInstLogError(pCtx, "Model found, but platform is not supported");
-                        break;
-                    }
-
-                    case VERR_NOT_FOUND:
-                    {
-                        vboxWinDrvInstLogError(pCtx, "No model found to install found -- buggy driver?");
-                        break;
-                    }
-
-                    default:
-                        break;
-                }
-            }
-        }
-
-        /*
-         * Determine PnP ID.
-         *
-         * Only available in non-primitive drivers.
-         */
-        if (   enmType == VBOXWINDRVINFTYPE_NORMAL
-            && (   !pParms->u.UnInstall.pwszPnpId
-                || fForce))
-        {
-            if (pParms->u.UnInstall.pwszModel)
-            {
-                vboxWinDrvInstLogVerbose(pCtx, 1, "Determining PnP ID ...");
-                if (fForce)
-                {
-                    RTUtf16Free(pParms->u.UnInstall.pwszPnpId);
-                    pParms->u.UnInstall.pwszPnpId = NULL;
-                }
-                /* ignore rc */ VBoxWinDrvInfQueryFirstPnPId(hInf,
-                                                             pParms->u.UnInstall.pwszModel, &pParms->u.UnInstall.pwszPnpId);
-            }
-            else
-                vboxWinDrvInstLogVerbose(pCtx, 1, "No first model found/set, skipping determining PnP ID");
-        }
-
-        RTUtf16Free(pwszMainSection);
-    }
-
-    return rc;
-}
-
-/**
  * Determines (un)installation parameters from a given set of parameters, logged.
  *
  * @returns VBox status code.
@@ -1817,7 +1670,7 @@ static int vboxWinDrvParmsDetermine(PVBOXWINDRVINSTINTERNAL pCtx, PVBOXWINDRVINS
         rc = VBoxWinDrvInfOpen(pParms->pwszInfFile, &hInf);
         if (RT_SUCCESS(rc))
         {
-            rc = vboxWinDrvParmsDetermineFromInf(pCtx, hInf, pParms, fForce);
+            rc = VBoxWinDrvInfQueryParms(hInf, &pParms->u.UnInstall, fForce);
             VBoxWinDrvInfClose(hInf);
         }
     }
@@ -2222,130 +2075,6 @@ static int vboxWinDrvUninstallFromDriverStore(PVBOXWINDRVINSTINTERNAL pCtx,
 }
 
 /**
- * Helper for uninstalling a single CopyFiles section.
- *
- * @returns VBox status code.
- * @param   pCtx                Windows driver installer context.
- * @param   hInf                Handle of INF file.
- * @param   infCtxSection       Context of INF section to process.
- */
-static int vboxWinDrvUninstallFromFsCopyFilesSingle(PVBOXWINDRVINSTINTERNAL pCtx,
-                                                    HINF hInf, INFCONTEXT infCtxSection)
-{
-    int rc = VINF_SUCCESS;
-
-    /* A section can have multiple CopyFiles directives. */
-    unsigned idxDirectiveCopyFiles = 1;
-    WCHAR    wszSectionCopyFiles[VBOXWINDRVINF_MAX_SECTION_NAME_LEN];
-    while (SetupGetStringFieldW(&infCtxSection, idxDirectiveCopyFiles,
-                                wszSectionCopyFiles, VBOXWINDRVINF_MAX_SECTION_NAME_LEN, NULL))
-    {
-        vboxWinDrvInstLogVerbose(pCtx, 1, "Handling section '%ls'", wszSectionCopyFiles);
-
-        INFCONTEXT infCtxDir;
-        int        idDir = -1;
-
-        RTUTF16 wszSubDir[MAX_PATH];
-        wszSubDir[0] = L'\0';
-
-        /* Check if there is a specific entry for our CopyFiles directive in the DestinationDirs section.
-         * If not, try using the global DefaultDestDir value. */
-        if (SetupFindFirstLineW(hInf, L"DestinationDirs", wszSectionCopyFiles, &infCtxDir))
-        {
-            if (!SetupGetIntField(&infCtxDir, 1 /* Index */, &idDir))
-            {
-                vboxWinDrvInstLogError(pCtx, "INF error: DefaultDestDir is empty");
-                rc = VERR_INVALID_PARAMETER;
-                break;
-            }
-        }
-        else if (SetupFindFirstLineW(hInf, L"DestinationDirs", L"DefaultDestDir", &infCtxDir))
-        {
-            if (!SetupGetIntField(&infCtxDir, 1 /* Index */, &idDir))
-            {
-                vboxWinDrvInstLogError(pCtx, "INF error: DefaultDestDir is empty");
-                rc = VERR_INVALID_PARAMETER;
-                break;
-            }
-        }
-        else
-        {
-            vboxWinDrvInstLogError(pCtx,
-                                   "INF error: Neither Global/DestinationDirs nor %ls/DestinationDirs found",
-                                   wszSectionCopyFiles);
-            rc = VERR_INVALID_PARAMETER;
-            break;
-        }
-
-        if (idDir == -1)
-        {
-            vboxWinDrvInstLogError(pCtx, "INF error: Could not resolve directory for section '%ls'",
-                                   wszSectionCopyFiles);
-            rc = VERR_PATH_NOT_FOUND;
-            break;
-        }
-
-        /* Resolve the found directory ID to a path we can work with. */
-        PRTUTF16 pwszPath = VBoxWinDrvInfGetPathFromId(idDir, wszSubDir);
-        if (!pwszPath)
-        {
-            vboxWinDrvInstLogError(pCtx, "INF error: Could not resolve directory for ID %u", idDir);
-            rc = VERR_PATH_NOT_FOUND;
-            break;
-        }
-
-        /* Process all files of the current section. */
-        INFCONTEXT infCtxFile;
-        if (SetupFindFirstLineW(hInf, wszSectionCopyFiles, NULL, &infCtxFile))
-        {
-            do
-            {
-                RTUTF16 wszFileName[MAX_PATH];
-                if (SetupGetStringFieldW(&infCtxFile, 1 /* Index */, wszFileName, MAX_PATH, NULL))
-                {
-                    RTUTF16 wszPathAbs[MAX_PATH];
-                    if (RTUtf16Printf(wszPathAbs, RT_ELEMENTS(wszPathAbs), "%ls\\%ls",
-                                      pwszPath, wszFileName) <= 0)
-                    {
-                        vboxWinDrvInstLogError(pCtx, "Error building full path");
-                        rc = VERR_BUFFER_OVERFLOW;
-                        break;
-                    }
-                    else
-                    {
-                        vboxWinDrvInstLogVerbose(pCtx, 1, "Deleting file '%ls'", wszPathAbs);
-
-                        if (!(pCtx->Parms.fFlags & VBOX_WIN_DRIVERINSTALL_F_DRYRUN))
-                        {
-                            /* Use DeleteFileW() instead of RTFileDelete() to better
-                             * resolve SetupAPI / not-handled-by-IPRT errors codes here. */
-                            if (!DeleteFileW(wszPathAbs))
-                            {
-                                DWORD const dwErr = GetLastError();
-                                if (dwErr != ERROR_FILE_NOT_FOUND)
-                                    rc = vboxWinDrvInstLogLastError(pCtx, "Could not delete file '%ls'", wszPathAbs);
-                            }
-                            /* Keep going. */
-                        }
-                    }
-                }
-
-            } while (RT_SUCCESS(rc) && SetupFindNextLine(&infCtxFile, &infCtxFile));
-        }
-
-        RTUtf16Free(pwszPath);
-        pwszPath = NULL;
-
-        if (RT_FAILURE(rc))
-            break;
-
-        idxDirectiveCopyFiles++;
-    }
-
-    return rc;
-}
-
-/**
  * Uninstalls (deletes) previously installed files from the file system.
  *
  * @returns VBox status code.
@@ -2360,50 +2089,40 @@ static int vboxWinDrvUninstallFromFs(PVBOXWINDRVINSTINTERNAL pCtx,
 
     int rc = VINF_SUCCESS;
 
-    const char *pszDrvStorePath = VBoxWinDrvStoreBackendGetLocation(pCtx->pStore);
-
     vboxWinDrvInstLogInfo(pCtx, "Uninstalling %zu matching entr%s from file system",
                           pList->cEntries, pList->cEntries == 1 ? "y" : "ies");
 
-    PVBOXWINDRVSTOREENTRY pCur;
-    RTListForEach(&pList->List, pCur, VBOXWINDRVSTOREENTRY, Node)
+    /*
+     * Uninstall files which we found in the CopyFile directives.
+     */
+    PVBOXWINDRVSTOREENTRY pEntry;
+    RTListForEach(&pList->List, pEntry, VBOXWINDRVSTOREENTRY, Node)
     {
-        RTUTF16 wszInfPathAbs[RTPATH_MAX];
-        ssize_t const cwchInfPathAbs = RTUtf16Printf(wszInfPathAbs, RT_ELEMENTS(wszInfPathAbs),
-                                                     "%s\\%ls", pszDrvStorePath, pCur->wszInfFile);
-        AssertBreakStmt(cwchInfPathAbs > 0, rc = VERR_BUFFER_OVERFLOW);
-
-        HINF hInf;
-        rc = VBoxWinDrvInfOpen(wszInfPathAbs, &hInf);
-        if (RT_FAILURE(rc))
+        if (pEntry->pCopyFileList)
         {
-            vboxWinDrvInstLogVerbose(pCtx, 1, "Unable to open INF file '%ls' (%Rrc), skipping", wszInfPathAbs, rc);
-            continue; /* Not fatal, keep going. */
-        }
+            Assert(pEntry->pCopyFileList->cEntries);
 
-        VBOXWINDRVINSTPARMS InfParms;
-        RT_ZERO(InfParms);
+            vboxWinDrvInstLogVerbose(pCtx, 1, "Deleting %u files", pEntry->pCopyFileList->cEntries);
 
-        rc = vboxWinDrvParmsDetermineFromInf(pCtx, hInf, &InfParms, false /* fForce */);
-        if (RT_SUCCESS(rc))
-        {
-            vboxWinDrvInstLogVerbose(pCtx, 1, "Handling section '%ls'", InfParms.u.UnInstall.pwszSection);
-
-            /*
-             * Process all "CopyFiles" directives found in the section.
-             */
-            INFCONTEXT infCtxCopyFiles;
-            if (SetupFindFirstLineW(hInf, InfParms.u.UnInstall.pwszSection, L"CopyFiles", &infCtxCopyFiles))
+            PVBOXWINDRVINFLISTENTRY_COPYFILE pCFE;
+            RTListForEach(&pEntry->pCopyFileList->List, pCFE, VBOXWINDRVINFLISTENTRY_COPYFILE, Node)
             {
-                do
+                vboxWinDrvInstLogVerbose(pCtx, 1, "Deleting file \"%ls\"  ...", pCFE->wszFilePath);
+
+                if (!(pCtx->Parms.fFlags & VBOX_WIN_DRIVERINSTALL_F_DRYRUN))
                 {
-                    rc = vboxWinDrvUninstallFromFsCopyFilesSingle(pCtx, hInf, infCtxCopyFiles);
-                } while (RT_SUCCESS(rc) && SetupFindNextMatchLineW(&infCtxCopyFiles, L"CopyFiles", &infCtxCopyFiles)); /* Process next CopyFile directive. */
+                    /* Use DeleteFileW() instead of RTFileDelete() to better
+                     * resolve SetupAPI / not-handled-by-IPRT errors codes here. */
+                    if (!DeleteFileW(pCFE->wszFilePath))
+                    {
+                        DWORD const dwErr = GetLastError();
+                        if (dwErr != ERROR_FILE_NOT_FOUND) /* Ignore already deleted files. */
+                            rc = vboxWinDrvInstLogLastError(pCtx, "Could not delete file '%ls'", pCFE->wszFilePath);
+                    }
+                    /* Keep going. */
+                }
             }
         }
-
-        vboxWinDrvInstParmsDestroy(&InfParms);
-        VBoxWinDrvInfClose(hInf);
     }
 
     return rc;
@@ -2427,11 +2146,11 @@ static int vboxWinDrvUninstallPerform(PVBOXWINDRVINSTINTERNAL pCtx, PVBOXWINDRVI
             rc = vboxWinDrvQueryFromDriverStore(pCtx, pParms, &pList);
             if (RT_SUCCESS(rc))
             {
-#if 0 /* Disabled for now, needs more work first. */
-                rc = vboxWinDrvUninstallFromFs(pCtx, pParms, pList);
+                /* Remove the driver from the driver store first. */
+                rc = vboxWinDrvUninstallFromDriverStore(pCtx, pParms, pList);
                 if (RT_SUCCESS(rc))
-#endif
-                    rc = vboxWinDrvUninstallFromDriverStore(pCtx, pParms, pList);
+                    /* Then uninstall copied files from the OS. */
+                    rc = vboxWinDrvUninstallFromFs(pCtx, pParms, pList);
 
                 VBoxWinDrvStoreListFree(pList);
                 pList = NULL;

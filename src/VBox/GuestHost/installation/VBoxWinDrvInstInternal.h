@@ -64,18 +64,7 @@ typedef struct VBOXWINDRVINSTPARMS
     /** Union keeping specific parameters, depending on \a enmMode. */
     union
     {
-        struct
-        {
-            /** Model including decoration (e.g. "VBoxUSB.NTAMD64"); optional and might be NULL.
-             *  For primitive drivers this always is NULL. */
-            PRTUTF16   pwszModel;
-            /** Hardware (Pnp) ID; optional and might be NULL.
-             * For primitive drivers this always is NULL. */
-            PRTUTF16   pwszPnpId;
-            /** Name of section to (un)install.
-             *  This marks the main section (entry point) of the specific driver model to handle. */
-            PRTUTF16   pwszSection;
-        } UnInstall;
+        VBOXWINDRVINFPARMS UnInstall;
         struct
         {
             /** Section within in the INF file to execute. */

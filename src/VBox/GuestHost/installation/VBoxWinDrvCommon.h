@@ -54,6 +54,27 @@ typedef enum VBOXWINDRVINFTYPE
     VBOXWINDRVINFTYPE_NORMAL
 } VBOXWINDRVINFTYPE;
 
+/**
+ * Structure for keeping determined (or set) INF parameters
+ * required for driver (un)installation.
+ */
+typedef struct VBOXWINDRVINFPARMS
+{
+    /** Model including decoration (e.g. "VBoxUSB.NTAMD64"); optional and might be NULL.
+     *  For primitive drivers this always is NULL. */
+    PRTUTF16   pwszModel;
+    /** Hardware (Pnp) ID; optional and might be NULL.
+     * For primitive drivers this always is NULL. */
+    PRTUTF16   pwszPnpId;
+    /** Name of section to (un)install.
+     *  This marks the main section (entry point) of the specific driver model to handle. */
+    PRTUTF16   pwszSection;
+} VBOXWINDRVINFPARMS;
+/** Pointer to a atructure for keeping determined (or set) INF parameters
+ * required for driver (un)installation.*/
+typedef VBOXWINDRVINFPARMS *PVBOXWINDRVINFPARMS;
+
+
 int VBoxWinDrvInfOpenEx(PCRTUTF16 pwszInfFile, PRTUTF16 pwszClassName, HINF *phInf);
 int VBoxWinDrvInfOpen(PCRTUTF16 pwszInfFile, HINF *phInf);
 int VBoxWinDrvInfOpenUtf8(const char *pszInfFile, HINF *phInf);
@@ -61,15 +82,24 @@ int VBoxWinDrvInfClose(HINF hInf);
 PRTUTF16 VBoxWinDrvInfGetPathFromId(unsigned idDir, PCRTUTF16 pwszSubDir);
 VBOXWINDRVINFTYPE VBoxWinDrvInfGetTypeEx(HINF hInf, PRTUTF16 *ppwszSection);
 VBOXWINDRVINFTYPE VBoxWinDrvInfGetType(HINF hInf);
+int VBoxWinDrvInfQueryCopyFiles(HINF hInf, PRTUTF16 pwszSection, PVBOXWINDRVINFLIST pCopyFiles);
 int VBoxWinDrvInfQueryFirstModel(HINF hInf, PCRTUTF16 pwszSection, PRTUTF16 *ppwszModel);
 int VBoxWinDrvInfQueryFirstPnPId(HINF hInf, PRTUTF16 pwszModel, PRTUTF16 *ppwszPnPId);
 int VBoxWinDrvInfQueryKeyValue(PINFCONTEXT pCtx, DWORD iValue, PRTUTF16 *ppwszValue, PDWORD pcwcValue);
 int VBoxWinDrvInfQueryModelEx(HINF hInf, PCRTUTF16 pwszSection, unsigned uIndex, PRTUTF16 *ppwszValue, PDWORD pcwcValue);
 int VBoxWinDrvInfQueryModel(HINF hInf, PCRTUTF16 pwszSection, unsigned uIndex, PRTUTF16 *ppwszValue, PDWORD pcwcValue);
+int VBoxWinDrvInfQueryParms(HINF hInf, PVBOXWINDRVINFPARMS pParms, bool fForce);
 int VBoxWinDrvInfQuerySectionKeyByIndex(HINF hInf, PCRTUTF16 pwszSection, PRTUTF16 *ppwszValue, PDWORD pcwcValue);
 int VBoxWinDrvInfQuerySectionVerEx(HINF hInf, UINT uIndex, PVBOXWINDRVINFSECVERSION pVer);
 int VBoxWinDrvInfQuerySectionVer(HINF hInf, PVBOXWINDRVINFSECVERSION pVer);
+int VBoxWinDrvInfQueryCopyFiles(HINF hInf, PVBOXWINDRVINFLIST pCopyFiles);
 bool VBoxWinDrvInfSectionExists(HINF hInf, PCRTUTF16 pwszSection);
+
+PVBOXWINDRVINFLIST VBoxWinDrvInfListCreate(VBOXWINDRVINFLISTENTRY_T enmType);
+int VBoxWinDrvInfListInit(PVBOXWINDRVINFLIST pInfList, VBOXWINDRVINFLISTENTRY_T enmType);
+void VBoxWinDrvInfListDestroy(PVBOXWINDRVINFLIST pInfList);
+PVBOXWINDRVINFLIST VBoxWinDrvInfListDup(PVBOXWINDRVINFLIST pInfList);
+void VBoxWinDrvInfInfListCOPYFILEDestroy(PVBOXWINDRVINFLIST pCopyFiles);
 
 const char *VBoxWinDrvSetupApiErrToStr(const DWORD dwErr);
 const char *VBoxWinDrvWinErrToStr(const DWORD dwErr);

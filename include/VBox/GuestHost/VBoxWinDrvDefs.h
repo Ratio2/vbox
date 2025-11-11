@@ -40,6 +40,8 @@
 # pragma once
 #endif
 
+#include <iprt/list.h>
+#include <iprt/path.h>
 #include <iprt/utf16.h>
 
 /** If not defined explicitly, use the given / current target architecture.
@@ -97,5 +99,43 @@ typedef struct VBOXWINDRVINFSECVERSION
 } VBOXWINDRVINFSECVERSION;
 /** Pointer to structure for keeping INF Version section information. */
 typedef VBOXWINDRVINFSECVERSION *PVBOXWINDRVINFSECVERSION;
+
+/**
+ * Enumeration for specifying an INF file list entry type.
+ */
+typedef enum
+{
+    /** No / invalid type. */
+    VBOXWINDRVINFLISTENTRY_T_NONE = 0,
+    /** List entry is of type VBOXWINDRVINFLISTENTRY_COPYFILE. */
+    VBOXWINDRVINFLISTENTRY_T_COPYFILE
+} VBOXWINDRVINFLISTENTRY_T;
+
+/**
+ * Structure for keeping a single FileCopy file entry.
+ */
+typedef struct VBOXWINDRVINFLISTENTRY_COPYFILE
+{
+    RTLISTNODE Node;
+    /** Absolute path to the file on the system. */
+    RTUTF16    wszFilePath[RTPATH_MAX];
+} VBOXWINDRVINFLISTENTRY;
+/** Pointer to a structure for keeping a single FileCopy file entry. */
+typedef VBOXWINDRVINFLISTENTRY_COPYFILE *PVBOXWINDRVINFLISTENTRY_COPYFILE;
+
+/**
+ * Structure for keeping a list of one type of VBOXWINDRVINFLISTENTRY_XXX entries.
+ */
+typedef struct VBOXWINDRVINFLIST
+{
+    /** List of VBOXWINDRVINFLISTENTRY_XXX entries. */
+    RTLISTANCHOR             List;
+    /** Number of current entries of type VBOXWINDRVINFLISTENTRY_T_XXX. */
+    unsigned                 cEntries;
+    /** Type of entries this list contains. */
+    VBOXWINDRVINFLISTENTRY_T enmType;
+} VBOXWINDRVINFLIST;
+/** Pointer to a structure for keeping a list of FileCopy file entries.*/
+typedef VBOXWINDRVINFLIST *PVBOXWINDRVINFLIST;
 
 #endif /* !VBOX_INCLUDED_GuestHost_VBoxWinDrvDefs_h */
