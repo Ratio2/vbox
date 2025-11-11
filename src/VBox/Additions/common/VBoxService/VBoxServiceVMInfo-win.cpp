@@ -1405,6 +1405,127 @@ int VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct VBOXSERVICEVMINFOUSERLIST *p
 }
 
 
+
+/*********************************************************************************************************************************
+*   Populate /VirtualBox/GuestAdd/Components/                                                                                    *
+*********************************************************************************************************************************/
+
+/**
+ * Helper for vgsvcVMInfoWinGetFileVersion and attempts to read and parse
+ * FileVersion.
+ *
+ * @returns Success indicator.
+ */
+static bool vgsvcVMInfoWinGetFileVersionOwn(LPSTR pVerData, uint32_t *puMajor, uint32_t *puMinor,
+                                            uint32_t *puBuildNumber, uint32_t *puRevisionNumber)
+{
+    UINT    cchStrValue = 0;
+    LPTSTR  pStrValue   = NULL;
+    if (!VerQueryValueA(pVerData, "\\StringFileInfo\\040904b0\\FileVersion", (LPVOID *)&pStrValue, &cchStrValue))
+        return false;
+
+    char *pszNext = pStrValue;
+    int rc = RTStrToUInt32Ex(pszNext, &pszNext, 0, puMajor);
+    AssertReturn(rc == VWRN_TRAILING_CHARS, false);
+    AssertReturn(*pszNext == '.', false);
+
+    rc = RTStrToUInt32Ex(pszNext + 1, &pszNext, 0, puMinor);
+    AssertReturn(rc == VWRN_TRAILING_CHARS, false);
+    AssertReturn(*pszNext == '.', false);
+
+    rc = RTStrToUInt32Ex(pszNext + 1, &pszNext, 0, puBuildNumber);
+    AssertReturn(rc == VWRN_TRAILING_CHARS, false);
+    AssertReturn(*pszNext == '.', false);
+
+    rc = RTStrToUInt32Ex(pszNext + 1, &pszNext, 0, puRevisionNumber);
+    AssertReturn(rc == VINF_SUCCESS || rc == VWRN_TRAILING_CHARS /*??*/, false);
+
+    return true;
+}
+
+
+/**
+ * Gets version number and revision from the VS_FIXEDFILEINFO table of the given
+ * file, if found and present.
+ *
+ * @returns VBox status code.  Will always set the return variables to a value,
+ *           regardless of status code.
+ * @param   pszFilename         ASCII & ANSI & UTF-8 compliant name.
+ * @param   puMajor             Where to return the major version number.
+ * @param   puMinor             Where to return the minor version number.
+ * @param   puBuildNumber       Where to return the build number.
+ * @param   puRevisionNumber    Where to return the revision number.
+ */
+static int vgsvcVMInfoWinGetFileVersion(const char *pszFilename, uint32_t *puMajor, uint32_t *puMinor,
+                                        uint32_t *puBuildNumber, uint32_t *puRevisionNumber)
+{
+    int rc;
+
+    *puMajor = *puMinor = *puBuildNumber = *puRevisionNumber = 0;
+
+    /*
+     * Get the file version info.
+     */
+    DWORD dwHandleIgnored;
+    DWORD cbVerData = GetFileVersionInfoSizeA(pszFilename, &dwHandleIgnored);
+    if (cbVerData)
+    {
+        LPTSTR pVerData = (LPTSTR)RTMemTmpAllocZ(cbVerData);
+        if (pVerData)
+        {
+            if (GetFileVersionInfoA(pszFilename, dwHandleIgnored, cbVerData, pVerData))
+            {
+                /*
+                 * Try query and parse the FileVersion string our selves first
+                 * since this will give us the correct revision number when
+                 * it goes beyond the range of an uint16_t / WORD.
+                 */
+                if (vgsvcVMInfoWinGetFileVersionOwn(pVerData, puMajor, puMinor, puBuildNumber, puRevisionNumber))
+                    rc = VINF_SUCCESS;
+                else
+                {
+                    /* Fall back on VS_FIXEDFILEINFO */
+                    UINT                 cbFileInfoIgnored = 0;
+                    VS_FIXEDFILEINFO    *pFileInfo = NULL;
+                    if (VerQueryValue(pVerData, "\\", (LPVOID *)&pFileInfo, &cbFileInfoIgnored))
+                    {
+                        *puMajor          = HIWORD(pFileInfo->dwFileVersionMS);
+                        *puMinor          = LOWORD(pFileInfo->dwFileVersionMS);
+                        *puBuildNumber    = HIWORD(pFileInfo->dwFileVersionLS);
+                        *puRevisionNumber = LOWORD(pFileInfo->dwFileVersionLS);
+                        rc = VINF_SUCCESS;
+                    }
+                    else
+                    {
+                        rc = RTErrConvertFromWin32(GetLastError());
+                        VGSvcVerbose(3, "No file version value for file '%s' available! (%d / rc=%Rrc)\n",
+                                     pszFilename,  GetLastError(), rc);
+                    }
+                }
+            }
+            else
+            {
+                rc = RTErrConvertFromWin32(GetLastError());
+                VGSvcVerbose(0, "GetFileVersionInfo(%s) -> %u / %Rrc\n", pszFilename, GetLastError(), rc);
+            }
+
+            RTMemTmpFree(pVerData);
+        }
+        else
+        {
+            VGSvcVerbose(0, "Failed to allocate %u byte for file version info for '%s'\n", cbVerData, pszFilename);
+            rc = VERR_NO_TMP_MEMORY;
+        }
+    }
+    else
+    {
+        rc = RTErrConvertFromWin32(GetLastError());
+        VGSvcVerbose(3, "GetFileVersionInfoSize(%s) -> %u / %Rrc\n", pszFilename, GetLastError(), rc);
+    }
+    return rc;
+}
+
+
 /**
  * Called by vgsvcVMInfoWriteFixedProperties() to popuplate the
  * "/VirtualBox/GuestAdd/Components/" area with file versions.
@@ -1510,7 +1631,7 @@ int VGSvcVMInfoWinWriteComponentVersions(PVBGLGSTPROPCLIENT pClient)
         Assert(strlen(pszPath) == cchDir + 1 + s_aVBoxFiles[i].cchFilename);
 
         uint32_t uMajor, uMinor, uBuild, uRev;
-        int rc = VGSvcUtilWinGetFileVersion(pszPath, &uMajor, &uMinor, &uBuild, &uRev);
+        int rc = vgsvcVMInfoWinGetFileVersion(pszPath, &uMajor, &uMinor, &uBuild, &uRev);
         if (RT_SUCCESS(rc))
         {
             char szVer[128];
