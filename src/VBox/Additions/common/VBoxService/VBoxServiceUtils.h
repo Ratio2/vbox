@@ -73,7 +73,8 @@ int VGSvcWritePropF(PVBGLGSTPROPCLIENT pGuestPropClient, const char *pszName, co
 #endif
 
 #ifdef RT_OS_WINDOWS
-int VGSvcUtilWinGetFileVersionString(const char *pszPath, const char *pszFileName, char *pszVersion, size_t cbVersion);
+int VGSvcUtilWinGetFileVersion(const char *pszFilename, uint32_t *puMajor, uint32_t *puMinor, uint32_t *puBuildNumber,
+                               uint32_t *puRevisionNumber);
 #endif
 
 const char *VGSvcIdCacheGetUidName(PVGSVCIDCACHE pIdCache, RTUID uid, const char *pszEntry, const char *pszRelativeTo);

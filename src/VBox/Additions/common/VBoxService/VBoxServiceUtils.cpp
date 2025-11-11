@@ -207,7 +207,7 @@ int VGSvcWritePropF(PVBGLGSTPROPCLIENT pGuestPropClient, const char *pszName, co
 #ifdef RT_OS_WINDOWS
 
 /**
- * Helper for vgsvcUtilGetFileVersion and attempts to read and parse
+ * Helper for VGSvcUtilWinGetFileVersion and attempts to read and parse
  * FileVersion.
  *
  * @returns Success indicator.
@@ -241,17 +241,22 @@ static bool vgsvcUtilGetFileVersionOwn(LPSTR pVerData, uint32_t *puMajor, uint32
 
 
 /**
- * Worker for VGSvcUtilWinGetFileVersionString.
+ * Gets version number and revision from the VS_FIXEDFILEINFO table of the given
+ * file, if found and present.
  *
- * @returns VBox status code.
+ * @returns VBox status code.  Will always set the return variables to a value,
+ *           regardless of status code.
  * @param   pszFilename         ASCII & ANSI & UTF-8 compliant name.
  * @param   puMajor             Where to return the major version number.
  * @param   puMinor             Where to return the minor version number.
  * @param   puBuildNumber       Where to return the build number.
  * @param   puRevisionNumber    Where to return the revision number.
+ *
+ * @todo    The only user is VGSvcVMInfoWinWriteComponentVersions(), so perhaps
+ *          it would be more at home in that file...
  */
-static int vgsvcUtilGetFileVersion(const char *pszFilename, uint32_t *puMajor, uint32_t *puMinor, uint32_t *puBuildNumber,
-                                   uint32_t *puRevisionNumber)
+int VGSvcUtilWinGetFileVersion(const char *pszFilename, uint32_t *puMajor, uint32_t *puMinor, uint32_t *puBuildNumber,
+                               uint32_t *puRevisionNumber)
 {
     int rc;
 
@@ -319,45 +324,7 @@ static int vgsvcUtilGetFileVersion(const char *pszFilename, uint32_t *puMajor, u
     return rc;
 }
 
-
-/**
- * Gets a re-formatted version string from the VS_FIXEDFILEINFO table.
- *
- * @returns VBox status code.  The output buffer is always valid and the status
- *          code can safely be ignored.
- *
- * @param   pszPath         The base path.
- * @param   pszFilename     The filename.
- * @param   pszVersion      Where to return the version string.
- * @param   cbVersion       The size of the version string buffer. This MUST be
- *                          at least 2 bytes!
- */
-int VGSvcUtilWinGetFileVersionString(const char *pszPath, const char *pszFilename, char *pszVersion, size_t cbVersion)
-{
-    /*
-     * We will ALWAYS return with a valid output buffer.
-     */
-    AssertReturn(cbVersion >= 2, VERR_BUFFER_OVERFLOW);
-    pszVersion[0] = '-';
-    pszVersion[1] = '\0';
-
-    /*
-     * Create the path and query the bits.
-     */
-    char szFullPath[RTPATH_MAX];
-    int rc = RTPathJoin(szFullPath, sizeof(szFullPath), pszPath, pszFilename);
-    if (RT_SUCCESS(rc))
-    {
-        uint32_t uMajor, uMinor, uBuild, uRev;
-        rc = vgsvcUtilGetFileVersion(szFullPath, &uMajor, &uMinor, &uBuild, &uRev);
-        if (RT_SUCCESS(rc))
-            RTStrPrintf(pszVersion, cbVersion, "%u.%u.%ur%u", uMajor, uMinor, uBuild, uRev);
-    }
-    return rc;
-}
-
 #endif /* RT_OS_WINDOWS */
-
 
 /**
  * Resolves the UID to a name as best as we can.

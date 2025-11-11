@@ -88,13 +88,6 @@ typedef struct VBOXSERVICEVMINFOUSER
     ULONG ulLastSession;
 } VBOXSERVICEVMINFOUSER, *PVBOXSERVICEVMINFOUSER;
 
-/** Structure for the file information lookup. */
-typedef struct VBOXSERVICEVMINFOFILE
-{
-    const char *pszFilePath;
-    const char *pszFileName;
-} VBOXSERVICEVMINFOFILE, *PVBOXSERVICEVMINFOFILE;
-
 /** Structure for process information lookup. */
 typedef struct VBOXSERVICEVMINFOPROC
 {
@@ -1418,55 +1411,112 @@ int VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct VBOXSERVICEVMINFOUSERLIST *p
  */
 int VGSvcVMInfoWinWriteComponentVersions(PVBGLGSTPROPCLIENT pClient)
 {
-    /* ASSUME: szSysDir and szWinDir and derivatives are always ASCII compatible. */
-    char szSysDir[MAX_PATH] = {0};
-    GetSystemDirectory(szSysDir, MAX_PATH);
-    char szWinDir[MAX_PATH] = {0};
-    GetWindowsDirectory(szWinDir, MAX_PATH);
-    char szSysDriversDir[MAX_PATH + 32] = {0};
-    RTStrPrintf(szSysDriversDir, sizeof(szSysDriversDir), "%s\\drivers", szSysDir);
+    /*
+     * Gather the directories we need.
+     *
+     * The buffers are sized so that there will always be sufficent space
+     * to append the filename, so all we have to do it to append the filename
+     * before querying the information.
+     *
+     * ASSUME: szSysDir and szWinDir and derivatives are always ASCII compatible.
+     */
+#define IDX_DIR_SYSTEM32    0
+#define IDX_DIR_DRIVERS     1
 #ifdef RT_ARCH_AMD64
-    char szSysWowDir[MAX_PATH + 32] = {0};
-    RTStrPrintf(szSysWowDir, sizeof(szSysWowDir), "%s\\SysWow64", szWinDir);
+# define IDX_DIR_WOW64      2
+#endif
+    struct { char *pszDir; size_t cchDir; } aDirs[3] = { { NULL, 0 }, { NULL, 0 }, { NULL, 0 } };
+
+    char szSysDir[MAX_PATH + GUEST_PROP_MAX_NAME_LEN] = {0};
+    UINT const cchSysDir = GetSystemDirectory(szSysDir, MAX_PATH);
+    aDirs[IDX_DIR_SYSTEM32].pszDir = szSysDir;
+    aDirs[IDX_DIR_SYSTEM32].cchDir = cchSysDir;
+    Assert(strlen(aDirs[IDX_DIR_SYSTEM32].pszDir) == cchSysDir);
+
+    char szDriversDir[MAX_PATH + GUEST_PROP_MAX_NAME_LEN + 8] = {0};
+    memcpy(szDriversDir, szSysDir, cchSysDir);
+    memcpy(&szDriversDir[cchSysDir], "\\drivers", sizeof("\\drivers"));
+    aDirs[IDX_DIR_DRIVERS].pszDir  = szDriversDir;
+    aDirs[IDX_DIR_DRIVERS].cchDir  = cchSysDir + sizeof("\\drivers") - 1;
+    Assert(strlen(aDirs[IDX_DIR_DRIVERS].pszDir) == aDirs[IDX_DIR_DRIVERS].cchDir);
+
+#ifdef RT_ARCH_AMD64
+    char szWow64Dir[MAX_PATH + GUEST_PROP_MAX_NAME_LEN + 12] = {0};
+    UINT const cchWinDir = GetWindowsDirectory(szWow64Dir, MAX_PATH);
+    memcpy(&szWow64Dir[cchWinDir], "\\SysWow64", sizeof("\\SysWow64"));
+    aDirs[IDX_DIR_WOW64].pszDir    = szWow64Dir;
+    aDirs[IDX_DIR_WOW64].cchDir    = cchWinDir + sizeof("\\SysWow64") - 1;
+    Assert(strlen(aDirs[IDX_DIR_WOW64].pszDir) == aDirs[IDX_DIR_WOW64].cchDir);
 #endif
 
-    /* The file information table. */
-    /** @todo add new stuff here, this is rather dated. */
-    const VBOXSERVICEVMINFOFILE aVBoxFiles[] =
+    /*
+     * The file information table.
+     * Note! The filename must be less than 30 chars long!
+     */
+    static struct { const char *pszFilename; uint32_t cchFilename; uint32_t idxDir; } const s_aVBoxFiles[] =
     {
-        { szSysDir,         "VBoxControl.exe" },
-        { szSysDir,         "VBoxHook.dll" },
-        { szSysDir,         "VBoxDisp.dll" },
-        { szSysDir,         "VBoxTray.exe" },
-        { szSysDir,         "VBoxService.exe" },
-        { szSysDir,         "VBoxMRXNP.dll" },
-        { szSysDir,         "VBoxGINA.dll" },
-        { szSysDir,         "VBoxCredProv.dll" },
-
- /* On 64-bit we don't yet have the OpenGL DLLs in native format.
-    So just enumerate the 32-bit files in the SYSWOW directory. */
+        /* \windows\system32: */
+        { RT_STR_TUPLE("VBoxControl.exe"),      IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxService.exe"),      IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxTray.exe"),         IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxHook.dll"),         IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxMRXNP.dll"),        IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxGINA.dll"),         IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxCredProv.dll"),     IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxDisp.dll"),         IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxDispD3D.dll"),      IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxDX.dll"),           IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxGL.dll"),           IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxNine.dll"),         IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxSVGA.dll"),         IDX_DIR_SYSTEM32 },
+        { RT_STR_TUPLE("VBoxOGL.dll"),          IDX_DIR_SYSTEM32 }, /* obsolete */
+        /* \windows\system32\drivers: */
+        { RT_STR_TUPLE("VBoxGuest.sys"),        IDX_DIR_DRIVERS },
+        { RT_STR_TUPLE("VBoxSF.sys"),           IDX_DIR_DRIVERS },
+        { RT_STR_TUPLE("VBoxMouse.sys"),        IDX_DIR_DRIVERS },
+        { RT_STR_TUPLE("VBoxVideo.sys"),        IDX_DIR_DRIVERS },
+        { RT_STR_TUPLE("VBoxWddm.sys"),         IDX_DIR_DRIVERS },
+        { RT_STR_TUPLE("VBoxMouseNT.sys"),      IDX_DIR_DRIVERS },  /* obsolete */
 #ifdef RT_ARCH_AMD64
-        { szSysWowDir,      "VBoxOGL-x86.dll" },
-#else  /* !RT_ARCH_AMD64 */
-        { szSysDir,         "VBoxOGL.dll" },
-#endif /* !RT_ARCH_AMD64 */
-
-        { szSysDriversDir,  "VBoxGuest.sys" },
-        { szSysDriversDir,  "VBoxMouseNT.sys" },
-        { szSysDriversDir,  "VBoxMouse.sys" },
-        { szSysDriversDir,  "VBoxSF.sys"    },
-        { szSysDriversDir,  "VBoxVideo.sys" },
+        /* \windows\wow64: */
+        { RT_STR_TUPLE("VBoxMRXNP-x86.dll"),    IDX_DIR_WOW64 },
+        { RT_STR_TUPLE("VBoxDispD3D-x86.dll"),  IDX_DIR_WOW64 },
+        { RT_STR_TUPLE("VBoxDX-x86.dll"),       IDX_DIR_WOW64 },
+        { RT_STR_TUPLE("VBoxGL-x86.dll"),       IDX_DIR_WOW64 },
+        { RT_STR_TUPLE("VBoxNine-x86.dll"),     IDX_DIR_WOW64 },
+        { RT_STR_TUPLE("VBoxSVGA-x86.dll"),     IDX_DIR_WOW64 },
+        { RT_STR_TUPLE("VBoxOGL-x86.dll"),      IDX_DIR_WOW64 },    /* obsolete*/
+#endif
     };
 
-    for (unsigned i = 0; i < RT_ELEMENTS(aVBoxFiles); i++)
+    /* Preparet the base property name. */
+    static char const s_szPropPrefix[] = "/VirtualBox/GuestAdd/Components/";
+    char              szPropPath[GUEST_PROP_MAX_NAME_LEN];
+    AssertCompile(sizeof("VBoxDispD3D-x86.dll") + sizeof(s_szPropPrefix) + 8 < sizeof(szPropPath));
+    memcpy(szPropPath, s_szPropPrefix, sizeof(s_szPropPrefix));
+    char * const      pszPropName      = &szPropPath[sizeof(s_szPropPrefix) - 1];
+    size_t const      cbMaxPropName    = sizeof(szPropPath) - sizeof(s_szPropPrefix) + 1;
+
+    /* Loop thru the file table and publish the info we find. */
+    for (unsigned i = 0; i < RT_ELEMENTS(s_aVBoxFiles); i++)
     {
-        char szVer[128];
-        int rc = VGSvcUtilWinGetFileVersionString(aVBoxFiles[i].pszFilePath, aVBoxFiles[i].pszFileName, szVer, sizeof(szVer));
-        char szPropPath[GUEST_PROP_MAX_NAME_LEN];
-        RTStrPrintf(szPropPath, sizeof(szPropPath), "/VirtualBox/GuestAdd/Components/%s", aVBoxFiles[i].pszFileName);
-        if (   rc != VERR_FILE_NOT_FOUND
-            && rc != VERR_PATH_NOT_FOUND)
+        AssertRelease(s_aVBoxFiles[i].cchFilename < cbMaxPropName);
+        memcpy(pszPropName, s_aVBoxFiles[i].pszFilename, s_aVBoxFiles[i].cchFilename + 1);
+
+        char * const pszPath = aDirs[s_aVBoxFiles[i].idxDir].pszDir;
+        size_t const cchDir  = aDirs[s_aVBoxFiles[i].idxDir].cchDir;
+        pszPath[cchDir] = '\\';
+        memcpy(&pszPath[cchDir + 1], s_aVBoxFiles[i].pszFilename, s_aVBoxFiles[i].cchFilename + 1);
+        Assert(strlen(pszPath) == cchDir + 1 + s_aVBoxFiles[i].cchFilename);
+
+        uint32_t uMajor, uMinor, uBuild, uRev;
+        int rc = VGSvcUtilWinGetFileVersion(pszPath, &uMajor, &uMinor, &uBuild, &uRev);
+        if (RT_SUCCESS(rc))
+        {
+            char szVer[128];
+            RTStrPrintf(szVer, sizeof(szVer), "%u.%u.%ur%u", uMajor, uMinor, uBuild, uRev);
             VGSvcWriteProp(pClient, szPropPath, szVer);
+        }
         else
             VGSvcWriteProp(pClient, szPropPath, NULL);
     }
