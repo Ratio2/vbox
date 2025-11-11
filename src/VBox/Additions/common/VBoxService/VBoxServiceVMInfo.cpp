@@ -317,33 +317,39 @@ static DECLCALLBACK(RTEXITCODE) vbsvcVMInfoOption(int iShort, PCRTGETOPTUNION pV
 static DECLCALLBACK(int) vbsvcVMInfoInit(void)
 {
     /*
-     * If not specified, find the right interval default.
-     * Then create the event sem to block on.
+     * Init global data.
      */
-    if (!g_cMsVMInfoInterval)
-        g_cMsVMInfoInterval = g_cSecDefaultInterval * 1000;
-/** @todo 5 secs is too frequent, try find stuff to wait on for relevant changes.
- * Windows:
- *  - NotifyChangeEventLog(OpenEventLog(NULL,L"Security"), hEvt)
- *  - NotifyAddrChange, NotifyRouteChange  */
-    if (!g_cMsVMInfoInterval)
-#if 0 /* Utterly pointless, since it's only for logging.  For VBoxTray it may more sense. */
-        g_cMsVMInfoInterval = RT_MS_5SEC; /* Set it to 5s by default for location awareness (VDE connection logging) checks. */
-#else
-        g_cMsVMInfoInterval = RT_MS_10SEC;
-#endif
-
-    int rc = RTSemEventMultiCreate(&g_hVMInfoEvent);
-    AssertRCReturn(rc, rc);
-
     /* Get the session ID. The status code is ignored as this information is
        not available with VBox < 3.2.10. */
     VbglR3QuerySessionId(&g_idVMInfoSession);
 
 #ifdef WITH_VDE_CONNECTION_MONITORING
-    /* Initialize the LA client object. */
+    /* Initialize the LA client object (paranoia). */
     RT_ZERO(g_LAClientInfo);
 #endif
+
+    /*
+     * If not specified, find the right interval default.
+     *
+     * On Windows (XP++ at least) we'll get notified when interfaces changes
+     * and when users log on and off.  So, we don't really need a high frequency
+     * here to keep the relevant data up to date.
+     */
+    if (!g_cMsVMInfoInterval)
+        g_cMsVMInfoInterval = g_cSecDefaultInterval * 1000;
+#ifdef RT_OS_WINDOWS
+    if (!g_cMsVMInfoInterval && RTSystemGetNtVersion() >= RTSYSTEM_MAKE_NT_VERSION(5, 1, 0))
+        g_cMsVMInfoInterval = RT_MS_15SEC;
+#endif
+    if (!g_cMsVMInfoInterval)
+        g_cMsVMInfoInterval = RT_MS_10SEC;
+
+    /*
+     * Create the event semaphore the thread will be waiting on, then try
+     * connect to the guest property service.
+     */
+    int rc = RTSemEventMultiCreate(&g_hVMInfoEvent);
+    AssertRCReturn(rc, rc);
 
     rc = VbglGuestPropConnect(&g_VMInfoGuestPropSvcClient);
     if (RT_SUCCESS(rc))
