@@ -55,7 +55,7 @@ UIDownloaderExtensionPack::UIDownloaderExtensionPack()
     const QString strSourceName = QString("%1-%2.vbox-extpack").arg(strUnderscoredName, strVersion);
     const QString strSourcePath = QString("https://download.virtualbox.org/virtualbox/%1/").arg(strVersion);
     const QString strSource = strSourcePath + strSourceName;
-    const QString strPathSHA256SumsFile = QString("https://www.virtualbox.org/download/hashes/%1/SHA256SUMS").arg(strVersion);
+    const QString strPathSHA256SumsFile = QString("https://download.virtualbox.org/virtualbox/%1/SHA256SUMS").arg(strVersion);
     const QString strTarget = QDir(gpGlobalSession->homeFolder()).absoluteFilePath(strSourceName);
 
     /* Set source/target: */

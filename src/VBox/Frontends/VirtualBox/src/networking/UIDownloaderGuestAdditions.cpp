@@ -54,7 +54,7 @@ UIDownloaderGuestAdditions::UIDownloaderGuestAdditions()
     const QString strSourceName = QString("%1_%2.iso").arg(GUI_GuestAdditionsName, strVersion);
     const QString strSourcePath = QString("https://download.virtualbox.org/virtualbox/%1/").arg(strVersion);
     const QString strSource = strSourcePath + strSourceName;
-    const QString strPathSHA256SumsFile = QString("https://www.virtualbox.org/download/hashes/%1/SHA256SUMS").arg(strVersion);
+    const QString strPathSHA256SumsFile = QString("https://download.virtualbox.org/virtualbox/%1/SHA256SUMS").arg(strVersion);
     const QString strTarget = QDir(gpGlobalSession->homeFolder()).absoluteFilePath(QString("%1.tmp").arg(strSourceName));
 
     /* Set source/target: */
