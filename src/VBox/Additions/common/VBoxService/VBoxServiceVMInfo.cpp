@@ -155,6 +155,14 @@
 
 
 /*********************************************************************************************************************************
+*   Defined Constants And Macros                                                                                                 *
+*********************************************************************************************************************************/
+/** This enables some code for monitoring /VirtualBox/HostInfo/VRDP/Active
+ * and logging changes. It doesn't seem to much more purpose here. */
+#define WITH_VDE_CONNECTION_MONITORING
+
+
+/*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
 *********************************************************************************************************************************/
 /**
@@ -175,6 +183,7 @@ typedef struct VBOXSERVICEVMINFOUSERLIST
 typedef VBOXSERVICEVMINFOUSERLIST *PVBOXSERVICEVMINFOUSERLIST;
 
 
+#ifdef WITH_VDE_CONNECTION_MONITORING
 /** Structure containing information about a location awarness
  *  client provided by the host. */
 /** @todo Move this (and functions) into VbglR3. */
@@ -187,6 +196,7 @@ typedef struct VBOXSERVICELACLIENTINFO
     bool        fAttached;
     uint64_t    uAttachedTS;
 } VBOXSERVICELACLIENTINFO, *PVBOXSERVICELACLIENTINFO;
+#endif
 
 
 /*********************************************************************************************************************************
@@ -216,17 +226,22 @@ static const char              *g_pszPropCacheKeyUser              = "/VirtualBo
 static uint64_t                 g_idVMInfoSession;
 /** The last attached locartion awareness (LA) client timestamp. */
 static uint64_t                 g_LAClientAttachedTS = 0;
-/** The current LA client info. */
-static VBOXSERVICELACLIENTINFO  g_LAClientInfo;
 /** User idle threshold (in ms). This specifies the minimum time a user is considered
  *  as being idle and then will be reported to the host. Default is 5s. */
 uint32_t                        g_cMsVMInfoUserIdleThreshold = 5 * 1000;
+#ifdef WITH_VDE_CONNECTION_MONITORING
+/** Property written by the host when the active VDE client changes.
+ * @note it gets a bit fuzzy with multiple clients, ofc.  */
+static const char              *g_pszLAActiveClient                = "/VirtualBox/HostInfo/VRDP/ActiveClient";
+/** The current LA client info.
+ * @note This is not used by anyone, so pointless.  */
+static VBOXSERVICELACLIENTINFO  g_LAClientInfo;
+#endif
 
 
 /*********************************************************************************************************************************
 *   Defines                                                                                                                      *
 *********************************************************************************************************************************/
-static const char *g_pszLAActiveClient = "/VirtualBox/HostInfo/VRDP/ActiveClient";
 
 #ifdef VBOX_WITH_DBUS
 /** @name ConsoleKit defines (taken from 0.4.5).
@@ -299,11 +314,16 @@ static DECLCALLBACK(int) vbsvcVMInfoInit(void)
      */
     if (!g_cMsVMInfoInterval)
         g_cMsVMInfoInterval = g_cSecDefaultInterval * 1000;
+/** @todo 5 secs is too frequent, try find stuff to wait on for relevant changes.
+ * Windows:
+ *  - NotifyChangeEventLog(OpenEventLog(NULL,L"Security"), hEvt)
+ *  - NotifyAddrChange, NotifyRouteChange  */
     if (!g_cMsVMInfoInterval)
-    {
-        /* Set it to 5s by default for location awareness checks. */
-        g_cMsVMInfoInterval = 5 * 1000;
-    }
+#if 0 /* Utterly pointless, since it's only for logging.  For VBoxTray it may more sense. */
+        g_cMsVMInfoInterval = RT_MS_5SEC; /* Set it to 5s by default for location awareness (VDE connection logging) checks. */
+#else
+        g_cMsVMInfoInterval = RT_MS_10SEC;
+#endif
 
     int rc = RTSemEventMultiCreate(&g_hVMInfoEvent);
     AssertRCReturn(rc, rc);
@@ -312,8 +332,10 @@ static DECLCALLBACK(int) vbsvcVMInfoInit(void)
        not available with VBox < 3.2.10. */
     VbglR3QuerySessionId(&g_idVMInfoSession);
 
+#ifdef WITH_VDE_CONNECTION_MONITORING
     /* Initialize the LA client object. */
     RT_ZERO(g_LAClientInfo);
+#endif
 
     rc = VbglGuestPropConnect(&g_VMInfoGuestPropSvcClient);
     if (RT_SUCCESS(rc))
@@ -358,6 +380,7 @@ static DECLCALLBACK(int) vbsvcVMInfoInit(void)
     return rc;
 }
 
+#ifdef WITH_VDE_CONNECTION_MONITORING
 
 /**
  * Retrieves a specifiy client LA property.
@@ -450,6 +473,7 @@ static void vgsvcFreeLAClientInfo(PVBOXSERVICELACLIENTINFO pClient)
     }
 }
 
+#endif /* WITH_VDE_CONNECTION_MONITORING */
 #ifdef RT_OS_WINDOWS
 
 /**
@@ -1776,11 +1800,13 @@ static DECLCALLBACK(int) vbsvcVMInfoWorker(bool volatile *pfShutdown)
         /* Whether to wait for event semaphore or not. */
         bool fWait = true;
 
+#ifdef WITH_VDE_CONNECTION_MONITORING
         /*
-         * Check for location awareness.
+         * Check for location awareness (mostly pointless).
          * This most likely only works with VBox 4.1 and later.
          */
-
+        /** @todo Use VbglGuestPropWait in a separate thread? Polling is a bit
+         *        pointless... */
         /* Check for new connection. */
         char *pszLAClientID = NULL;
         int rc2 = VGSvcReadHostProp(&g_VMInfoGuestPropSvcClient, g_pszLAActiveClient, true /*fReadOnly*/,
@@ -1855,6 +1881,7 @@ static DECLCALLBACK(int) vbsvcVMInfoWorker(bool volatile *pfShutdown)
         }
 
         VGSvcVerbose(3, "VRDP: Handling location awareness done\n");
+#endif /* WITH_VDE_CONNECTION_MONITORING */
 
         /*
          * Flush all properties if we were restored.
@@ -1929,8 +1956,10 @@ static DECLCALLBACK(void) vbsvcVMInfoTerm(void)
         /* Disconnect from guest properties service. */
         VbglGuestPropDisconnect(&g_VMInfoGuestPropSvcClient);
 
+#ifdef WITH_VDE_CONNECTION_MONITORING
         /* Destroy LA client info. */
         vgsvcFreeLAClientInfo(&g_LAClientInfo);
+#endif
 
         RTSemEventMultiDestroy(g_hVMInfoEvent);
         g_hVMInfoEvent = NIL_RTSEMEVENTMULTI;
