@@ -278,6 +278,9 @@ private:
 /** QAccessibleWidget extension used as an accessibility interface for QITreeView. */
 class QIAccessibilityInterfaceForQITreeView
     : public QAccessibleWidget
+#ifndef VBOX_WS_MAC
+    , public QAccessibleSelectionInterface
+#endif
 {
 public:
 
@@ -301,6 +304,25 @@ public:
         : QAccessibleWidget(pWidget, QAccessible::Tree)
 #endif
     {}
+
+    /** Returns a specialized accessibility interface @a enmType. */
+    virtual void *interface_cast(QAccessible::InterfaceType enmType) RT_OVERRIDE
+    {
+        const int iCase = static_cast<int>(enmType);
+        switch (iCase)
+        {
+#ifdef VBOX_WS_MAC
+            /// @todo Fix selection interface for macOS first of all!
+#else
+            case QAccessible::SelectionInterface:
+                return static_cast<QAccessibleSelectionInterface*>(this);
+#endif
+            default:
+                break;
+        }
+
+        return 0;
+    }
 
     /** Returns the number of children. */
     virtual int childCount() const RT_OVERRIDE RT_FINAL
@@ -412,6 +434,74 @@ public:
         /* Null string by default: */
         return QString();
     }
+
+#ifndef VBOX_WS_MAC
+    /** Returns the total number of selected accessible items. */
+    virtual int selectedItemCount() const RT_OVERRIDE
+    {
+        /* For now we are interested in just first one selected item: */
+        return 1;
+    }
+
+    /** Returns the list of selected accessible items. */
+    virtual QList<QAccessibleInterface*> selectedItems() const RT_OVERRIDE
+    {
+        /* Sanity check: */
+        QITreeView *pTree = tree();
+        AssertPtrReturn(pTree, QList<QAccessibleInterface*>());
+        QAbstractItemModel *pModel = pTree->model();
+        AssertPtrReturn(pModel, QList<QAccessibleInterface*>());
+
+        /* Get current index: */
+        const QModelIndex idxCurrent = pTree->currentIndex();
+
+        /* Sanity check: */
+        AssertReturn(idxCurrent.isValid(), QList<QAccessibleInterface*>());
+
+        /* Check whether we have proxy model set or source one otherwise: */
+        const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
+        /* Acquire source-model child-index (can be the same as original if there is no proxy model): */
+        const QModelIndex idxSourceCurrent = pProxyModel ? pProxyModel->mapToSource(idxCurrent) : idxCurrent;
+
+        /* Get current item: */
+        QITreeViewItem *pCurrentItem = static_cast<QITreeViewItem*>(idxSourceCurrent.internalPointer());
+
+        /* Sanity check: */
+        AssertPtrReturn(pCurrentItem, QList<QAccessibleInterface*>());
+
+        /* For now we are interested in just first one selected item: */
+        // printf("item selected: %s\n", pCurrentItem->text().toUtf8().constData());
+        return QList<QAccessibleInterface*>() << QAccessible::queryAccessibleInterface(pCurrentItem);
+    }
+
+    /** Adds childItem to the selection. */
+    virtual bool select(QAccessibleInterface *) RT_OVERRIDE
+    {
+        /// @todo implement
+        return false;
+    }
+
+    /** Removes childItem from the selection. */
+    virtual bool unselect(QAccessibleInterface *) RT_OVERRIDE
+    {
+        /// @todo implement
+        return false;
+    }
+
+    /** Selects all accessible child items. */
+    virtual bool selectAll() RT_OVERRIDE
+    {
+        /// @todo implement
+        return false;
+    }
+
+    /** Unselects all accessible child items. */
+    virtual bool clear() RT_OVERRIDE
+    {
+        /// @todo implement
+        return false;
+    }
+#endif /* VBOX_WS_MAC */
 
 private:
 
@@ -537,6 +627,38 @@ void QITreeView::currentChanged(const QModelIndex &current, const QModelIndex &p
     emit currentItemChanged(current, previous);
     /* Call to base-class: */
     QTreeView::currentChanged(current, previous);
+
+    /* Updating accessibility for newly chosen non-root item if necessary: */
+    if (current.isValid() && current != rootIndex() && QAccessible::isActive())
+    {
+        /* Sanity check: */
+        QAbstractItemModel *pModel = model();
+        AssertPtrReturnVoid(pModel);
+
+        /* Check whether we have proxy model set or source one otherwise: */
+        const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
+        /* Acquire source-model child-index (can be the same as original if there is no proxy model): */
+        const QModelIndex idxSourceCurrent = pProxyModel ? pProxyModel->mapToSource(current) : current;
+
+        /* Get current item: */
+        QITreeViewItem *pCurrentItem = static_cast<QITreeViewItem*>(idxSourceCurrent.internalPointer());
+        AssertPtrReturnVoid(pCurrentItem);
+
+        /* Calculate index of item interface in parent interface: */
+        QAccessibleInterface *pIfaceItem = QAccessible::queryAccessibleInterface(pCurrentItem);
+        AssertPtrReturnVoid(pIfaceItem);
+        //printf("item interface: %s\n", pIfaceItem->text(QAccessible::Name).toUtf8().constData());
+        QAccessibleInterface *pIfaceParent = pIfaceItem->parent();
+        AssertPtrReturnVoid(pIfaceParent);
+        //printf("parent interface: %s\n", pIfaceParent->text(QAccessible::Name).toUtf8().constData());
+        const int iIndexOfItem = pIfaceParent->indexOfChild(pIfaceItem);
+        //printf("index selected: %d\n", iIndexOfItem);
+
+        /* Compose and send accessibility update event: */
+        QAccessibleEvent focusEvent(pIfaceParent, QAccessible::Focus);
+        focusEvent.setChild(iIndexOfItem);
+        QAccessible::updateAccessibility(&focusEvent);
+    }
 }
 
 void QITreeView::drawBranches(QPainter *pPainter, const QRect &rect, const QModelIndex &index) const
