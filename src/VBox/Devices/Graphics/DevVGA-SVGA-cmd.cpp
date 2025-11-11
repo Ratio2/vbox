@@ -2236,16 +2236,30 @@ static void vmsvga3dCmdBindGBScreenTarget(PVGASTATECC pThisCC, SVGA3dCmdBindGBSc
                                 pCmd->stid, SVGA3D_OTABLE_SCREEN_TARGET_ENTRY_SIZE, &entry, sizeof(entry));
         if (RT_SUCCESS(rc))
         {
-            entry.image = pCmd->image;
-            rc = vmsvgaR3OTableWrite(pSvgaR3State, &pSvgaR3State->aGboOTables[SVGA_OTABLE_SCREENTARGET],
-                                     pCmd->stid, SVGA3D_OTABLE_SCREEN_TARGET_ENTRY_SIZE, &entry, sizeof(entry));
+#ifdef DX_NEW_HWSCREEN
+            bool fUpdateScreen;
+#endif
+            if (pCmd->image.sid != entry.image.sid)
+            {
+#ifdef DX_NEW_HWSCREEN
+                fUpdateScreen = pCmd->image.sid != SVGA_ID_INVALID;
+#endif
+                entry.image = pCmd->image;
+                rc = vmsvgaR3OTableWrite(pSvgaR3State, &pSvgaR3State->aGboOTables[SVGA_OTABLE_SCREENTARGET],
+                                         pCmd->stid, SVGA3D_OTABLE_SCREEN_TARGET_ENTRY_SIZE, &entry, sizeof(entry));
+            }
+#ifdef DX_NEW_HWSCREEN
+            else
+                fUpdateScreen = false;
+#endif
+
             if (RT_SUCCESS(rc))
             {
                 VMSVGASCREENOBJECT *pScreen = &pSvgaR3State->aScreens[pCmd->stid];
                 rc = pSvgaR3State->pFuncsGBO->pfnScreenTargetBind(pThisCC, pScreen, pCmd->image.sid);
                 AssertRC(rc);
 #ifdef DX_NEW_HWSCREEN
-                if (RT_SUCCESS(rc) && pCmd->image.sid != SVGA_ID_INVALID)
+                if (RT_SUCCESS(rc) && fUpdateScreen)
                 {
                     SVGA3dRect rect;
                     rect.x = 0;
