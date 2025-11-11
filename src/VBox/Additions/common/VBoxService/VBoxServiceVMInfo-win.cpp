@@ -29,6 +29,7 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
+#define WIN32_LEAN_AND_MEAN  /* Must avoid dragging in old winsock.h. */
 #include <iprt/nt/nt-and-windows.h>
 #include <wtsapi32.h>        /* For WTS* calls. */
 #include <sddl.h>            /* For ConvertSidToStringSidW. */
@@ -41,6 +42,8 @@
 #undef  PUNICODE_STRING
 #undef  STRING
 #undef  PSTRING
+#include <iprt/win/winsock2.h>
+#include <iprt/win/iphlpapi.h>
 
 #include <iprt/assert.h>
 #include <iprt/ldr.h>
@@ -144,6 +147,13 @@ static decltype(WTSFreeMemory)                 *g_pfnWTSFreeMemory = NULL;
 static decltype(WTSQuerySessionInformationA)   *g_pfnWTSQuerySessionInformationA = NULL;
 /** @} */
 
+/** @name Iphlpapi.dll imports are dynamically resolved to be on the safe side.
+ * @{ */
+static decltype(CancelIPChangeNotify)          *g_pfnCancelIPChangeNotify = NULL;
+static decltype(NotifyAddrChange)              *g_pfnNotifyAddrChange = NULL;
+/** @} */
+
+
 /** S-1-5-4 (leaked). */
 static PSID                                     g_pSidInteractive = NULL;
 /** S-1-2-0 (leaked). */
@@ -206,6 +216,24 @@ static DECLCALLBACK(int) vgsvcWinVmInfoInitOnce(void *pvIgnored)
     if (RT_SUCCESS(rc))
         RTLdrGetSymbol(hLdrMod, "ConvertSidToStringSidW", (void **)&g_pfnConvertSidToStringSidW);
 
+
+    /* IPHLPAPI: */
+    rc = RTLdrLoadSystem("iphlpapi.dll", true /*fNoUnload*/, &hLdrMod);
+    if (RT_SUCCESS(rc))
+    {
+        rc = RTLdrGetSymbol(hLdrMod, "CancelIPChangeNotify", (void **)&g_pfnCancelIPChangeNotify);
+        if (RT_SUCCESS(rc))
+            rc = RTLdrGetSymbol(hLdrMod, "NotifyAddrChange", (void **)&g_pfnNotifyAddrChange);
+        AssertRC(rc);
+        RTLdrClose(hLdrMod);
+    }
+    if (RT_FAILURE(rc))
+    {
+        VGSvcVerbose(1, "iphlpapi.dll notification APIs are not available (%Rrc)\n", rc);
+        g_pfnCancelIPChangeNotify = NULL;
+        g_pfnNotifyAddrChange = NULL;
+        Assert(RTSystemGetNtVersion() < RTSYSTEM_MAKE_NT_VERSION(5, 1, 0)); /* XP */
+    }
 
     /*
      * Initialize the SIDs we need.
@@ -1444,5 +1472,214 @@ int VGSvcVMInfoWinWriteComponentVersions(PVBGLGSTPROPCLIENT pClient)
     }
 
     return VINF_SUCCESS;
+}
+
+
+/*********************************************************************************************************************************
+*   Interface IP change monitoring.                                                                                              *
+*********************************************************************************************************************************/
+static bool volatile    g_fVGSvcVMInfoWinIpChangeShutdown = false;
+static RTTHREAD         g_hVGSvcVMInfoWinIpChangeThread   = NIL_RTTHREAD;
+static HANDLE           g_hVGSvcVMInfoWinIpChangeEvent    = NULL;
+static OVERLAPPED       g_VGSvcVMInfoWinIpChangeOverlapped;
+
+/**
+ * Initialize the windows specific stuff.
+ *
+ * Called by vgsvcVMInfoInit().
+ */
+void VGSvcVMInfoWinInit(void)
+{
+    RTOnce(&g_vgsvcWinVmInitOnce, vgsvcWinVmInfoInitOnce, NULL);
+
+    if (g_pfnCancelIPChangeNotify && g_pfnNotifyAddrChange)
+        g_hVGSvcVMInfoWinIpChangeEvent = CreateEventW(NULL /*pSecAttribs*/,  FALSE /*fManualReset*/,
+                                                      FALSE /*fInitialState*/, NULL /*pwszName*/);
+    else
+        g_hVGSvcVMInfoWinIpChangeEvent = NULL;
+}
+
+
+/**
+ * @callback_method_impl{FNRTTHREAD,
+ *      Thread waiting for network interface change notifications.}
+ *
+ * This thread will signal the main vminfo service thread to update the
+ * properties after a change notification comes in.  For paranoid reasons,
+ * it adds a slight (0.5s) delay before doing so, which is one of the reasons
+ * why we're using a separate thread for this. (Another reason is to keep the
+ * main service code as similar as possible across guest OSes and not do ugly
+ * windows specific waiting logic.)
+ */
+static DECLCALLBACK(int) vgsvcVMInfoWinIfIpChangeThread(RTTHREAD ThreadSelf, void *pvUser)
+{
+    VGSvcVerbose(3, "Starting...\n");
+    bool volatile *pfShutdown = (bool volatile *)pvUser;
+    RT_NOREF(ThreadSelf);
+
+    /* Required for network information (must be called per thread). */
+    if (g_pfnWSAStartup)
+    {
+        WSADATA wsaData;
+        RT_ZERO(wsaData);
+        if (g_pfnWSAStartup(MAKEWORD(2, 2), &wsaData))
+            VGSvcError("VMInfo/Win/IfIpChange: WSAStartup failed! Error: %Rrc\n", RTErrConvertFromWin32(g_pfnWSAGetLastError()));
+    }
+
+    /*
+     * Loop till we're told to shut down.
+     */
+    bool fIsPending = false;
+    while (!*pfShutdown && !g_fVGSvcVMInfoWinIpChangeShutdown)
+    {
+        /*
+         * Queue the notification request (it's just an async I/O control call).
+         */
+        if (!fIsPending)
+        {
+            RT_ZERO(g_VGSvcVMInfoWinIpChangeOverlapped);
+            g_VGSvcVMInfoWinIpChangeOverlapped.hEvent = g_hVGSvcVMInfoWinIpChangeEvent;
+            HANDLE      hIgnored = NULL;
+            DWORD const rc       = g_pfnNotifyAddrChange(&hIgnored, &g_VGSvcVMInfoWinIpChangeOverlapped);
+            if (rc == ERROR_IO_PENDING)
+            {
+                VGSvcVerbose(4, "Giving g_pfnNotifyAddrChange returns ERROR_IO_PENDING as expected.\n");
+                fIsPending = true;
+            }
+            else if (rc == NO_ERROR)
+            {
+                VGSvcVerbose(4, "Giving g_pfnNotifyAddrChange returns NO_ERROR\n");
+                SetEvent(g_hVGSvcVMInfoWinIpChangeEvent); /* paranoia */
+            }
+            else if (rc != NO_ERROR || rc != ERROR_CANCELLED)
+            {
+                VGSvcVerbose(1, "Giving up because g_pfnNotifyAddrChange failed: %u (%#x)\n", rc, rc);
+                break;
+            }
+
+            if (*pfShutdown || g_fVGSvcVMInfoWinIpChangeShutdown)
+                break;
+        }
+
+        /*
+         * Wait for it to complete.
+         */
+        DWORD const rcWait = WaitForSingleObjectEx(g_hVGSvcVMInfoWinIpChangeEvent, INFINITE, TRUE /*bAlertable*/);
+        VGSvcVerbose(5, "WaitForSingleObjectEx returns: %#x\n", rcWait);
+        if (*pfShutdown || g_fVGSvcVMInfoWinIpChangeShutdown)
+            break;
+        if (rcWait == WAIT_OBJECT_0)
+        {
+            /*
+             * The async NotifyAddrChange call completed, so notify the main service
+             * thread so it can refresh the interfaces.
+             *
+             * Because we're a little paranoid, we delay half a second before doing it.
+             * This has two reasons, first avoiding spinning at 100% CPU should this
+             * code go nuts, and second to let the change settle a little.
+             */
+            fIsPending = false;
+            if (   WaitForSingleObjectEx(g_hVGSvcVMInfoWinIpChangeEvent, 500, TRUE /*bAlertable*/) != WAIT_TIMEOUT
+                && !g_fVGSvcVMInfoWinIpChangeShutdown
+                && !*pfShutdown)
+                RTThreadSleep(500);
+            if (*pfShutdown || g_fVGSvcVMInfoWinIpChangeShutdown)
+                break;
+            VGSvcVerbose(3, "Signalling vminfo thread...\n");
+            VGSvcVMInfoSignal();
+        }
+        else if (   rcWait != WAIT_IO_COMPLETION
+                 && rcWait != WAIT_TIMEOUT /* impossible */)
+        {
+            VGSvcError("WaitForSingleObjectEx failed: %u (%#x), last error %u\n", rcWait, rcWait, GetLastError());
+            break;
+        }
+    }
+
+    /*
+     * Cleanup.
+     */
+    if (fIsPending)
+    {
+        if (!g_pfnCancelIPChangeNotify(&g_VGSvcVMInfoWinIpChangeOverlapped))
+            VGSvcError("CancelIPChangeNotify failed!\n");
+    }
+
+    VGSvcVerbose(3, "Terminating.\n");
+    return VINF_SUCCESS;
+}
+
+
+/**
+ * The worker thread is starting.
+ *
+ * Called by vgsvcVMInfoWorker().
+ */
+void VGSvcVMInfoWinWorkerStarting(bool volatile *pfShutdown)
+{
+    /*
+     * If all the preconditions are present, start the waiter thread.
+     */
+    g_fVGSvcVMInfoWinIpChangeShutdown = false;
+    if (   g_pfnCancelIPChangeNotify
+        && g_pfnNotifyAddrChange
+        && g_hVGSvcVMInfoWinIpChangeEvent)
+    {
+        int rc = RTThreadCreate(&g_hVGSvcVMInfoWinIpChangeThread, vgsvcVMInfoWinIfIpChangeThread, (void *)pfShutdown,
+                                0, RTTHREADTYPE_DEFAULT, RTTHREADFLAGS_WAITABLE, "if-wait");
+        if (RT_FAILURE(rc))
+        {
+            g_hVGSvcVMInfoWinIpChangeThread = NIL_RTTHREAD;
+            VGSvcError("RTThreadCreate failed: %Rrc\n", rc);
+        }
+    }
+}
+
+
+/**
+ * The worker thread is stopping.
+ *
+ * Called by vgsvcVMInfoWorker().
+ */
+void VGSvcVMInfoWinWorkerStopping()
+{
+    if (g_hVGSvcVMInfoWinIpChangeThread != NIL_RTTHREAD)
+    {
+        /* Make the thread quit. */
+        ASMAtomicWriteBool(&g_fVGSvcVMInfoWinIpChangeShutdown, true);
+        SetEvent(g_hVGSvcVMInfoWinIpChangeEvent);
+
+        /* Wait for it to do so. */
+        int rc = RTThreadWait(g_hVGSvcVMInfoWinIpChangeThread, RT_MS_10SEC, NULL);
+        if (RT_SUCCESS(rc))
+            g_hVGSvcVMInfoWinIpChangeThread = NIL_RTTHREAD;
+    }
+}
+
+
+/**
+ * Signal that the worker thread should stop.
+ *
+ * Called by vgsvcVMInfoStop().
+ */
+void VGSvcVMInfoWinStop(void)
+{
+    if (g_hVGSvcVMInfoWinIpChangeThread != NIL_RTTHREAD)
+    {
+        ASMAtomicWriteBool(&g_fVGSvcVMInfoWinIpChangeShutdown, true);
+        SetEvent(g_hVGSvcVMInfoWinIpChangeEvent);
+    }
+}
+
+
+/**
+ * Terminate - cleanup stuff.
+ *
+ * Called by vgsvcVMInfoTerm().
+ */
+void VGSvcVMInfoWinTerm(void)
+{
+    if (g_hVGSvcVMInfoWinIpChangeThread != NIL_RTTHREAD)
+        VGSvcVMInfoWinWorkerStopping();
 }
 

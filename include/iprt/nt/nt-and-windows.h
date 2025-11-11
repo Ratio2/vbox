@@ -62,6 +62,10 @@
 #undef TEB
 #undef PTEB
 
+#ifdef WIN32_LEAN_AND_MEAN
+# include <devioctl.h> /* for DEVICE_TYPE */
+#endif
+
 #include <iprt/nt/nt.h>
 
 #endif /* !IPRT_INCLUDED_nt_nt_and_windows_h */

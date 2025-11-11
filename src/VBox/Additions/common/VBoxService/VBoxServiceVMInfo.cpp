@@ -367,6 +367,9 @@ static DECLCALLBACK(int) vbsvcVMInfoInit(void)
                                              VGSVCPROPCACHE_FLAGS_TMP_DEL_TRANSRESET | VGSVCPROPCACHE_FLAGS_ALWAYS_UPDATE);
             AssertLogRelRC(rc2);
 
+#ifdef RT_OS_WINDOWS
+            VGSvcVMInfoWinInit();
+#endif
             return VINF_SUCCESS;
         }
 
@@ -1854,6 +1857,9 @@ static DECLCALLBACK(int) vbsvcVMInfoWorker(bool volatile *pfShutdown)
         if (g_pfnWSAStartup(MAKEWORD(2, 2), &wsaData))
             VGSvcError("VMInfo/Network: WSAStartup failed! Error: %Rrc\n", RTErrConvertFromWin32(g_pfnWSAGetLastError()));
     }
+
+    /* Windows: Start network change monitoring thread, if we can. */
+    VGSvcVMInfoWinWorkerStarting(pfShutdown);
 #endif
 
     /*
@@ -1940,6 +1946,7 @@ static DECLCALLBACK(int) vbsvcVMInfoWorker(bool volatile *pfShutdown)
     }
 
 #ifdef RT_OS_WINDOWS
+    VGSvcVMInfoWinWorkerStopping();
     if (g_pfnWSACleanup)
         g_pfnWSACleanup();
 #endif
@@ -1954,6 +1961,9 @@ static DECLCALLBACK(int) vbsvcVMInfoWorker(bool volatile *pfShutdown)
 static DECLCALLBACK(void) vbsvcVMInfoStop(void)
 {
     RTSemEventMultiSignal(g_hVMInfoEvent);
+#ifdef RT_OS_WINDOWS
+    VGSvcVMInfoWinStop();
+#endif
 }
 
 
@@ -1964,6 +1974,10 @@ static DECLCALLBACK(void) vbsvcVMInfoTerm(void)
 {
     if (g_hVMInfoEvent != NIL_RTSEMEVENTMULTI)
     {
+#ifdef RT_OS_WINDOWS
+        VGSvcVMInfoWinTerm();
+#endif
+
         /* Destroy property cache (will delete or reset temporary values) */
         VGSvcPropCacheTerm(&g_VMInfoPropCache);
 

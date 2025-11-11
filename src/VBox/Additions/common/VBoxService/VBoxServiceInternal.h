@@ -343,6 +343,7 @@ extern decltype(LsaNtStatusToWinError)         *g_pfnLsaNtStatusToWinError;
 # endif
 #endif /* RT_OS_WINDOWS */
 
+extern int                      VGSvcVMInfoSignal(void);
 #ifdef VBOX_WITH_GUEST_PROPS
 extern void                     VGSvcVMInfoAddUserToList(struct VBOXSERVICEVMINFOUSERLIST *pUserGatherer,
                                                          const char *pszName, const char *pszSource, bool fCheckUnique);
@@ -356,6 +357,11 @@ extern int                      VGSvcVMInfoUpdateUserV(PVBOXSERVICEVEPROPCACHE p
 extern int                      VGSvcVMInfoWinQueryUserListAndUpdateInfo(struct VBOXSERVICEVMINFOUSERLIST *pUserGatherer,
                                                                          PVBOXSERVICEVEPROPCACHE pCache);
 extern int                      VGSvcVMInfoWinWriteComponentVersions(PVBGLGSTPROPCLIENT pClient);
+extern void                     VGSvcVMInfoWinInit(void);
+extern void                     VGSvcVMInfoWinWorkerStarting(bool volatile *pfShutdown);
+extern void                     VGSvcVMInfoWinWorkerStopping(void);
+extern void                     VGSvcVMInfoWinStop(void);
+extern void                     VGSvcVMInfoWinTerm(void);
 extern uint32_t                                 g_cMsVMInfoUserIdleThreshold;
 # endif
 extern int                      VGSvcPropCacheInit(PVBOXSERVICEVEPROPCACHE pCache, PVBGLGSTPROPCLIENT pClient);
@@ -383,7 +389,6 @@ extern uint32_t                 VGSvcBalloonQueryPages(uint32_t cbPage);
 #if defined(VBOX_WITH_VBOXSERVICE_PAGE_SHARING)
 extern RTEXITCODE               VGSvcPageSharingWorkerChild(void);
 #endif
-extern int                      VGSvcVMInfoSignal(void);
 
 RT_C_DECLS_END
 

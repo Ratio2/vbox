@@ -617,14 +617,14 @@ vgsvcWinCtrlHandlerNt5Plus(DWORD dwControl, DWORD dwEventType, LPVOID lpEventDat
         default:
             return vgsvcWinCtrlHandlerCommon(dwControl);
 
-        case SERVICE_CONTROL_SESSIONCHANGE:  /* Only Windows 2000 and up. */
+        case SERVICE_CONTROL_SESSIONCHANGE:  /* Only Windows 2000 (possibly XP) and up. */
         {
             AssertPtr(lpEventData);
             PWTSSESSION_NOTIFICATION pNotify = (PWTSSESSION_NOTIFICATION)lpEventData;
             Assert(pNotify->cbSize == sizeof(WTSSESSION_NOTIFICATION));
 
-            VGSvcVerbose(1, "Control handler: %s (Session=%ld, Event=%#x)\n",
-                         vgsvcWTSStateToString(dwEventType), pNotify->dwSessionId, dwEventType);
+            VGSvcVerbose(1, "Control handler: %s (Session=%u (%#x) EventType=%#x)\n",
+                         vgsvcWTSStateToString(dwEventType), pNotify->dwSessionId, pNotify->dwSessionId, dwEventType);
 
             /* Handle all events, regardless of dwEventType. */
             int rc2 = VGSvcVMInfoSignal();
