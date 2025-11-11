@@ -716,11 +716,11 @@ check_libxml2()
 extern "C" int main(void)
 {
   printf("found version %s", LIBXML_DOTTED_VERSION);
-#if LIBXML_VERSION >= 20626
+#if LIBXML_VERSION >= 20904
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 2.6.26 or higher\n");
+  printf(", expected version 2.9.4 or higher\n");
   return 1;
 #endif
 }
@@ -750,11 +750,11 @@ EOF
 extern "C" int main(void)
 {
   printf("found version %s", LIBXML_DOTTED_VERSION);
-#if LIBXML_VERSION >= 20626
+#if LIBXML_VERSION >= 20904
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 2.6.26 or higher\n");
+  printf(", expected version 2.9.4 or higher\n");
   return 1;
 #endif
 }
@@ -843,11 +843,11 @@ extern "C" int main(void)
 {
   printf("found version %s", OPENSSL_VERSION_TEXT);
   SSL_library_init();
-#if OPENSSL_VERSION_NUMBER >= 0x10001000
+#if OPENSSL_VERSION_NUMBER >= 0x10101000
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 1.0.1 or higher\n");
+  printf(", expected version 1.1.1 or higher\n");
   return 1;
 #endif
 }
@@ -910,11 +910,11 @@ check_z()
 extern "C" int main(void)
 {
   printf("found version %s", ZLIB_VERSION);
-#if ZLIB_VERNUM >= 0x1210
+#if ZLIB_VERNUM >= 0x12b0
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 1.2.1 or higher\n");
+  printf(", expected version 1.2.11 or higher\n");
   return 1;
 #endif
 }
@@ -1050,11 +1050,11 @@ check_curl()
 extern "C" int main(void)
 {
   printf("found version %s", LIBCURL_VERSION);
-#if 10000*LIBCURL_VERSION_MAJOR + 100*LIBCURL_VERSION_MINOR + LIBCURL_VERSION_PATCH >= 71901
+#if 10000*LIBCURL_VERSION_MAJOR + 100*LIBCURL_VERSION_MINOR + LIBCURL_VERSION_PATCH >= 76400
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 7.19.1 or higher\n");
+  printf(", expected version 7.64.0 or higher\n");
   return 1;
 #endif
 }
@@ -1170,11 +1170,11 @@ extern "C" int main(int argc, char** argv)
 {
   printf("found version %d.%d.%d",
          SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL);
-#if SDL_VERSION_ATLEAST(1,2,7)
+#if SDL_VERSION_ATLEAST(1,2,15)
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 1.2.7 or higher\n");
+  printf(", expected version 1.2.15 or higher\n");
   return 1;
 #endif
 }
@@ -1214,11 +1214,11 @@ extern "C" int main(void)
 {
   printf("found version %d.%d.%d",
          SDL_TTF_MAJOR_VERSION, SDL_TTF_MINOR_VERSION, SDL_TTF_PATCHLEVEL);
-#if 10000*SDL_TTF_MAJOR_VERSION + 100*SDL_TTF_MINOR_VERSION + SDL_TTF_PATCHLEVEL >= 20006
+#if 10000*SDL_TTF_MAJOR_VERSION + 100*SDL_TTF_MINOR_VERSION + SDL_TTF_PATCHLEVEL >= 20011
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 2.0.6 or higher\n");
+  printf(", expected version 2.0.11 or higher\n");
   return 1;
 #endif
 }
@@ -1246,11 +1246,11 @@ extern "C" int main(void)
 {
   printf("found version %d.%d.%d",
          SND_LIB_MAJOR, SND_LIB_MINOR, SND_LIB_SUBMINOR);
-#if 10000*SND_LIB_MAJOR + 100*SND_LIB_MINOR + SND_LIB_SUBMINOR >= 10014
+#if 10000*SND_LIB_MAJOR + 100*SND_LIB_MINOR + SND_LIB_SUBMINOR >= 10108
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 1.0.14 or higher\n");
+  printf(", expected version 1.1.8 or higher\n");
   return 1;
 #endif
 }
@@ -1273,11 +1273,11 @@ check_pulse()
 extern "C" int main(void)
 {
   printf("found version %s API version %d", pa_get_headers_version(), PA_API_VERSION);
-#if PA_API_VERSION >= 9
+#if PA_API_VERSION >= 12
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 0.9.0 (API version 9) or higher\n");
+  printf(", expected version 0.12.0 (API version 12) or higher\n");
   return 1;
 #endif
 }
@@ -1695,7 +1695,7 @@ EOF
       fail
     fi
   else
-    log_failure "qt6 not found"
+    log_failure "qt6 not found, expected version $QT6MAJ.$QT6MIN or higher"
     fail
   fi
 }
@@ -1725,15 +1725,14 @@ extern "C" int main(void)
   int verMinor = VPX_VERSION_MINOR(version);
   int verPatch = VPX_VERSION_PATCH(version);
   printf("found version %d.%d.%d", verMajor, verMinor, verPatch);
-  if (   verMajor == 1 && verMinor >= 0
-      || verMajor == 0 && verMinor == 9 && verPatch >= 5)
+  if (verMajor == 1 && verMinor >= 7)
   {
       printf(", OK.\n");
       return 0;
   }
   else
   {
-      printf(", expected version 0.9.5 or higher\n");
+      printf(", expected version 1.7.0 or higher\n");
       return 1;
    }
 }
@@ -1947,11 +1946,11 @@ int main(void)
   printf("found version %d.%d.%d",  LINUX_VERSION_CODE / 65536,
                                    (LINUX_VERSION_CODE % 65536) / 256,
                                     LINUX_VERSION_CODE          % 256);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,32)
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 2.4.0 or higher\n");
+  printf(", expected version 2.6.32 or higher\n");
   return 1;
 #endif
 }
@@ -2108,11 +2107,11 @@ extern "C" int main(void)
 {
   Py_Initialize();
   printf("found version %s", PY_VERSION);
-#if PY_VERSION_HEX >= 0x02060000
+#if PY_VERSION_HEX >= 0x02070000
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 2.6 or higher\n");
+  printf(", expected version 2.7 or higher\n");
   return 1;
 #endif
 }
