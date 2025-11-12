@@ -135,6 +135,18 @@ if !defined(VBOX_ONLY_DOCS)
   bldRTLdrCheckImports_DEFS = IPRT_IN_BUILD_TOOL
   bldRTLdrCheckImports_SOURCES = RTLdrCheckImports.cpp
  endif
+
+endif
+
+if !defined(VBOX_ONLY_EXTPACKS) || !defined(VBOX_ONLY_EXTPACKS)
+ # RTTar - build version for extension pack packing.
+ BLDPROGS += bldRTTar
+ bldRTTar_TEMPLATE := VBoxAdvBldProg
+ bldRTTar_SOURCES  := RTTar.cpp
+ bldRTTar_SDKS     := VBoxZlibBldProg
+ ifdef VBOX_WITH_LIBLZMA
+  bldRTTar_SDKS    += VBoxLibLzmaBldProg
+ endif
 endif
 
 if !defined(VBOX_ONLY_BUILD)

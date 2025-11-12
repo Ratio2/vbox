@@ -182,4 +182,12 @@ ifdef VBOX_WITH_NOCRT_STATIC
 endif
 
 
+if !defined(VBOX_ONLY_EXTPACKS) || !defined(VBOX_ONLY_EXTPACKS)
+ # For bldRTTar.
+ LIBRARIES += VBoxBldProg-liblzma
+ VBoxBldProg-liblzma_TEMPLATE := VBoxAdvBldProgNonPedantic
+ VBoxBldProg-liblzma_EXTENDS  := VBox-liblzma
+endif
+
+
 include $(FILE_KBUILD_SUB_FOOTER)
