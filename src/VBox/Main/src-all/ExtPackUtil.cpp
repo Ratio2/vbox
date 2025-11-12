@@ -1206,14 +1206,26 @@ int VBoxExtPackValidateMember(const char *pszName, RTVFSOBJTYPE enmType, RTVFSOB
 int VBoxExtPackOpenTarFss(RTFILE hTarballFile, char *pszError, size_t cbError, PRTVFSFSSTREAM phTarFss,
                           PRTMANIFEST phFileManifest)
 {
+    int vrc;
+
     Assert(cbError > 0);
     *pszError = '\0';
     *phTarFss = NIL_RTVFSFSSTREAM;
 
     /*
+     * Read the first couple of bytes to detect the compression type.
+     */
+    uint8_t abFirstBytes[16] = {0};
+    size_t  cbFirstBytes     = 0;
+    vrc = RTFileReadAt(hTarballFile, 0, abFirstBytes, sizeof(abFirstBytes), &cbFirstBytes);
+    if (RT_FAILURE(vrc))
+        return vboxExtPackReturnError(vrc, pszError, cbError,
+                                      ExtPackUtil::tr("Failed to read the first 16 bytes of the tarball: %Rrc"), vrc);
+
+    /*
      * Rewind the file and set up a VFS chain for it.
      */
-    int vrc = RTFileSeek(hTarballFile, 0, RTFILE_SEEK_BEGIN, NULL);
+    vrc = RTFileSeek(hTarballFile, 0, RTFILE_SEEK_BEGIN, NULL);
     if (RT_FAILURE(vrc))
         return vboxExtPackReturnError(vrc, pszError, cbError,
                                       ExtPackUtil::tr("Failed seeking to the start of the tarball: %Rrc"), vrc);
@@ -1233,16 +1245,36 @@ int VBoxExtPackOpenTarFss(RTFILE hTarballFile, char *pszError, size_t cbError, P
                                                  true /*read*/, &hPtIos);
         if (RT_SUCCESS(vrc))
         {
-            RTVFSIOSTREAM hGunzipIos;
-            vrc = RTZipGzipDecompressIoStream(hPtIos, 0 /*fFlags*/, &hGunzipIos);
+            RTVFSIOSTREAM hDecompIos = NIL_RTVFSIOSTREAM;
+            const char   *pszDecompNm;
+            vrc = VERR_NOT_SUPPORTED;
+            if (RTZipXzIsStartOfCompressedStream(abFirstBytes, cbFirstBytes))
+            {
+                pszDecompNm = "RTZipXzDecompressIoStream";
+#ifdef VBOX_WITH_LIBLZMA
+                vrc = RTZipXzDecompressIoStream(hPtIos, 0 /*fFlags*/, &hDecompIos);
+#endif
+            }
+            else if (RTZipBzip2IsStartOfCompressedStream(abFirstBytes, cbFirstBytes))
+            {
+                pszDecompNm = "RTZipBzip2DecompressIoStream";
+#ifdef VBOX_WITH_LIBBZIP2
+                vrc = RTZipBzip2DecompressIoStream(hPtIos, 0 /*fFlags*/, &hDecompIos);
+#endif
+            }
+            else
+            {
+                pszDecompNm = "RTZipGzipDecompressIoStream";
+                vrc = RTZipGzipDecompressIoStream(hPtIos, 0 /*fFlags*/, &hDecompIos);
+            }
             if (RT_SUCCESS(vrc))
             {
                 RTVFSFSSTREAM hTarFss;
-                vrc = RTZipTarFsStreamFromIoStream(hGunzipIos, 0 /*fFlags*/, &hTarFss);
+                vrc = RTZipTarFsStreamFromIoStream(hDecompIos, 0 /*fFlags*/, &hTarFss);
                 if (RT_SUCCESS(vrc))
                 {
                     RTVfsIoStrmRelease(hPtIos);
-                    RTVfsIoStrmRelease(hGunzipIos);
+                    RTVfsIoStrmRelease(hDecompIos);
                     RTVfsIoStrmRelease(hTarballIos);
                     *phTarFss = hTarFss;
                     if (phFileManifest)
@@ -1253,10 +1285,10 @@ int VBoxExtPackOpenTarFss(RTFILE hTarballFile, char *pszError, size_t cbError, P
                 }
 
                 vboxExtPackSetError(pszError, cbError, ExtPackUtil::tr("RTZipTarFsStreamFromIoStream failed: %Rrc"), vrc);
-                RTVfsIoStrmRelease(hGunzipIos);
+                RTVfsIoStrmRelease(hDecompIos);
             }
             else
-                vboxExtPackSetError(pszError, cbError, ExtPackUtil::tr("RTZipGzipDecompressIoStream failed: %Rrc"), vrc);
+                vboxExtPackSetError(pszError, cbError, ExtPackUtil::tr("%s failed: %Rrc"), pszDecompNm, vrc);
             RTVfsIoStrmRelease(hPtIos);
         }
         else

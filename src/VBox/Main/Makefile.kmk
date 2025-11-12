@@ -220,6 +220,9 @@ endif
 ifdef VBOX_WITH_MAIN_OBJECT_TRACKER
  VBOX_MAIN_DEFS += VBOX_WITH_MAIN_OBJECT_TRACKER
 endif
+ifdef VBOX_WITH_LIBLZMA
+ VBOX_MAIN_DEFS += VBOX_WITH_LIBLZMA
+endif
 # Unconditionally enable the new semaphore key generation code
 VBOX_MAIN_DEFS += VBOX_WITH_NEW_SYS_V_KEYGEN
 VBOX_MAIN_DEFS += \
@@ -1405,6 +1408,9 @@ if !defined(VBOX_ONLY_SDK) && !defined(VBOX_ONLY_EXTPACKS) # Note this goes on f
  ifdef VBOX_WITH_EXTPACK
   PROGRAMS += VBoxExtPackHelperApp
   VBoxExtPackHelperApp_TEMPLATE = VBoxR3SetUidToRoot
+  ifdef VBOX_WITH_LIBLZMA
+   VBoxExtPackHelperApp_DEFS := VBOX_WITH_LIBLZMA
+  endif
   VBoxExtPackHelperApp_LDFLAGS.darwin = -framework Security
   VBoxExtPackHelperApp_LDFLAGS.win = /SUBSYSTEM:windows
   VBoxExtPackHelperApp_SOURCES = \
