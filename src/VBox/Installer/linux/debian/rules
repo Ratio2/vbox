@@ -313,6 +313,9 @@ binary: build $(if $(NOMODS),,$(bldbase)/modules-stamp)
 	if [ -f $(prefix)/usr/lib/$(package)/VBoxVMMArm.so ]; then \
 	    ln -s ../VBoxVMMArm.so $(prefix)/usr/lib/$(package)/components/VBoxVMMArm.so; \
 	fi
+	if [ -f $(prefix)/usr/lib/$(package)/VBoxVRDP.so ]; then \
+	    ln -s ../VBoxVRDP.so $(prefix)/usr/lib/$(package)/VBoxVRDP.so; \
+	fi
 	rmdir $(prefix)/opt
 	dh_link \
 	    $(if $(NOQT),,usr/bin/VBox          usr/bin/VirtualBox) \
