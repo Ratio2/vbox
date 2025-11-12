@@ -808,9 +808,49 @@ int VBoxWinDrvInfQueryParms(HINF hInf, PVBOXWINDRVINFPARMS pParms, bool fForce)
     {
         pParms->pwszSection = RTUtf16Dup(pwszMainSection);
 
-        /* Primitive drivers don't have a model, so make sure it's always NULL. */
-        RTUtf16Free(pParms->pwszModel);
-        pParms->pwszModel = NULL;
+        /*
+         * Primitive drivers don't have a model, so we need to use the service (driver) name instead.
+         */
+        if (   !pParms->pwszModel
+            || fForce)
+        {
+            if (fForce)
+            {
+                RTUtf16Free(pParms->pwszModel);
+                pParms->pwszModel = NULL;
+            }
+
+            RTUTF16    wszSection[VBOXWINDRVINF_MAX_SECTION_NAME_LEN];
+            RTUTF16    wszSvcName[VBOXWINDRVINF_MAX_MODEL_NAME_LEN];
+            DWORD      idxSection = 0;
+            INFCONTEXT context;
+
+            wszSvcName[0] = L'\0';
+
+            /* Note: We don't support multi-service drivers here (yet). */
+            while (SetupEnumInfSectionsW(hInf, idxSection, wszSection, RT_ELEMENTS(wszSection), NULL))
+            {
+                if (SetupFindFirstLineW(hInf, wszSection, L"AddService", &context))
+                {
+                    do
+                    {
+                        if (SetupGetStringFieldW(&context, 1, wszSvcName, RT_ELEMENTS(wszSvcName), NULL))
+                            break;
+                    }
+                    while (SetupFindNextLine(&context, &context));
+                }
+
+                if (wszSvcName[0] != L'\0')
+                {
+                    pParms->pwszModel = RTUtf16Dup(wszSvcName);
+                    if (!pParms->pwszModel)
+                        rc = VERR_NO_MEMORY;
+                    break;
+                }
+
+                idxSection++;
+            }
+        }
     }
     else /* VBOXWINDRVINFTYPE_NORMAL */
     {
@@ -836,37 +876,7 @@ int VBoxWinDrvInfQueryParms(HINF hInf, PVBOXWINDRVINFPARMS pParms, bool fForce)
                 rc = vboxWinDrvInfQueryContext(hInf, pParms->pwszModel, NULL, &InfCtxModel);
                 if (RT_FAILURE(rc))
                 {
-                    switch (enmType)
-                    {
-                        case VBOXWINDRVINFTYPE_NORMAL:
-                        {
-                            /* No model section to install found, can't continue. */
-                            break;
-                        }
-
-                        case VBOXWINDRVINFTYPE_PRIMITIVE:
-                        {
-                            /* If for the given model there is no install section, set the section to main section
-                             * we got when we determined the INF type.
-                             *
-                             * This will be mostly the case for primitive drivers. */
-                            if (rc == VERR_NOT_FOUND)
-                            {
-                                pParms->pwszSection = RTUtf16Dup(pwszMainSection);
-                                if (pParms->pwszSection)
-                                {
-                                    rc = VINF_SUCCESS;
-                                }
-                                else
-                                    rc = VERR_NO_MEMORY;
-                            }
-                            break;
-                        }
-
-                        default:
-                            AssertFailedStmt(rc = VERR_NOT_IMPLEMENTED);
-                            break;
-                    }
+                    /* No model section to install found, can't continue. */
                 }
                 else /* Success -- use the model-specific section. */
                     pParms->pwszSection = RTUtf16Dup(pParms->pwszModel);
