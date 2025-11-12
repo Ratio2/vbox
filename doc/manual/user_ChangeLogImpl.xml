@@ -73,7 +73,7 @@ Rules for adding a changelog entry to make them look more uniform:
                            So, we use chapter and xpointer="xpointer(/chapter/)" with xi:include. -->
   <sect1>
 
-    <title>Version X.Y.Z (date tbd)</title>
+    <title>Version 7.2.6 (date tbd)</title>
 
     <para>This is a maintenance release. The following items were fixed or
       added:</para>
@@ -81,7 +81,15 @@ Rules for adding a changelog entry to make them look more uniform:
     <itemizedlist>
 
       <listitem>
-        <para></para>
+        <para>RDP: The RDP server was moved to the open source base package</para>
+      </listitem>
+
+      <listitem>
+        <para>SmartCard: The USB smartcard emulation was moved to the open source base package</para>
+      </listitem>
+
+      <listitem>
+        <para>VM encryption: The disk and VM encryption feature was moved to the open source base package</para>
       </listitem>
 
     </itemizedlist>
