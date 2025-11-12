@@ -843,11 +843,11 @@ extern "C" int main(void)
 {
   printf("found version %s", OPENSSL_VERSION_TEXT);
   SSL_library_init();
-#if OPENSSL_VERSION_NUMBER >= 0x10101000
+#if OPENSSL_VERSION_NUMBER >= 0x10002000
   printf(", OK.\n");
   return 0;
 #else
-  printf(", expected version 1.1.1 or higher\n");
+  printf(", expected version 1.0.2 or higher\n");
   return 1;
 #endif
 }
