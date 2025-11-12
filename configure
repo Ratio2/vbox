@@ -2532,7 +2532,7 @@ EOF
 #
 
 # test if we are OSE
-if [ $OSE -eq 1 -a -r "`cd \`dirname $0\`; pwd`/src/VBox/RDP/server/server.cpp" ]; then
+if [ $OSE -eq 1 -a -r "`cd \`dirname $0\`; pwd`/src/VBox/ExtPacks/Puel/ExtPack.xml" ]; then
   OSE=0
   # Set this as a reminder to print a log message once we know the path of the
   # log file
