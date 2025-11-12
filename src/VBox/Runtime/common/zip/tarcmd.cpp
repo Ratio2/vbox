@@ -74,6 +74,7 @@
 #define RTZIPTARCMD_OPT_READ_AHEAD          1010
 #define RTZIPTARCMD_OPT_USE_PUSH_FILE       1011
 #define RTZIPTARCMD_OPT_NO_RECURSION        1012
+#define RTZIPTARCMD_OPT_COMPRESSION_LEVEL   1013
 
 /** File format. */
 typedef enum RTZIPTARCMDFORMAT
@@ -127,6 +128,8 @@ typedef struct RTZIPTARCMDOPS
     bool            fRecursive;
     /** The compressor/decompressor method to employ (0, z or j or J). */
     char            chZipper;
+    /** The compression level, -1 for default. */
+    int8_t          iZipLevel;
 
     /** The owner to set. NULL if not applicable.
      * Always resolved into uidOwner for extraction. */
@@ -394,7 +397,10 @@ static RTEXITCODE rtZipTarCmdArchiveDirSub(PRTZIPTARCMDOPS pOpts, RTVFSFSSTREAM 
 
     /* Make sure we've got some room in the path, to save us extra work further down. */
     if (cchSrc + 3 >= RTPATH_MAX)
+    {
+        RTVfsDirRelease(hVfsIoDir);
         return RTMsgErrorExitFailure("Source path too long: '%s'\n", pszSrc);
+    }
 
     /* Ensure we've got a trailing slash (there is space for it see above). */
     if (!RTPATH_IS_SEP(pszSrc[cchSrc - 1]))
@@ -405,22 +411,27 @@ static RTEXITCODE rtZipTarCmdArchiveDirSub(PRTZIPTARCMDOPS pOpts, RTVFSFSSTREAM 
 
     /* Ditto for destination. */
     if (cchDst + 3 >= RTPATH_MAX)
-        return RTMsgErrorExitFailure("Destination path too long: '%s'\n", pszDst);
-
-    /* For CPIO we need to add the directory entry itself first. */
-    if (pOpts->enmFormat == RTZIPTARCMDFORMAT_CPIO)
     {
-        RTVFSOBJ hVfsObjSrc = RTVfsObjFromDir(hVfsIoDir);
-        rc = RTVfsFsStrmAdd(hVfsFss, pszDst, hVfsObjSrc, 0 /*fFlags*/);
-        RTVfsObjRelease(hVfsObjSrc);
-        if (RT_FAILURE(rc))
-            return RTMsgErrorExitFailure("Failed to add directory to archive: '%s' -> %Rrc\n", pszDst, rc);
+        RTVfsDirRelease(hVfsIoDir);
+        return RTMsgErrorExitFailure("Destination path too long: '%s'\n", pszDst);
     }
 
     if (!RTPATH_IS_SEP(pszDst[cchDst - 1]))
     {
         pszDst[cchDst++] = RTPATH_SLASH;
         pszDst[cchDst]   = '\0';
+    }
+
+    /*
+     * Add the directory entry itself first.
+     */
+    RTVFSOBJ hVfsObjSrc = RTVfsObjFromDir(hVfsIoDir);
+    rc = RTVfsFsStrmAdd(hVfsFss, pszDst, hVfsObjSrc, 0 /*fFlags*/);
+    RTVfsObjRelease(hVfsObjSrc);
+    if (RT_FAILURE(rc))
+    {
+        RTVfsDirRelease(hVfsIoDir);
+        return RTMsgErrorExitFailure("Failed to add directory to archive: '%s' -> %Rrc\n", pszDst, rc);
     }
 
     /*
@@ -595,7 +606,7 @@ static RTEXITCODE rtZipTarCmdOpenOutputArchive(PRTZIPTARCMDOPS pOpts, PRTVFSFSST
 
         /* gunzip */
         case 'z':
-            rc = RTZipGzipCompressIoStream(hVfsIos, 0 /*fFlags*/, 6, &hVfsIosComp);
+            rc = RTZipGzipCompressIoStream(hVfsIos, 0 /*fFlags*/, pOpts->iZipLevel < 0 ? 6 : pOpts->iZipLevel, &hVfsIosComp);
             if (RT_FAILURE(rc))
                 RTMsgError("Failed to open gzip decompressor: %Rrc", rc);
             break;
@@ -603,7 +614,7 @@ static RTEXITCODE rtZipTarCmdOpenOutputArchive(PRTZIPTARCMDOPS pOpts, PRTVFSFSST
 #ifdef IPRT_WITH_LZMA
         /* xz/lzma */
         case 'J':
-            rc = RTZipXzCompressIoStream(hVfsIos, 0 /*fFlags*/, 6, &hVfsIosComp);
+            rc = RTZipXzCompressIoStream(hVfsIos, 0 /*fFlags*/, pOpts->iZipLevel < 0 ? 6 : pOpts->iZipLevel, &hVfsIosComp);
             if (RT_FAILURE(rc))
                 RTMsgError("Failed to open xz compressor: %Rrc", rc);
             break;
@@ -872,25 +883,28 @@ static RTEXITCODE rtZipTarCmdOpenInputArchive(PRTZIPTARCMDOPS pOpts, PRTVFSFSSTR
                 RTMsgError("Failed to open gzip decompressor: %Rrc", rc);
             break;
 
-#ifdef IPRT_WITH_LZMA
         /* xz/lzma */
         case 'J':
+#ifdef IPRT_WITH_LZMA
             rc = RTZipXzDecompressIoStream(hVfsIos, 0 /*fFlags*/, &hVfsIosDecomp);
             if (RT_FAILURE(rc))
-                RTMsgError("Failed to open gzip decompressor: %Rrc", rc);
-            break;
+                RTMsgError("Failed to open xz/lzma decompressor: %Rrc", rc);
+#else
+            RTMsgError("xz/lzma is not supported by this build");
+            rc = VERR_NOT_SUPPORTED;
 #endif
+            break;
 
         /* bunzip2 */
         case 'j':
-            rc = VERR_NOT_SUPPORTED;
             RTMsgError("bzip2 is not supported by this build");
+            rc = VERR_NOT_SUPPORTED;
             break;
 
         /* bug */
         default:
-            rc = VERR_INTERNAL_ERROR_2;
             RTMsgError("unknown decompression method '%c'",  pOpts->chZipper);
+            rc = VERR_INTERNAL_ERROR_2;
             break;
     }
     if (RT_FAILURE(rc))
@@ -1657,7 +1671,7 @@ static void rtZipTarUsage(const char *pszProgName)
              "    -A, --concatenate, --catenate\n"
              "        Append the content of one tar archive to another. (not impl)\n"
              "    -c, --create\n"
-             "        Create a new tar archive. (not impl)\n"
+             "        Create a new tar archive.\n"
              "    -d, --diff, --compare\n"
              "        Compare atar archive with the file system. (not impl)\n"
              "    -r, --append\n"
@@ -1689,10 +1703,8 @@ static void rtZipTarUsage(const char *pszProgName)
              "        Compress/decompress the archive with bzip2.\n"
              "    -z, --gzip, --gunzip, --ungzip        (all)\n"
              "        Compress/decompress the archive with gzip.\n"
-#ifdef IPRT_WITH_LZMA
              "    -J, --xz                              (all)\n"
              "        Compress/decompress the archive using xz/lzma.\n"
-#endif
              "\n");
     RTPrintf("Misc Options:\n"
              "    --owner <uid/username>                (-A, -c, -d, -r, -u, -x)\n"
@@ -1707,10 +1719,10 @@ static void rtZipTarUsage(const char *pszProgName)
              "        The file format:\n"
              "                  auto (gnu tar)\n"
              "                  default (gnu tar)\n"
-             "                  tar (gnu tar)"
-             "                  gnu (tar v1.13+), "
-             "                  ustar (tar POSIX.1-1988), "
-             "                  pax (tar POSIX.1-2001),\n"
+             "                  tar (gnu tar)\n"
+             "                  gnu (tar v1.13+)\n"
+             "                  ustar (tar POSIX.1-1988)\n"
+             "                  pax (tar POSIX.1-2001)\n"
              "                  xar\n"
              "                  cpio\n"
              "        Note! Because XAR/TAR/CPIO detection isn't implemented yet, it\n"
@@ -1775,9 +1787,7 @@ RTDECL(RTEXITCODE) RTZipTarCmd(unsigned cArgs, char **papszArgs)
         { "--gzip",                 'z',                                RTGETOPT_REQ_NOTHING },
         { "--gunzip",               'z',                                RTGETOPT_REQ_NOTHING },
         { "--ungzip",               'z',                                RTGETOPT_REQ_NOTHING },
-#ifdef IPRT_WITH_LZMA
         { "--xz",                   'J',                                RTGETOPT_REQ_NOTHING },
-#endif
 
         /* other options. */
         { "--owner",                RTZIPTARCMD_OPT_OWNER,              RTGETOPT_REQ_STRING },
@@ -1795,6 +1805,7 @@ RTDECL(RTEXITCODE) RTZipTarCmd(unsigned cArgs, char **papszArgs)
         { "--dir-mode-or-mask",     RTZIPTARCMD_OPT_DIR_MODE_OR_MASK,   RTGETOPT_REQ_UINT32 | RTGETOPT_FLAG_OCT },
         { "--read-ahead",           RTZIPTARCMD_OPT_READ_AHEAD,         RTGETOPT_REQ_NOTHING },
         { "--use-push-file",        RTZIPTARCMD_OPT_USE_PUSH_FILE,      RTGETOPT_REQ_NOTHING },
+        { "--compression-level",    RTZIPTARCMD_OPT_COMPRESSION_LEVEL,  RTGETOPT_REQ_INT8 },
     };
 
     RTGETOPTSTATE GetState;
@@ -1870,9 +1881,7 @@ RTDECL(RTEXITCODE) RTZipTarCmd(unsigned cArgs, char **papszArgs)
 
             case 'j':
             case 'z':
-#ifdef IPRT_WITH_LZMA
             case 'J':
-#endif
                 if (Opts.chZipper)
                     return RTMsgErrorExit(RTEXITCODE_SYNTAX, "You may only specify one compressor / decompressor");
                 Opts.chZipper = rc;
@@ -1990,6 +1999,10 @@ RTDECL(RTEXITCODE) RTZipTarCmd(unsigned cArgs, char **papszArgs)
 
             case RTZIPTARCMD_OPT_USE_PUSH_FILE:
                 Opts.fUsePushFile = true;
+                break;
+
+            case RTZIPTARCMD_OPT_COMPRESSION_LEVEL:
+                Opts.iZipLevel = ValueUnion.i8;
                 break;
 
             /* Standard bits. */
