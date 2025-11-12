@@ -93,4 +93,3 @@ RTDECL(bool) RTZipXzIsStartOfCompressedStream(uint8_t const *pbStart, size_t cbS
         && pbStart[5] == 0x00;
 }
 
-
