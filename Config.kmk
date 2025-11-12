@@ -5263,7 +5263,8 @@ ifdef VBOX_WITH_LIBLZMA
 
  SDK_VBoxLibLzmaBldProg          := liblzma for build programs
  SDK_VBoxLibLzmaBldProg_EXTENDS  := VBoxLibLzma
- SDK_VBoxLibLzmaBldProg_LIBS     ?= $(PATH_STAGE_LIB)/VBoxBldProg-liblzma$(VBOX_SUFF_LIB)
+ SDK_VBoxLibLzmaBldProg_LIBS     ?= $(NO_SUCH_VARIABLE)
+ SDK_VBoxLibLzmaBldProg_LATE_LIBS ?= $(PATH_STAGE_LIB)/VBoxBldProg-liblzma$(VBOX_SUFF_LIB)
 endif
 
 # libxml2
