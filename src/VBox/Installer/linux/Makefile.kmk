@@ -304,10 +304,8 @@ VBOX_LNX_STRIP_BIN += \
 
 # VRDP
 ifdef VBOX_WITH_VRDP
- ifndef VBOX_WITH_EXTPACK_PUEL
-  VBOX_LNX_STRIP_BIN += \
-  	VBoxVRDP.so
- endif
+ VBOX_LNX_STRIP_BIN += \
+ 	VBoxVRDP.so
 endif
 
 # Python XPCOM glue

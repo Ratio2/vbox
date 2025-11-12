@@ -458,7 +458,7 @@ ifdef VBOX_WITH_QTGUI
   	MacOS/accessible/libqtaccessiblewidgets.dylib
  endif
 endif
-if defined(VBOX_WITH_VRDP) && !defined(VBOX_WITH_EXTPACK_PUEL)
+if defined(VBOX_WITH_VRDP)
  VBOX_DI_VBAPP_DYLIBS += \
  	MacOS/VBoxVRDP.dylib
 endif
