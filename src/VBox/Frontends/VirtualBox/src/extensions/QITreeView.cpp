@@ -109,16 +109,19 @@ public:
     virtual QRect rect() const RT_OVERRIDE
     {
         /* Sanity check: */
-        AssertPtrReturn(item(), QRect());
-        AssertPtrReturn(item()->parentTree(), QRect());
-        AssertPtrReturn(item()->parentTree()->viewport(), QRect());
+        QITreeViewItem *pItem = item();
+        AssertPtrReturn(pItem, QRect());
+        QITreeView *pTree = pItem->parentTree();
+        AssertPtrReturn(pTree, QRect());
+        QWidget *pViewport = pTree->viewport();
+        AssertPtrReturn(pViewport, QRect());
 
         /* Calculate overall region: */
         QRegion region;
         /* Compose a stack of items to enumerate: */
         QStack<QITreeViewItem*> itemsToEnumerate;
         /* Initially push only iterated item into that stack: */
-        itemsToEnumerate.push(item());
+        itemsToEnumerate.push(pItem);
         /* While there are items to enumerate inside that stack: */
         while (!itemsToEnumerate.empty())
         {
@@ -138,7 +141,7 @@ public:
         const QRect  itemRectInViewport = region.boundingRect();
         const QSize  itemSize           = itemRectInViewport.size();
         const QPoint itemPosInViewport  = itemRectInViewport.topLeft();
-        const QPoint itemPosInScreen    = item()->parentTree()->viewport()->mapToGlobal(itemPosInViewport);
+        const QPoint itemPosInScreen    = pViewport->mapToGlobal(itemPosInViewport);
         const QRect  itemRectInScreen   = QRect(itemPosInScreen, itemSize);
 
         /* Return the rect: */
@@ -208,19 +211,13 @@ public:
 
         /* Get current index: */
         const QModelIndex idxCurrent = pTree->currentIndex();
-
-        /* Sanity check: */
         AssertReturn(idxCurrent.isValid(), QAccessible::State());
-
         /* Check whether we have proxy model set or source one otherwise: */
         const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
-        /* Acquire source-model child-index (can be the same as original if there is no proxy model): */
+        /* Acquire source-model index (can be the same as original if there is no proxy model): */
         const QModelIndex idxSourceCurrent = pProxyModel ? pProxyModel->mapToSource(idxCurrent) : idxCurrent;
-
         /* Get current item: */
         QITreeViewItem *pCurrentItem = static_cast<QITreeViewItem*>(idxSourceCurrent.internalPointer());
-
-        /* Sanity check: */
         AssertPtrReturn(pCurrentItem, QAccessible::State());
 
         /* Compose the state: */
@@ -233,8 +230,7 @@ public:
             myState.focused = true;
             myState.selected = true;
         }
-        const Qt::CheckState enmCheckState =
-            pModel->data(pItem->modelIndex(), Qt::CheckStateRole).value<Qt::CheckState>();
+        const Qt::CheckState enmCheckState = pModel->data(pItem->modelIndex(), Qt::CheckStateRole).value<Qt::CheckState>();
         switch (enmCheckState)
         {
             case Qt::Checked:
