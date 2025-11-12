@@ -126,11 +126,6 @@ typedef int (*PFNVBOXWINDRVINST_TRYINFSECTION_CALLBACK)(HINF hInf, PCRTUTF16 pws
 /** Init once structure for run-as-user functions we need. */
 DECL_HIDDEN_DATA(RTONCE)                                 g_vboxWinDrvInstResolveOnce              = RTONCE_INITIALIZER;
 
-#ifdef VBOX_WINDRVINST_USE_NT_APIS
-/* ntdll.dll: */
-DECL_HIDDEN_DATA(PFNNTOPENSYMBOLICLINKOBJECT)            g_pfnNtOpenSymbolicLinkObject = NULL;
-DECL_HIDDEN_DATA(PFNNTQUERYSYMBOLICLINKOBJECT)           g_pfnNtQuerySymbolicLinkObject = NULL;
-#endif
 /* newdev.dll: */
 DECL_HIDDEN_DATA(PFNDIINSTALLDRIVERW)                    g_pfnDiInstallDriverW                    = NULL; /* For Vista+ .*/
 DECL_HIDDEN_DATA(PFNDIUNINSTALLDRIVERW)                  g_pfnDiUninstallDriverW                  = NULL; /* Since Win 10 version 1703. */
@@ -147,6 +142,7 @@ DECL_HIDDEN_DATA(PFNSETUPSETNONINTERACTIVEMODE)          g_pfnSetupSetNonInterac
 /* advapi32.dll: */
 DECL_HIDDEN_DATA(PFNQUERYSERVICESTATUSEX)                g_pfnQueryServiceStatusEx                = NULL; /* For W2K+. */
 
+/** @todo are these global variables too...?  :-)  */
 /**
  * Structure for keeping a single SetupAPI log section.
  */
@@ -230,15 +226,6 @@ static int vboxWinDrvInstSetupAPILog(PVBOXWINDRVINSTINTERNAL pCtx, unsigned cLas
 /*********************************************************************************************************************************
 *   Import tables                                                                                                                *
 *********************************************************************************************************************************/
-
-#ifdef VBOX_WINDRVINST_USE_NT_APIS
-/* ntdll.dll: */
-static VBOXWINDRVINSTIMPORTSYMBOL s_aNtDllImports[] =
-{
-    { "NtOpenSymbolicLinkObject",  (void **)&g_pfnNtOpenSymbolicLinkObject },
-    { "NtQuerySymbolicLinkObject", (void **)&g_pfnNtQuerySymbolicLinkObject }
-};
-#endif
 
 /* setupapi.dll: */
 static VBOXWINDRVINSTIMPORTSYMBOL s_aSetupApiImports[] =
@@ -567,10 +554,6 @@ static DECLCALLBACK(int) vboxWinDrvInstResolveOnce(void *pvUser)
     /*
      * Note: Any use of Difx[app|api].dll imports is forbidden (and also marked as being deprecated since Windows 10)!
      */
-#ifdef VBOX_WINDRVINST_USE_NT_APIS
-    /* rc ignored, keep going */ vboxWinDrvInstResolveMod(pCtx, "ntdll.dll",
-                                                          s_aNtDllImports, RT_ELEMENTS(s_aNtDllImports));
-#endif
     /* rc ignored, keep going */ vboxWinDrvInstResolveMod(pCtx, "setupapi.dll",
                                                           s_aSetupApiImports, RT_ELEMENTS(s_aSetupApiImports));
     /* rc ignored, keep going */ vboxWinDrvInstResolveMod(pCtx, "newdev.dll",
@@ -2638,8 +2621,8 @@ int VBoxWinDrvInstQueryNtLinkTarget(PCRTUTF16 pwszLinkNt, PRTUTF16 *ppwszLinkTar
     int                 rc    = VINF_SUCCESS;
     HANDLE              hFile = RTNT_INVALID_HANDLE_VALUE;
     IO_STATUS_BLOCK     Ios   = RTNT_IO_STATUS_BLOCK_INITIALIZER;
-    UNICODE_STRING      NtName;
 
+    UNICODE_STRING      NtName;
     NtName.Buffer        = (PWSTR)pwszLinkNt;
     NtName.Length        = (USHORT)(RTUtf16Len(pwszLinkNt) * sizeof(RTUTF16));
     NtName.MaximumLength = NtName.Length + sizeof(RTUTF16);
@@ -2647,7 +2630,7 @@ int VBoxWinDrvInstQueryNtLinkTarget(PCRTUTF16 pwszLinkNt, PRTUTF16 *ppwszLinkTar
     OBJECT_ATTRIBUTES ObjAttr;
     InitializeObjectAttributes(&ObjAttr, &NtName, OBJ_CASE_INSENSITIVE, NULL /*hRootDir*/, NULL /*pSecDesc*/);
 
-    NTSTATUS rcNt = g_pfnNtOpenSymbolicLinkObject(&hFile, SYMBOLIC_LINK_QUERY, &ObjAttr);
+    NTSTATUS rcNt = NtOpenSymbolicLinkObject(&hFile, SYMBOLIC_LINK_QUERY, &ObjAttr);
     if (NT_SUCCESS(rcNt))
     {
         UNICODE_STRING UniStr;
@@ -2655,7 +2638,7 @@ int VBoxWinDrvInstQueryNtLinkTarget(PCRTUTF16 pwszLinkNt, PRTUTF16 *ppwszLinkTar
         RT_ZERO(awszBuf);
         UniStr.Buffer = awszBuf;
         UniStr.MaximumLength = sizeof(awszBuf);
-        rcNt = g_pfnNtQuerySymbolicLinkObject(hFile, &UniStr, NULL);
+        rcNt = NtQuerySymbolicLinkObject(hFile, &UniStr, NULL);
         if (NT_SUCCESS(rcNt))
         {
             *ppwszLinkTarget = RTUtf16Dup((PRTUTF16)UniStr.Buffer);

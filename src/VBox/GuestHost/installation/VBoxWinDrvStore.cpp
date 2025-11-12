@@ -72,7 +72,7 @@ typedef int (*PFNVBOXWINDRVSTORE_ENUM_FILES_CALLBACK)(const char *pszFilePathAbs
 /**
  * Structure for keeping a generic Windows driver store file enumeration context.
  */
-typedef struct _VBOXWINDRVENUMFILESCTX
+typedef struct VBOXWINDRVENUMFILESCTX
 {
     /** Pointer to driver store instance. */
     PVBOXWINDRVSTORE     pDrvStore;

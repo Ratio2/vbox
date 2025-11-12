@@ -39,11 +39,6 @@
 #include <VBox/GuestHost/VBoxWinDrvDefs.h>
 
 
-#ifdef VBOX_WINDRVINST_USE_NT_APIS
-/* ntdll.dll: Only for > NT4. */
-typedef NTSTATUS(WINAPI* PFNNTOPENSYMBOLICLINKOBJECT) (PHANDLE LinkHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes);
-typedef NTSTATUS(WINAPI* PFNNTQUERYSYMBOLICLINKOBJECT) (HANDLE LinkHandle, PUNICODE_STRING LinkTarget, PULONG ReturnedLength);
-#endif /* VBOX_WINDRVINST_USE_NT_APIS */
 /* newdev.dll: */
 typedef BOOL(WINAPI* PFNDIINSTALLDRIVERW) (HWND hwndParent, LPCWSTR InfPath, DWORD Flags, PBOOL NeedReboot);
 typedef BOOL(WINAPI* PFNDIUNINSTALLDRIVERW) (HWND hwndParent, LPCWSTR InfPath, DWORD Flags, PBOOL NeedReboot);
@@ -59,11 +54,6 @@ typedef BOOL(WINAPI* PFNSETUPUNINSTALLOEMINFW) (PCWSTR InfFileName, DWORD Flags,
 typedef BOOL(WINAPI *PFNSETUPSETNONINTERACTIVEMODE) (BOOL NonInteractiveFlag);
 /* advapi32.dll: */
 typedef BOOL(WINAPI *PFNQUERYSERVICESTATUSEX) (SC_HANDLE, SC_STATUS_TYPE, LPBYTE, DWORD, LPDWORD);
-
-#ifdef VBOX_WINDRVINST_USE_NT_APIS
- extern PFNNTOPENSYMBOLICLINKOBJECT           g_pfnNtOpenSymbolicLinkObject;
- extern PFNNTQUERYSYMBOLICLINKOBJECT          g_pfnNtQuerySymbolicLinkObject;
-#endif
 
 extern PFNDIINSTALLDRIVERW                    g_pfnDiInstallDriverW;
 extern PFNDIUNINSTALLDRIVERW                  g_pfnDiUninstallDriverW;
