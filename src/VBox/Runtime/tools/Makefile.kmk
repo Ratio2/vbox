@@ -138,7 +138,7 @@ if !defined(VBOX_ONLY_DOCS)
 
 endif
 
-if !defined(VBOX_ONLY_EXTPACKS) || !defined(VBOX_ONLY_EXTPACKS)
+if !defined(VBOX_ONLY_BUILD) || !defined(VBOX_ONLY_EXTPACKS)
  # RTTar - build version for extension pack packing.
  BLDPROGS += bldRTTar
  bldRTTar_TEMPLATE := VBoxAdvBldProg
