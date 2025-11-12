@@ -2249,6 +2249,7 @@ static RTEXITCODE s2gSvnExportRevision(PS2GCTX pThis, uint32_t idRev)
                             Rev.pszGitAuthor      = &achAuthorInfo[0];
 
                             /* Now the E-Mail. */
+                            pszGithubMerge++; /* Skip < */
                             Rev.pszGitAuthorEmail = &achAuthorInfo[cchAuthorInfo];
                             while (*pszGithubMerge != '>')
                                 achAuthorInfo[cchAuthorInfo++] = *pszGithubMerge++;
