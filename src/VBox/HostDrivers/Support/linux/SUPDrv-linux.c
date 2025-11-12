@@ -191,10 +191,6 @@ static bool                 g_fFoundKvmHwvirtSymbols;
 static int                  (*g_pfnKvmEnableVirtualization)(void);
 /** Function pointer to kvm_disable_virtualization(). */
 static void                 (*g_pfnKvmDisableVirtualization)(void);
-/** Paranoia: Pull in any exported function from the kvm module to prevent it from
- *  being unloaded while we use it. __symbol_get() already increments the module
- *  reference count. */
-PFNRT                       g_apfnKvmDep = (PFNRT)kvm_get_kvm;
 #endif
 
 /** Module parameter.
