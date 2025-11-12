@@ -136,6 +136,9 @@ public:
     /** Returns the child item with @a iIndex. */
     virtual QITreeViewItem *childItem(int /* iIndex */) const { return 0; }
 
+    /** Returns current item. */
+    QITreeViewItem *currentItem() const;
+
 protected slots:
 
     /** This slot is called when a new item becomes the current item.

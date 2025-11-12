@@ -211,16 +211,12 @@ public:
         QAbstractItemModel *pModel = pTree->model();
         AssertPtrReturn(pModel, QAccessible::State());
 
-        /* Acquire current item: */
-        const QModelIndex idxCurrent = pTree->currentIndex();
-        QITreeViewItem *pCurrentItem = QITreeViewItem::toItem(idxCurrent);
-
         /* Compose the state: */
         QAccessible::State myState;
         myState.focusable = true;
         myState.selectable = true;
         if (   pTree->hasFocus()
-            && pCurrentItem == pItem)
+            && pTree->currentItem() == pItem)
         {
             myState.focused = true;
             myState.selected = true;
@@ -459,8 +455,7 @@ public:
         AssertPtrReturn(pModel, QList<QAccessibleInterface*>());
 
         /* Get current item: */
-        const QModelIndex idxCurrent = pTree->currentIndex();
-        QITreeViewItem *pCurrentItem = QITreeViewItem::toItem(idxCurrent);
+        QITreeViewItem *pCurrentItem = pTree->currentItem();
         AssertPtrReturn(pCurrentItem, QList<QAccessibleInterface*>());
 
         /* For now we are interested in just first one selected item: */
@@ -602,6 +597,11 @@ QITreeView::QITreeView(QWidget *pParent)
 {
     /* Prepare all: */
     prepare();
+}
+
+QITreeViewItem *QITreeView::currentItem() const
+{
+    return QITreeViewItem::toItem(currentIndex());
 }
 
 void QITreeView::currentChanged(const QModelIndex &current, const QModelIndex &previous)

@@ -184,15 +184,12 @@ public:
         QITreeWidget *pTree = pItem->parentTree();
         AssertPtrReturn(pTree, QAccessible::State());
 
-        /* Get current item: */
-        QITreeWidgetItem *pCurrentItem = QITreeWidgetItem::toItem(pTree->currentItem());
-
         /* Compose the state: */
         QAccessible::State myState;
         myState.focusable = true;
         myState.selectable = true;
         if (   pTree->hasFocus()
-            && pCurrentItem == pItem)
+            && QITreeWidgetItem::toItem(pTree->currentItem()) == pItem)
         {
             myState.focused = true;
             myState.selected = true;
