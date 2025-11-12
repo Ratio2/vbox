@@ -233,9 +233,6 @@ ln -s ../VBoxVMM.so $RPM_BUILD_ROOT/usr/lib/virtualbox/components/VBoxVMM.so
 if [ -f $RPM_BUILD_ROOT/usr/lib/virtualbox/VBoxVMMArm.so ]; then
   ln -s ../VBoxVMMArm.so $RPM_BUILD_ROOT/usr/lib/virtualbox/components/VBoxVMMArm.so
 fi
-if [ -f $RPM_BUILD_ROOT/usr/lib/virtualbox/VBoxVRDP.so ]; then
-  ln -s ../VBoxVRDP.so $RPM_BUILD_ROOT/usr/lib/virtualbox/VBoxVRDP.so
-fi
 for i in VirtualBoxVM VBoxHeadless VBoxNetDHCP VBoxNetNAT VBoxNetAdpCtl; do
   chmod 4511 $RPM_BUILD_ROOT/usr/lib/virtualbox/$i; done
 if [ -f $RPM_BUILD_ROOT/usr/lib/virtualbox/VBoxVolInfo ]; then
