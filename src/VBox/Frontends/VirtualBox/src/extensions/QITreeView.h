@@ -173,11 +173,6 @@ protected:
     virtual void dragLeaveEvent(QDragLeaveEvent *pEvent) RT_OVERRIDE;
     /** Handles mouse drop @a pEvent. */
     virtual void dropEvent(QDropEvent *pEvent) RT_OVERRIDE;
-
-private:
-
-    /** Prepares all. */
-    void prepare();
 };
 
 
