@@ -119,17 +119,17 @@ public:
     /** Makes sure current editor data committed. */
     void makeSureEditorDataCommitted();
 
-protected slots:
-
-    /** Stores the created @a pEditor for passed @a index in the map. */
-    virtual void sltEditorCreated(QWidget *pEditor, const QModelIndex &index);
-    /** Clears the destoyed @a pEditor from the map. */
-    virtual void sltEditorDestroyed(QObject *pEditor);
-
 protected:
 
     /** Handles index change from @a previous to @a current. */
     virtual void currentChanged(const QModelIndex &current, const QModelIndex &previous) RT_OVERRIDE;
+
+private slots:
+
+    /** Stores the created @a pEditor for passed @a index in the map. */
+    void sltEditorCreated(QWidget *pEditor, const QModelIndex &index);
+    /** Clears the destoyed @a pEditor from the map. */
+    void sltEditorDestroyed(QObject *pEditor);
 
 private:
 

@@ -454,6 +454,14 @@ void QITableView::makeSureEditorDataCommitted()
     }
 }
 
+void QITableView::currentChanged(const QModelIndex &current, const QModelIndex &previous)
+{
+    /* Notify listeners about index changed: */
+    emit sigCurrentChanged(current, previous);
+    /* Call to base-class: */
+    QTableView::currentChanged(current, previous);
+}
+
 void QITableView::sltEditorCreated(QWidget *pEditor, const QModelIndex &index)
 {
     /* Connect created editor to the table and store it: */
@@ -467,14 +475,6 @@ void QITableView::sltEditorDestroyed(QObject *pEditor)
     const QModelIndex index = m_editors.key(pEditor);
     AssertReturnVoid(index.isValid());
     m_editors.remove(index);
-}
-
-void QITableView::currentChanged(const QModelIndex &current, const QModelIndex &previous)
-{
-    /* Notify listeners about index changed: */
-    emit sigCurrentChanged(current, previous);
-    /* Call to base-class: */
-    QTableView::currentChanged(current, previous);
 }
 
 void QITableView::prepare()
