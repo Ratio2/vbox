@@ -51,6 +51,7 @@ DEFAULT_FILE_NAMES=" \
     VBoxDDU.so \
     VBoxVMM.so \
     VBoxVMMArm.so \
+    VBoxVRDP.so \
     VBoxXPCOM.so \
     VBoxXPCOMC.so \
     VBoxXPCOMIPCD \
