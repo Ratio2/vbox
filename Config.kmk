@@ -5264,7 +5264,11 @@ ifdef VBOX_WITH_LIBLZMA
  SDK_VBoxLibLzmaBldProg          := liblzma for build programs
  SDK_VBoxLibLzmaBldProg_EXTENDS  := VBoxLibLzma
  SDK_VBoxLibLzmaBldProg_LIBS     ?= $(NO_SUCH_VARIABLE)
- SDK_VBoxLibLzmaBldProg_LATE_LIBS ?= $(PATH_STAGE_LIB)/VBoxBldProg-liblzma$(VBOX_SUFF_LIB)
+ ifeq ($(SDK_VBoxLibLzma_INCS),$(SDK_VBoxLibLzma_DEFAULT_INCS))
+  SDK_VBoxLibLzmaBldProg_LATE_LIBS ?= $(PATH_STAGE_LIB)/VBoxBldProg-liblzma$(VBOX_SUFF_LIB)
+ else
+  SDK_VBoxLibLzmaBldProg_LATE_LIBS ?= $(SDK_VBoxLibLzma_LIBS)
+ endif
 endif
 
 # libxml2
