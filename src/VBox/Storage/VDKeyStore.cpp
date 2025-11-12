@@ -31,6 +31,7 @@
 *********************************************************************************************************************************/
 #include "VDKeyStore.h"
 
+#include <iprt/asm.h>
 #include <iprt/assert.h>
 #include <iprt/base64.h>
 #include <iprt/string.h>
