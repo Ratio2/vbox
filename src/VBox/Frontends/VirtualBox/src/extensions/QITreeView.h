@@ -49,6 +49,9 @@ class SHARED_LIBRARY_STUFF QITreeViewItem : public QObject
 
 public:
 
+    /** Acquires QTreeViewItem* from passed @a idx. */
+    static QITreeViewItem *toItem(const QModelIndex &idx);
+
     /** Constructs tree-view item for passed @a pParent. */
     QITreeViewItem(QITreeView *pParent)
         : m_pParentTree(pParent)
