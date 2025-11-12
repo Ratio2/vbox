@@ -74,6 +74,100 @@ typedef struct VBOXWINDRVINFPARMS
  * required for driver (un)installation.*/
 typedef VBOXWINDRVINFPARMS *PVBOXWINDRVINFPARMS;
 
+/**
+ * Structure for keeping INF Version section information.
+ */
+typedef struct VBOXWINDRVINFSECVERSION
+{
+    /** Catalog (.cat) file. */
+    RTUTF16 wszCatalogFile[VBOXWINDRVINF_MAX_CATALOG_FILE_LEN];
+    /** Driver version. */
+    RTUTF16 wszDriverVer[VBOXWINDRVINF_MAX_DRIVER_VER_LEN];
+    /** Provider name. */
+    RTUTF16 wszProvider[VBOXWINDRVINF_MAX_PROVIDER_NAME_LEN];
+} VBOXWINDRVINFSECVERSION;
+/** Pointer to structure for keeping INF Version section information. */
+typedef VBOXWINDRVINFSECVERSION *PVBOXWINDRVINFSECVERSION;
+
+/**
+ * Enumeration for specifying an INF file list entry type.
+ */
+typedef enum
+{
+    /** No / invalid type. */
+    VBOXWINDRVINFLISTENTRY_T_NONE = 0,
+    /** List entry is of type VBOXWINDRVINFLISTENTRY_COPYFILE. */
+    VBOXWINDRVINFLISTENTRY_T_COPYFILE
+} VBOXWINDRVINFLISTENTRY_T;
+
+/**
+ * Structure for keeping a single FileCopy file entry.
+ */
+typedef struct VBOXWINDRVINFLISTENTRY_COPYFILE
+{
+    RTLISTNODE Node;
+    /** Absolute path to the file on the system. */
+    RTUTF16    wszFilePath[RTPATH_MAX];
+} VBOXWINDRVINFLISTENTRY_COPYFILE;
+/** Pointer to a structure for keeping a single FileCopy file entry. */
+typedef VBOXWINDRVINFLISTENTRY_COPYFILE *PVBOXWINDRVINFLISTENTRY_COPYFILE;
+
+/**
+ * Structure for keeping a list of one type of VBOXWINDRVINFLISTENTRY_XXX entries.
+ */
+typedef struct VBOXWINDRVINFLIST
+{
+    /** List of VBOXWINDRVINFLISTENTRY_XXX entries. */
+    RTLISTANCHOR             List;
+    /** Number of current entries of type VBOXWINDRVINFLISTENTRY_T_XXX. */
+    unsigned                 cEntries;
+    /** Type of entries this list contains. */
+    VBOXWINDRVINFLISTENTRY_T enmType;
+} VBOXWINDRVINFLIST;
+/** Pointer to a structure for keeping a list of FileCopy file entries.*/
+typedef VBOXWINDRVINFLIST *PVBOXWINDRVINFLIST;
+
+#ifdef VBOX_WINDRVINST_USE_NT_APIS
+/* ntdll.dll: Only for > NT4. */
+typedef NTSTATUS(WINAPI* PFNNTOPENSYMBOLICLINKOBJECT) (PHANDLE LinkHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes);
+typedef NTSTATUS(WINAPI* PFNNTQUERYSYMBOLICLINKOBJECT) (HANDLE LinkHandle, PUNICODE_STRING LinkTarget, PULONG ReturnedLength);
+#endif /* VBOX_WINDRVINST_USE_NT_APIS */
+/* newdev.dll: */
+typedef BOOL(WINAPI* PFNDIINSTALLDRIVERW) (HWND hwndParent, LPCWSTR InfPath, DWORD Flags, PBOOL NeedReboot);
+typedef BOOL(WINAPI* PFNDIUNINSTALLDRIVERW) (HWND hwndParent, LPCWSTR InfPath, DWORD Flags, PBOOL NeedReboot);
+typedef BOOL(WINAPI* PFNUPDATEDRIVERFORPLUGANDPLAYDEVICESW) (HWND hwndParent, LPCWSTR HardwareId, LPCWSTR FullInfPath, DWORD InstallFlags, PBOOL bRebootRequired);
+/* setupapi.dll: */
+typedef VOID(WINAPI* PFNINSTALLHINFSECTIONW) (HWND Window, HINSTANCE ModuleHandle, PCWSTR CommandLine, INT ShowCommand);
+typedef BOOL(WINAPI* PFNSETUPCOPYOEMINFW) (PCWSTR SourceInfFileName, PCWSTR OEMSourceMediaLocation, DWORD OEMSourceMediaType, DWORD CopyStyle, PWSTR DestinationInfFileName, DWORD DestinationInfFileNameSize, PDWORD RequiredSize, PWSTR DestinationInfFileNameComponent);
+typedef HINF(WINAPI* PFNSETUPOPENINFFILEW) (PCWSTR FileName, PCWSTR InfClass, DWORD InfStyle, PUINT ErrorLine);
+typedef VOID(WINAPI* PFNSETUPCLOSEINFFILE) (HINF InfHandle);
+typedef BOOL(WINAPI* PFNSETUPDIGETINFCLASSW) (PCWSTR, LPGUID, PWSTR, DWORD, PDWORD);
+typedef BOOL(WINAPI* PFNSETUPENUMINFSECTIONSW) (HINF InfHandle, UINT Index, PWSTR Buffer, UINT Size, UINT *SizeNeeded);
+typedef BOOL(WINAPI* PFNSETUPUNINSTALLOEMINFW) (PCWSTR InfFileName, DWORD Flags, PVOID Reserved);
+typedef BOOL(WINAPI *PFNSETUPSETNONINTERACTIVEMODE) (BOOL NonInteractiveFlag);
+/* advapi32.dll: */
+typedef BOOL(WINAPI *PFNQUERYSERVICESTATUSEX) (SC_HANDLE, SC_STATUS_TYPE, LPBYTE, DWORD, LPDWORD);
+
+#ifdef VBOX_WINDRVINST_USE_NT_APIS
+ extern PFNNTOPENSYMBOLICLINKOBJECT           g_pfnNtOpenSymbolicLinkObject;
+ extern PFNNTQUERYSYMBOLICLINKOBJECT          g_pfnNtQuerySymbolicLinkObject;
+#endif
+
+extern PFNDIINSTALLDRIVERW                    g_pfnDiInstallDriverW;
+extern PFNDIUNINSTALLDRIVERW                  g_pfnDiUninstallDriverW;
+extern PFNUPDATEDRIVERFORPLUGANDPLAYDEVICESW  g_pfnUpdateDriverForPlugAndPlayDevicesW;
+
+extern PFNINSTALLHINFSECTIONW                 g_pfnInstallHinfSectionW;
+extern PFNSETUPCOPYOEMINFW                    g_pfnSetupCopyOEMInf;
+extern PFNSETUPOPENINFFILEW                   g_pfnSetupOpenInfFileW;
+extern PFNSETUPCLOSEINFFILE                   g_pfnSetupCloseInfFile;
+extern PFNSETUPDIGETINFCLASSW                 g_pfnSetupDiGetINFClassW;
+extern PFNSETUPENUMINFSECTIONSW               g_pfnSetupEnumInfSectionsW;
+extern PFNSETUPUNINSTALLOEMINFW               g_pfnSetupUninstallOEMInfW;
+extern PFNSETUPSETNONINTERACTIVEMODE          g_pfnSetupSetNonInteractiveMode;
+
+extern PFNQUERYSERVICESTATUSEX                g_pfnQueryServiceStatusEx;
+
 
 int VBoxWinDrvInfOpenEx(PCRTUTF16 pwszInfFile, PRTUTF16 pwszClassName, HINF *phInf);
 int VBoxWinDrvInfOpen(PCRTUTF16 pwszInfFile, HINF *phInf);

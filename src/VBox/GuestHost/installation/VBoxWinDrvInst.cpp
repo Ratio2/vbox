@@ -116,26 +116,6 @@
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
 *********************************************************************************************************************************/
-#ifdef VBOX_WINDRVINST_USE_NT_APIS
-/* ntdll.dll: Only for > NT4. */
-typedef NTSTATUS(WINAPI* PFNNTOPENSYMBOLICLINKOBJECT) (PHANDLE LinkHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes);
-typedef NTSTATUS(WINAPI* PFNNTQUERYSYMBOLICLINKOBJECT) (HANDLE LinkHandle, PUNICODE_STRING LinkTarget, PULONG ReturnedLength);
-#endif /* VBOX_WINDRVINST_USE_NT_APIS */
-/* newdev.dll: */
-typedef BOOL(WINAPI* PFNDIINSTALLDRIVERW) (HWND hwndParent, LPCWSTR InfPath, DWORD Flags, PBOOL NeedReboot);
-typedef BOOL(WINAPI* PFNDIUNINSTALLDRIVERW) (HWND hwndParent, LPCWSTR InfPath, DWORD Flags, PBOOL NeedReboot);
-typedef BOOL(WINAPI* PFNUPDATEDRIVERFORPLUGANDPLAYDEVICESW) (HWND hwndParent, LPCWSTR HardwareId, LPCWSTR FullInfPath, DWORD InstallFlags, PBOOL bRebootRequired);
-/* setupapi.dll: */
-typedef VOID(WINAPI* PFNINSTALLHINFSECTIONW) (HWND Window, HINSTANCE ModuleHandle, PCWSTR CommandLine, INT ShowCommand);
-typedef BOOL(WINAPI* PFNSETUPCOPYOEMINFW) (PCWSTR SourceInfFileName, PCWSTR OEMSourceMediaLocation, DWORD OEMSourceMediaType, DWORD CopyStyle, PWSTR DestinationInfFileName, DWORD DestinationInfFileNameSize, PDWORD RequiredSize, PWSTR DestinationInfFileNameComponent);
-typedef HINF(WINAPI* PFNSETUPOPENINFFILEW) (PCWSTR FileName, PCWSTR InfClass, DWORD InfStyle, PUINT ErrorLine);
-typedef VOID(WINAPI* PFNSETUPCLOSEINFFILE) (HINF InfHandle);
-typedef BOOL(WINAPI* PFNSETUPDIGETINFCLASSW) (PCWSTR, LPGUID, PWSTR, DWORD, PDWORD);
-typedef BOOL(WINAPI* PFNSETUPUNINSTALLOEMINFW) (PCWSTR InfFileName, DWORD Flags, PVOID Reserved);
-typedef BOOL(WINAPI *PFNSETUPSETNONINTERACTIVEMODE) (BOOL NonInteractiveFlag);
-/* advapi32.dll: */
-typedef BOOL(WINAPI *PFNQUERYSERVICESTATUSEX) (SC_HANDLE, SC_STATUS_TYPE, LPBYTE, DWORD, LPDWORD);
-
 /** Function pointer for a general try INF section callback. */
 typedef int (*PFNVBOXWINDRVINST_TRYINFSECTION_CALLBACK)(HINF hInf, PCRTUTF16 pwszSection, void *pvCtx);
 
@@ -161,6 +141,7 @@ DECL_HIDDEN_DATA(PFNSETUPCOPYOEMINFW)                    g_pfnSetupCopyOEMInfW  
 DECL_HIDDEN_DATA(PFNSETUPOPENINFFILEW)                   g_pfnSetupOpenInfFileW                   = NULL; /* For W2K+. */
 DECL_HIDDEN_DATA(PFNSETUPCLOSEINFFILE)                   g_pfnSetupCloseInfFile                   = NULL; /* For W2K+. */
 DECL_HIDDEN_DATA(PFNSETUPDIGETINFCLASSW)                 g_pfnSetupDiGetINFClassW                 = NULL; /* For W2K+. */
+DECL_HIDDEN_DATA(PFNSETUPENUMINFSECTIONSW)               g_pfnSetupEnumInfSectionsW               = NULL; /* For W2K+. */
 DECL_HIDDEN_DATA(PFNSETUPUNINSTALLOEMINFW)               g_pfnSetupUninstallOEMInfW               = NULL; /* For XP+.  */
 DECL_HIDDEN_DATA(PFNSETUPSETNONINTERACTIVEMODE)          g_pfnSetupSetNonInteractiveMode          = NULL; /* For W2K+. */
 /* advapi32.dll: */
@@ -268,6 +249,7 @@ static VBOXWINDRVINSTIMPORTSYMBOL s_aSetupApiImports[] =
     { "SetupOpenInfFileW", (void **)&g_pfnSetupOpenInfFileW },
     { "SetupCloseInfFile", (void **)&g_pfnSetupCloseInfFile },
     { "SetupDiGetINFClassW", (void **)&g_pfnSetupDiGetINFClassW },
+    { "SetupEnumInfSectionsW", (void **)&g_pfnSetupEnumInfSectionsW },
     { "SetupSetNonInteractiveMode", (void **)&g_pfnSetupSetNonInteractiveMode }
 };
 
