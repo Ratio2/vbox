@@ -299,6 +299,41 @@ RTDECL(int) RTZipXzCompressIoStream(RTVFSIOSTREAM hVfsIosDst, uint32_t fFlags, u
 
 
 /**
+ * Tests if the given bytes could be the start of an gzip compression stream.
+ *
+ * @returns true if like, false if not.
+ * @param   pabStart            Pointer to a buffer containing @a cbStart bytes
+ *                              from the start of the stream.
+ * @param   cbStart             Number of bytes @a pabStart contains. Must be
+ *                              at least 4 bytes for a positive gzip detection.
+ */
+RTDECL(bool) RTZipGzipIsStartOfCompressedStream(uint8_t const *pbStart, size_t cbStart);
+
+/**
+ * Tests if the given bytes could be the start of an bzip2 compression stream.
+ *
+ * @returns true if like, false if not.
+ * @param   pabStart            Pointer to a buffer containing @a cbStart bytes
+ *                              from the start of the stream.
+ * @param   cbStart             Number of bytes @a pabStart contains. Must be
+ *                              at least 6 bytes for a positive bzip2 detection,
+ *                              10 is better.
+ */
+RTDECL(bool) RTZipBzip2IsStartOfCompressedStream(uint8_t const *pbStart, size_t cbStart);
+
+/**
+ * Tests if the given bytes could be the start of an xz compression stream.
+ *
+ * @returns true if like, false if not.
+ * @param   pabStart            Pointer to a buffer containing @a cbStart bytes
+ *                              from the start of the stream.
+ * @param   cbStart             Number of bytes @a pabStart contains.  Must be
+ *                              at least 6 bytes for a positive XZ detection.
+ */
+RTDECL(bool) RTZipXzIsStartOfCompressedStream(uint8_t const *pbStart, size_t cbStart);
+
+
+/**
  * A mini GZIP program.
  *
  * @returns Program exit code.
