@@ -67,7 +67,7 @@ public:
     QITreeViewItem *parentItem() const { return m_pParentItem; }
 
     /** Returns the number of children. */
-    virtual int childCount() const;
+    virtual int childCount() const = 0;
     /** Returns the child item with @a iIndex. */
     virtual QITreeViewItem *childItem(int iIndex) const = 0;
 
@@ -129,7 +129,7 @@ public:
     QITreeView(QWidget *pParent = 0);
 
     /** Returns the number of children. */
-    virtual int childCount() const;
+    virtual int childCount() const { return 0; }
     /** Returns the child item with @a iIndex. */
     virtual QITreeViewItem *childItem(int /* iIndex */) const { return 0; }
 
