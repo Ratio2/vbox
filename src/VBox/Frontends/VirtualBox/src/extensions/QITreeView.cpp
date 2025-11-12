@@ -328,10 +328,11 @@ public:
     virtual int childCount() const RT_OVERRIDE
     {
         /* Sanity check: */
-        AssertPtrReturn(tree(), 0);
+        QITreeView *pTree = tree();
+        AssertPtrReturn(pTree, 0);
 
         /* Return the number of children: */
-        return tree()->childCount();
+        return pTree->childCount();
     }
 
     /** Returns the child with the passed @a iIndex. */
@@ -407,12 +408,13 @@ public:
     virtual QAccessible::State state() const RT_OVERRIDE
     {
         /* Sanity check: */
-        AssertPtrReturn(tree(), QAccessible::State());
+        QITreeView *pTree = tree();
+        AssertPtrReturn(pTree, QAccessible::State());
 
         /* Compose the state: */
         QAccessible::State myState;
         myState.focusable = true;
-        if (tree()->hasFocus())
+        if (pTree->hasFocus())
             myState.focused = true;
 
         /* Return the state: */
@@ -428,12 +430,13 @@ public:
             case QAccessible::Name:
             {
                 /* Sanity check: */
-                AssertPtrReturn(tree(), QString());
+                QITreeView *pTree = tree();
+                AssertPtrReturn(pTree, QString());
 
                 /* Gather suitable text: */
-                QString strText = tree()->toolTip();
+                QString strText = pTree->toolTip();
                 if (strText.isEmpty())
-                    strText = tree()->whatsThis();
+                    strText = pTree->whatsThis();
                 return strText;
             }
             default:
@@ -463,23 +466,16 @@ public:
 
         /* Get current index: */
         const QModelIndex idxCurrent = pTree->currentIndex();
-
-        /* Sanity check: */
         AssertReturn(idxCurrent.isValid(), QList<QAccessibleInterface*>());
-
         /* Check whether we have proxy model set or source one otherwise: */
         const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
         /* Acquire source-model child-index (can be the same as original if there is no proxy model): */
         const QModelIndex idxSourceCurrent = pProxyModel ? pProxyModel->mapToSource(idxCurrent) : idxCurrent;
-
         /* Get current item: */
         QITreeViewItem *pCurrentItem = static_cast<QITreeViewItem*>(idxSourceCurrent.internalPointer());
-
-        /* Sanity check: */
         AssertPtrReturn(pCurrentItem, QList<QAccessibleInterface*>());
 
         /* For now we are interested in just first one selected item: */
-        // printf("item selected: %s\n", pCurrentItem->text().toUtf8().constData());
         return QList<QAccessibleInterface*>() << QAccessible::queryAccessibleInterface(pCurrentItem);
     }
 

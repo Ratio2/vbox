@@ -289,10 +289,11 @@ public:
     virtual int childCount() const RT_OVERRIDE
     {
         /* Sanity check: */
-        AssertPtrReturn(tree(), 0);
+        QITreeWidget *pTree = tree();
+        AssertPtrReturn(pTree, 0);
 
         /* Return the number of children: */
-        return tree()->childCount();
+        return pTree->childCount();
     }
 
     /** Returns the child with the passed @a iIndex. */
@@ -300,7 +301,8 @@ public:
     {
         /* Sanity check: */
         AssertReturn(iIndex >= 0, 0);
-        AssertPtrReturn(tree(), 0);
+        QITreeWidget *pTree = tree();
+        AssertPtrReturn(pTree, 0);
 
         /* For Advanced interface enabled we have special processing: */
         if (isEnabled())
@@ -316,29 +318,25 @@ public:
 
             // Take into account we also have header with 'column count' indexes,
             // so we should start enumerating tree indexes since 'column count'.
-            const int iColumnCount = tree()->columnCount();
+            const int iColumnCount = pTree->columnCount();
             int iCurrentIndex = iColumnCount;
 
             // Search for sibling with corresponding index:
-            QTreeWidgetItem *pItem = tree()->topLevelItem(0);
+            QTreeWidgetItem *pItem = pTree->topLevelItem(0);
             while (pItem && iCurrentIndex < iIndex)
             {
                 ++iCurrentIndex;
                 if (iCurrentIndex % iColumnCount == 0)
-                    pItem = tree()->itemBelow(pItem);
+                    pItem = pTree->itemBelow(pItem);
             }
 
             // Return what we found:
-            // if (pItem)
-            //     printf("Item found: [%s]\n", pItem->text(0).toUtf8().constData());
-            // else
-            //     printf("Item not found\n");
             return pItem ? QAccessible::queryAccessibleInterface(QITreeWidgetItem::toItem(pItem)) : 0;
         }
 
         /* Return the child with the passed iIndex: */
         //printf("iIndex = %d\n", iIndex);
-        return QAccessible::queryAccessibleInterface(tree()->childItem(iIndex));
+        return QAccessible::queryAccessibleInterface(pTree->childItem(iIndex));
     }
 
     /** Returns the index of the passed @a pChild. */
@@ -346,28 +344,28 @@ public:
     {
         /* Sanity check: */
         AssertPtrReturn(pChild, -1);
+        QITreeWidget *pTree = tree();
+        AssertPtrReturn(pTree, -1);
 
         /* Acquire child-item itself: */
         QITreeWidgetItem *pChildItem = qobject_cast<QITreeWidgetItem*>(pChild->object());
-
-        /* Sanity check: */
         AssertPtrReturn(pChildItem, -1);
-        AssertPtrReturn(tree(), -1);
 
         /* Return the index of child-item in parent-tree: */
-        return tree()->indexOfTopLevelItem(pChildItem);
+        return pTree->indexOfTopLevelItem(pChildItem);
     }
 
     /** Returns the state. */
     virtual QAccessible::State state() const RT_OVERRIDE
     {
         /* Sanity check: */
-        AssertPtrReturn(tree(), QAccessible::State());
+        QITreeWidget *pTree = tree();
+        AssertPtrReturn(pTree, QAccessible::State());
 
         /* Compose the state: */
         QAccessible::State myState;
         myState.focusable = true;
-        if (tree()->hasFocus())
+        if (pTree->hasFocus())
             myState.focused = true;
 
         /* Return the state: */
@@ -383,12 +381,13 @@ public:
             case QAccessible::Name:
             {
                 /* Sanity check: */
-                AssertPtrReturn(tree(), QString());
+                QITreeWidget *pTree = tree();
+                AssertPtrReturn(pTree, QString());
 
                 /* Gather suitable text: */
-                QString strText = tree()->toolTip();
+                QString strText = pTree->toolTip();
                 if (strText.isEmpty())
-                    strText = tree()->whatsThis();
+                    strText = pTree->whatsThis();
                 return strText;
             }
             default:
@@ -411,10 +410,12 @@ public:
     virtual QList<QAccessibleInterface*> selectedItems() const RT_OVERRIDE
     {
         /* Sanity check: */
-        AssertPtrReturn(tree(), QList<QAccessibleInterface*>());
+        QITreeWidget *pTree = tree();
+        AssertPtrReturn(pTree, QList<QAccessibleInterface*>());
 
         /* Get current item: */
-        QITreeWidgetItem *pCurrentItem = QITreeWidgetItem::toItem(tree()->currentItem());
+        QITreeWidgetItem *pCurrentItem = QITreeWidgetItem::toItem(pTree->currentItem());
+        AssertPtrReturn(pCurrentItem, QList<QAccessibleInterface*>());
 
         /* For now we are interested in just first one selected item: */
         return QList<QAccessibleInterface*>() << QAccessible::queryAccessibleInterface(pCurrentItem);
