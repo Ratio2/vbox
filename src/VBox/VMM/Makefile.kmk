@@ -233,7 +233,7 @@ VBoxVMM_SOURCES  = \
 	VMMAll/PGMAll.cpp \
 	VMMAll/PGMAllHandler.cpp \
 	VMMAll/PGMAllPhys.cpp \
-	VMMAll/SELMAll.cpp \
+	VMMAll/target-x86/SELMAll-x86.cpp \
 	VMMAll/EMAll.cpp \
 	VMMAll/GCMAll.cpp \
 	VMMAll/GIMAll.cpp \
@@ -1084,7 +1084,7 @@ if defined(VBOX_WITH_R0_MODULES) && !defined(VBOX_ONLY_BUILD)
   	VMMAll/PGMAllHandler.cpp \
   	VMMAll/PGMAllPhys.cpp \
   	VMMAll/PGMAllPool.cpp \
-  	VMMAll/SELMAll.cpp \
+  	VMMAll/target-x86/SELMAll-x86.cpp \
   	VMMAll/TMAll.cpp \
   	VMMAll/TMAllCpu.cpp \
   	VMMAll/TMAllReal.cpp \
