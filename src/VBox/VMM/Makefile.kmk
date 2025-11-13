@@ -109,7 +109,7 @@ endif
 VBoxVMM_SOURCES  = \
 	VBoxVMM.d \
 	VMMR3/VMMR3VTable.cpp \
-	VMMR3/APICR3.cpp \
+	VMMR3/target-x86/APICR3-x86.cpp \
 	VMMR3/CFGMR3.cpp \
 	VMMR3/CPUMR3.cpp \
 	VMMR3/target-x86/CPUMR3-x86.cpp \

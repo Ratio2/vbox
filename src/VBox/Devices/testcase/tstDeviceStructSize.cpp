@@ -83,7 +83,7 @@
 #undef LOG_GROUP
 #include "../PC/DevRTC.cpp"
 # undef LOG_GROUP
-# include "../../VMM/VMMR3/APIC.cpp"
+# include "../../VMM/VMMR3/target-x86/APICR3-x86.cpp"
 #undef LOG_GROUP
 #include "../PC/DevIoApic.cpp"
 #undef LOG_GROUP
