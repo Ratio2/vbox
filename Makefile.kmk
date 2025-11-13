@@ -615,10 +615,13 @@ VBOX_CORE_DOXYFILE_INPUT_DIRS = \
 	include/VBox/HGSMI \
 	src/VBox/VMM \
 	src/VBox/VMM/VMMR0 \
-	src/VBox/VMM/VMMRC \
+	src/VBox/VMM/VMMR0/target-x86 \
 	src/VBox/VMM/VMMR3 \
+	src/VBox/VMM/VMMR3/target-armv8 \
+	src/VBox/VMM/VMMR3/target-x86 \
 	src/VBox/VMM/VMMAll \
-	src/VBox/VMM/VMMSwitcher \
+	src/VBox/VMM/VMMAll/target-x86 \
+	src/VBox/VMM/VMMAll/target-armv8 \
 	src/VBox/VMM/include \
 	src/VBox/Debugger \
 	src/VBox/Devices \
