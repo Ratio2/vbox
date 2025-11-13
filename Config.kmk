@@ -1567,15 +1567,6 @@ ifdef VBOX_OSE
  ifn1of ($(KBUILD_TARGET), darwin linux solaris win)
   VBOX_WITH_INSTALLER =
  endif
- if1of ($(KBUILD_TARGET), win)
-  # Undefine codec libraries which are not needed.
-  VBOX_WITH_LIBVPX =
-  VBOX_WITH_LIBVORBIS =
-  VBOX_WITH_LIBOGG =
-  # Disable recording (with audio support).
-  VBOX_WITH_RECORDING =
-  VBOX_WITH_AUDIO_RECORDING =
- endif
  # branding
  VBOX_BRAND_LICENSE_HTML             := $(PATH_ROOT)/doc/License-gpl-3.0.html
  VBOX_BRAND_LICENSE_RTF              := $(PATH_ROOT)/doc/License-gpl-3.0.rtf
