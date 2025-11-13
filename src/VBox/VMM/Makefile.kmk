@@ -492,7 +492,7 @@ ifdef VBOX_WITH_VIRT_ARMV8
  	VMMR3/EMR3.cpp \
  	VMMR3/EMR3Dbg.cpp \
  	VMMR3/EMR3Nem.cpp \
- 	VMMR3/GICR3.cpp \
+ 	VMMR3/target-armv8/GICR3-armv8.cpp \
  	VMMR3/GIMR3.cpp \
  	VMMR3/IEMR3.cpp \
  	VMMR3/IOMR3.cpp \
@@ -552,7 +552,7 @@ ifdef VBOX_WITH_VIRT_ARMV8
  	VMMAll/PGMAllHandler.cpp \
  	VMMAll/PGMAllPhys.cpp \
  	VMMAll/EMAll.cpp \
- 	VMMAll/GICAll.cpp \
+ 	VMMAll/target-armv8/GICAll-armv8.cpp \
  	VMMAll/GITSAll.cpp \
  	VMMAll/GIMAll.cpp \
  	VMMAll/PMUAll.cpp \
@@ -603,18 +603,18 @@ ifdef VBOX_WITH_VIRT_ARMV8
 
  VBoxVMMArm_SOURCES.darwin.arm64 += \
  	VMMR3/target-armv8/NEMR3Native-darwin-armv8.cpp \
- 	VMMR3/GICR3Nem-darwin.cpp
+ 	VMMR3/target-armv8/GICR3Nem-darwin-armv8.cpp
  VBoxVMMArm_DEFS.darwin.arm64   += VBOX_WITH_NATIVE_NEM
  VBoxVMMArm_LDFLAGS.darwin.arm64 = -framework Hypervisor
 
  VBoxVMMArm_SOURCES.linux.arm64 += \
  	VMMR3/target-armv8/NEMR3Native-linux-armv8.cpp \
- 	VMMR3/GICR3Nem-linux.cpp
+ 	VMMR3/target-armv8/GICR3Nem-linux-armv8.cpp
  VBoxVMMArm_DEFS.linux.arm64    += VBOX_WITH_NATIVE_NEM
 
  VBoxVMMArm_SOURCES.win.arm64 += \
  	VMMR3/target-armv8/NEMR3Native-win-armv8.cpp \
- 	VMMR3/GICR3Nem-win.cpp
+ 	VMMR3/target-armv8/GICR3Nem-win-armv8.cpp
  VBoxVMMArm_DEFS.win.arm64   += VBOX_WITH_NATIVE_NEM
 
  VBoxVMMArm_LIBS = \
@@ -938,7 +938,7 @@ VMMStatic_SOURCES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH) = \
 	$(filter-out \
 		VMMR3/target-$(KBUILD_TARGET)/NEMR3Native-% \
 		VMMR3/target-$(KBUILD_TARGET)/NEMR3Native-% \
-		VMMR3/GICR3Nem-% \
+		VMMR3/target-armv8/GICR3Nem-% \
 		VMMR3/target-x86/APICR3Nem-% \
 		, $($(VMMStatic_EXTENDS)_SOURCES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)))
 
