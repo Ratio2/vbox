@@ -1638,6 +1638,8 @@ UINT __stdcall GetPlatformArchitecture(MSIHANDLE hModule)
 
     if (RT_SUCCESS(rc))
         logStringF(hModule, "GetPlatformArchitecture: Detected host architecture '%s'", pszArch);
+    else if (rc == VERR_NOT_SUPPORTED)
+        logStringF(hModule, "GetPlatformArchitecture: Host architecture not supported (%#x)", uNativeArch);
     else
         logStringF(hModule, "GetPlatformArchitecture: Error detecting host architecture: %Rrc", rc);
 
