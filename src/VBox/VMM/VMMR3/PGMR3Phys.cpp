@@ -78,25 +78,25 @@
 #define PGMPHYSFN_WRITENAME PGMR3PhysWriteU8
 #define PGMPHYS_DATASIZE    1
 #define PGMPHYS_DATATYPE    uint8_t
-#include "PGMPhysRWTmpl.h"
+#include "PGMR3PhysRWTmpl.h"
 
 #define PGMPHYSFN_READNAME  PGMR3PhysReadU16
 #define PGMPHYSFN_WRITENAME PGMR3PhysWriteU16
 #define PGMPHYS_DATASIZE    2
 #define PGMPHYS_DATATYPE    uint16_t
-#include "PGMPhysRWTmpl.h"
+#include "PGMR3PhysRWTmpl.h"
 
 #define PGMPHYSFN_READNAME  PGMR3PhysReadU32
 #define PGMPHYSFN_WRITENAME PGMR3PhysWriteU32
 #define PGMPHYS_DATASIZE    4
 #define PGMPHYS_DATATYPE    uint32_t
-#include "PGMPhysRWTmpl.h"
+#include "PGMR3PhysRWTmpl.h"
 
 #define PGMPHYSFN_READNAME  PGMR3PhysReadU64
 #define PGMPHYSFN_WRITENAME PGMR3PhysWriteU64
 #define PGMPHYS_DATASIZE    8
 #define PGMPHYS_DATATYPE    uint64_t
-#include "PGMPhysRWTmpl.h"
+#include "PGMR3PhysRWTmpl.h"
 
 
 /**
