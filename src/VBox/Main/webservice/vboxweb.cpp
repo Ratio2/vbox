@@ -913,7 +913,7 @@ static void doQueuesLoop()
     }
 #endif /* WITH_OPENSSL */
 
-    soap.accept_timeout = 15;
+    soap.accept_timeout = 1;
     soap.bind_flags |= SO_REUSEADDR;
             // avoid EADDRINUSE on bind()
 
