@@ -936,8 +936,8 @@ VMMStatic_SOURCES.$(KBUILD_TARGET_ARCH) = \
 		, $($(VMMStatic_EXTENDS)_SOURCES.$(KBUILD_TARGET_ARCH)))
 VMMStatic_SOURCES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH) = \
 	$(filter-out \
-		VMMR3/target-$(KBUILD_TARGET)/NEMR3Native-% \
-		VMMR3/target-$(KBUILD_TARGET)/NEMR3Native-% \
+		VMMR3/target-$(KBUILD_TARGET_ARCH)/NEMR3Native-% \
+		VMMR3/target-$(KBUILD_TARGET_ARCH)/NEMR3Native-% \
 		VMMR3/target-armv8/GICR3Nem-% \
 		VMMR3/target-x86/APICR3Nem-% \
 		, $($(VMMStatic_EXTENDS)_SOURCES.$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)))
@@ -1384,11 +1384,11 @@ IEMInternal.o IEMInternal.obj: IEMAll.o
 IEMAllCImplStrInstr-x86.cpp.o IEMAllCImplStrInstr-x86.cpp.obj: IEMAllCImpl-x86.o
 
 # Alias the NEM template to the objects where it is used:
-NEMAllNativeTemplate-win.cpp.o: NEMR3Native-win.o
+NEMAllNativeTemplate-win.cpp.o: NEMR3Native-win-x86.o
 
 # Alias the VMX template onto HMVMXR0 or darwin specific NEM object:
 ifeq ($(KBUILD_TARGET),darwin)
- VMXAllTemplate.cpp.o: NEMR3Native-darwin.o
+ VMXAllTemplate.cpp.o: NEMR3Native-darwin-x86.o
 else
  VMXAllTemplate.cpp.o: HMVMXR0.o
 endif
