@@ -493,6 +493,18 @@ NEM_TMPL_STATIC int nemHCWinCopyStateToHyperV(PVMCC pVM, PVMCPUCC pVCpu)
     AssertLogRelMsgFailed(("WHvSetVirtualProcessorRegisters(%p, %u,,%u,) -> %Rhrc (Last=%#x/%u)\n",
                            pVM->nem.s.hPartition, pVCpu->idCpu, iReg,
                            hrc, RTNtLastStatusValue(), RTNtLastErrorValue()));
+    /* Try to figure out the register causing the error. */
+    for (uint32_t i = 0; i < iReg; i++)
+    {
+        hrc = WHvSetVirtualProcessorRegisters(pVM->nem.s.hPartition, pVCpu->idCpu, &aenmNames[i], 1, &aValues[i]);
+        if (FAILED(hrc))
+        {
+            AssertLogRelMsgFailed(("WHvSetVirtualProcessorRegisters(%p, %u, %#RX64, 1, %#RX64) -> %Rhrc (Last=%#x/%u)\n",
+                                   pVM->nem.s.hPartition, pVCpu->idCpu, aenmNames[i], aValues[i].Reg64,
+                                   hrc, RTNtLastStatusValue(), RTNtLastErrorValue()));
+            break;
+        }
+    }
     return VERR_INTERNAL_ERROR;
 }
 
