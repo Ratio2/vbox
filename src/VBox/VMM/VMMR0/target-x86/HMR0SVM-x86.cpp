@@ -46,7 +46,7 @@
 #include "HMInternal.h"
 #include <VBox/vmm/vmcc.h>
 #include <VBox/err.h>
-#include "HMSVMR0.h"
+#include "HMR0SVM-x86.h"
 #include "dtrace/VBoxVMM.h"
 
 #ifdef DEBUG_ramshankar

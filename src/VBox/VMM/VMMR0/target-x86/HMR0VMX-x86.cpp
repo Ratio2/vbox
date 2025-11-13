@@ -49,7 +49,7 @@
 #include "HMInternal.h"
 #include <VBox/vmm/vmcc.h>
 #include <VBox/vmm/hmvmxinline.h>
-#include "HMVMXR0.h"
+#include "HMR0VMX-x86.h"
 #include "VMXInternal.h"
 #include "dtrace/VBoxVMM.h"
 

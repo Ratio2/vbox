@@ -25,8 +25,8 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-#ifndef VMM_INCLUDED_SRC_VMMR0_HMSVMR0_h
-#define VMM_INCLUDED_SRC_VMMR0_HMSVMR0_h
+#ifndef VMM_INCLUDED_SRC_VMMR0_target_x86_HMR0SVM_x86_h
+#define VMM_INCLUDED_SRC_VMMR0_target_x86_HMR0SVM_x86_h
 #ifndef RT_WITHOUT_PRAGMA_ONCE
 # pragma once
 #endif
@@ -77,5 +77,5 @@ DECLASM(void) SVMR0InvlpgA(RTGCPTR GCVirt, uint32_t u32ASID);
 
 RT_C_DECLS_END
 
-#endif /* !VMM_INCLUDED_SRC_VMMR0_HMSVMR0_h */
+#endif /* !VMM_INCLUDED_SRC_VMMR0_target_x86_HMR0SVM_x86_h */
 
