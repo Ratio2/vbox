@@ -79,9 +79,10 @@
 # include <iprt/asm-amd64-x86.h>
 #endif
 
-#if RTLNX_VER_MIN(6,16,0) && defined(CONFIG_MODULES) && defined(CONFIG_KVM_GENERIC_HARDWARE_ENABLING) && defined(VBOX_WITH_HOST_VMX)
+#if RTLNX_VER_MIN(6,16,0) && defined(CONFIG_MODULES) && defined(CONFIG_KVM_GENERIC_HARDWARE_ENABLING) && defined(CONFIG_KPROBES) && defined(VBOX_WITH_HOST_VMX)
 # if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86)
 #  include <linux/kvm_host.h>
+#  include <linux/kprobes.h>
 #  define SUPDRV_LINUX_HAS_KVM_HWVIRT_API
 # endif
 #endif
@@ -185,12 +186,12 @@ static SUPDRVDEVEXT         g_DevExt;
 #ifdef SUPDRV_LINUX_HAS_KVM_HWVIRT_API
 /** Whether we have called kvm_enable_virtualization(). */
 static bool                 g_fEnabledHwvirtUsingKvm;
-/** Whether we have found the addresses of KVM hardware-virtualization functions. */
-static bool                 g_fFoundKvmHwvirtSymbols;
 /** Function pointer to kvm_enable_virtualization(). */
 static int                  (*g_pfnKvmEnableVirtualization)(void);
 /** Function pointer to kvm_disable_virtualization(). */
 static void                 (*g_pfnKvmDisableVirtualization)(void);
+/** Pointer to the KVM hardware specific module. */
+struct module               *g_pKvmHwvirtModule;
 #endif
 
 /** Module parameter.
@@ -384,16 +385,62 @@ static bool supdrvLinuxIsKvmModLikelyLoaded(void)
  */
 static int supdrvLinuxInitKvmSymbols(void)
 {
+    /* __symbol_get() will bump the reference count for the owner of these functions. */
     void *pfnEnable = __symbol_get("kvm_enable_virtualization");
     if (pfnEnable)
     {
         void *pfnDisable = __symbol_get("kvm_disable_virtualization");
         if (pfnDisable)
         {
-            g_pfnKvmEnableVirtualization  = pfnEnable;
-            g_pfnKvmDisableVirtualization = pfnDisable;
-            g_fFoundKvmHwvirtSymbols      = true;
-            return VINF_SUCCESS;
+            /*
+             * Try to obtain a reference to kvm_intel/kvm_amd module in addition to the
+             * reference to the kvm module. If we fail, we will not try to use KVM for
+             * enabling/disable hardware-virtualization. This is due a a bug in the Linux
+             * kernel, see @bugref{10963}.
+             */
+            struct kprobe KernProbe;
+            RT_ZERO(KernProbe);
+            KernProbe.symbol_name = "find_module";
+            int const rc = register_kprobe(&KernProbe);
+            if (!rc)
+            {
+                if (RT_VALID_PTR(KernProbe.addr))
+                {
+                    struct module* (*pfnFindModule)(const char *) = (void *)(uintptr_t)KernProbe.addr;
+                    const char *pszModName = ASMIsIntelOrCompatibleCpu() ? "kvm_intel"
+                                           : ASMIsAmdOrCompatibleCpu()   ? "kvm_amd" : NULL;
+                    if (pszModName)
+                    {
+                        /*
+                         * When CET is enabled, the address obtained by kprobe may be offset by a
+                         * few bytes (endbr32/64). We disable CET prior to jumping into the function
+                         * as otherwise it would cause a \#GP fault. We deliberately do not use
+                         * supdrvOSChangeCR4() here as cr4_update_irqsoff() disallows modifying
+                         * 'pinned' bits.
+                         */
+                        RTTHREADPREEMPTSTATE Preempt = RTTHREADPREEMPTSTATE_INITIALIZER;
+                        RTThreadPreemptDisable(&Preempt);
+                        RTCCUINTREG const uOldCr4 = ASMGetCR4();
+                        if (uOldCr4 & X86_CR4_CET)
+                            ASMSetCR4(uOldCr4 & ~(RTCCUINTREG)X86_CR4_CET);
+                        struct module *pModule = pfnFindModule(pszModName);
+                        if (uOldCr4 & X86_CR4_CET)
+                            ASMSetCR4(uOldCr4);
+                        RTThreadPreemptRestore(&Preempt);
+                        if (   pModule
+                            && try_module_get(pModule))
+                        {
+                            g_pfnKvmEnableVirtualization  = pfnEnable;
+                            g_pfnKvmDisableVirtualization = pfnDisable;
+                            g_pKvmHwvirtModule            = pModule;
+                            unregister_kprobe(&KernProbe);
+                            return VINF_SUCCESS;
+                        }
+                    }
+                }
+                unregister_kprobe(&KernProbe);
+            }
+            symbol_put_addr(pfnDisable);
         }
         symbol_put_addr(pfnEnable);
     }
@@ -415,6 +462,11 @@ static void supdrvLinuxTermKvmSymbols(void)
     {
         symbol_put_addr(g_pfnKvmDisableVirtualization);
         g_pfnKvmDisableVirtualization = NULL;
+    }
+    if (g_pKvmHwvirtModule)
+    {
+        module_put(g_pKvmHwvirtModule);
+        g_pKvmHwvirtModule = NULL;
     }
 }
 #endif /* SUPDRV_LINUX_HAS_KVM_HWVIRT_API */
@@ -1743,12 +1795,10 @@ int VBOXCALL    supdrvOSMsrProberModify(RTCPUID idCpu, PSUPMSRPROBER pReq)
 int VBOXCALL supdrvOSEnableHwvirt(bool fEnable)
 {
 #ifdef SUPDRV_LINUX_HAS_KVM_HWVIRT_API
-    if (   g_fFoundKvmHwvirtSymbols
+    if (   g_pfnKvmEnableVirtualization
+        && g_pfnKvmDisableVirtualization
         && supdrvLinuxIsKvmModLikelyLoaded())
-    {
-        Assert(g_pfnKvmEnableVirtualization);
-        Assert(g_pfnKvmDisableVirtualization);
-    }
+    { /* likely */ }
     else
         return VERR_NOT_AVAILABLE;
 
