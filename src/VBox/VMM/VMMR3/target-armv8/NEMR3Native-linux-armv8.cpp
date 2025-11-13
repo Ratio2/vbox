@@ -322,7 +322,7 @@ static int nemR3LnxInitSetupVm(PVM pVM, PRTERRINFO pErrInfo);
 
 
 /* Instantiate the common bits we share with the x86 KVM backend. */
-#include "NEMR3NativeTemplate-linux.cpp.h"
+#include "../NEMR3NativeTemplate-linux.cpp.h"
 
 
 /**
