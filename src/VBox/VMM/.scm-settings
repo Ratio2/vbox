@@ -50,14 +50,14 @@
 /*.cpp: --only-guest-host-page
 /*.h:   --only-guest-host-page
 # Except in the pool where more care/work is needed.
-/VMMAll/PGMAllPool.cpp: --no-page-restrictions
-/VMMR3/PGMR3Pool.cpp:   --no-page-restrictions
-/testcase/tstVMStructSize.cpp:     --no-page-restrictions
+/VMMAll/target-x86/PGMAllPool-x86.cpp: --no-page-restrictions
+/VMMR3/target-x86/PGMR3Pool-x86.cpp:   --no-page-restrictions
+/testcase/tstVMStructSize.cpp:         --no-page-restrictions
 
 # Forbid ASMMemIsZeroPage and ASMMemZeroPage.
 /*.cpp: --no-ASMMemPage-use
 /*.h:   --no-ASMMemPage-use
 # Except in the pool where more care/work is needed.
-/VMMR3/PGMPool.cpp:     --unrestricted-ASMMemPage-use
-/VMMAll/PGMAllPool.cpp: --unrestricted-ASMMemPage-use
+/VMMR3/target-x86/PGMPool-x86.cpp:     --unrestricted-ASMMemPage-use
+/VMMAll/target-x86/PGMAllPool-x86.cpp: --unrestricted-ASMMemPage-use
 
