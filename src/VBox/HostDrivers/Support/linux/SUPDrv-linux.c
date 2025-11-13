@@ -413,10 +413,10 @@ static int supdrvLinuxInitKvmSymbols(void)
                     {
                         /*
                          * When CET is enabled, the address obtained by kprobe may be offset by a
-                         * few bytes (endbr32/64). We disable CET prior to jumping into the function
-                         * as otherwise it would cause a \#GP fault. We deliberately do not use
-                         * supdrvOSChangeCR4() here as cr4_update_irqsoff() disallows modifying
-                         * 'pinned' bits.
+                         * few bytes (endbr32/64 or a multi-byte NOP sequence). We disable CET prior
+                         * to jumping into the function, as otherwise it would cause a \#GP fault.
+                         * We deliberately do not usesupdrvOSChangeCR4() here as cr4_update_irqsoff()
+                         * disallows modifying 'pinned' bits.
                          */
                         RTTHREADPREEMPTSTATE Preempt = RTTHREADPREEMPTSTATE_INITIALIZER;
                         RTThreadPreemptDisable(&Preempt);
