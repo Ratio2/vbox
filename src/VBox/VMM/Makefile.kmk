@@ -177,7 +177,7 @@ VBoxVMM_SOURCES  = \
 	VMMR3/PGMR3Phys.cpp \
 	VMMR3/PGMR3SavedState.cpp \
 	VMMR3/PGMR3SharedPage.cpp \
-	VMMR3/SELMR3.cpp \
+	VMMR3/target-x86/SELMR3-x86.cpp \
 	VMMR3/SSMR3.cpp \
 	VMMR3/STAMR3.cpp \
 	VMMR3/TMR3.cpp \
@@ -519,7 +519,7 @@ ifdef VBOX_WITH_VIRT_ARMV8
  	VMMR3/PGMR3Phys.cpp \
  	VMMR3/PGMR3SavedState.cpp \
  	VMMR3/PGMR3SharedPage.cpp \
- 	VMMR3/PMUR3.cpp \
+ 	VMMR3/target-armv8/PMUR3-armv8.cpp \
  	VMMR3/SSMR3.cpp \
  	VMMR3/STAMR3.cpp \
  	VMMR3/TMR3.cpp \
