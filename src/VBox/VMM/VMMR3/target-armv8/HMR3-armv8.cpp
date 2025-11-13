@@ -274,38 +274,6 @@ VMMR3_INT_DECL(void) HMR3Reset(PVM pVM)
 
 
 /**
- * Enable patching in a VT-x/AMD-V guest
- *
- * @returns VBox status code.
- * @param   pVM         The cross context VM structure.
- * @param   pPatchMem   Patch memory range.
- * @param   cbPatchMem  Size of the memory range.
- */
-VMMR3_INT_DECL(int)  HMR3EnablePatching(PVM pVM, RTGCPTR pPatchMem, unsigned cbPatchMem)
-{
-    AssertReleaseFailed();
-    RT_NOREF(pVM, pPatchMem, cbPatchMem);
-    return VERR_NOT_SUPPORTED;
-}
-
-
-/**
- * Disable patching in a VT-x/AMD-V guest.
- *
- * @returns VBox status code.
- * @param   pVM         The cross context VM structure.
- * @param   pPatchMem   Patch memory range.
- * @param   cbPatchMem  Size of the memory range.
- */
-VMMR3_INT_DECL(int)  HMR3DisablePatching(PVM pVM, RTGCPTR pPatchMem, unsigned cbPatchMem)
-{
-    AssertReleaseFailed();
-    RT_NOREF(pVM, pPatchMem, cbPatchMem);
-    return VERR_NOT_SUPPORTED;
-}
-
-
-/**
  * Noticiation callback from DBGF when interrupt breakpoints or generic debug
  * event settings changes.
  *
@@ -526,17 +494,6 @@ VMMR3_INT_DECL(void) HMR3CheckError(PVM pVM, int iStatusCode)
 }
 
 
-/**
- * Checks whether HM (VT-x/AMD-V) is being used by this VM.
- *
- * @retval  true if used.
- * @retval  false if software virtualization (raw-mode) is used.
- * @param   pVM        The cross context VM structure.
- * @sa      HMIsEnabled, HMR3IsEnabled
- * @internal
- *
- * @note Doesn't belong here really but it doesn't make sense to create a new source file for a single function.
- */
 VMMDECL(bool) HMIsEnabledNotMacro(PVM pVM)
 {
     Assert(pVM->bMainExecutionEngine != VM_EXEC_ENGINE_NOT_SET);

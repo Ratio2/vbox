@@ -118,6 +118,16 @@ RT_C_DECLS_BEGIN
 
 /** @name All-context HM API.
  * @{ */
+/**
+ * Checks whether HM (VT-x/AMD-V) is being used by this VM.
+ *
+ * @retval  true if used.
+ * @retval  false if NEM or IEM is used.
+ * @param   pVM        The cross context VM structure.
+ * @sa      HMIsEnabled, HMR3IsEnabled
+ * @internal
+ * @note    Pointless on non-x86 atm, as it always returns false.
+ */
 VMMDECL(bool)                   HMIsEnabledNotMacro(PVM pVM);
 VMMDECL(bool)                   HMCanExecuteGuest(PVMCC pVM, PVMCPUCC pVCpu, PCCPUMCTX pCtx);
 VMM_INT_DECL(int)               HMInvalidatePage(PVMCPUCC pVCpu, RTGCPTR GCVirt);

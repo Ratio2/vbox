@@ -1454,9 +1454,12 @@ VMMR3_INT_DECL(void) VMMR3SendInitIpi(PVM pVM, VMCPUID idCpu)
 VMMR3DECL(int) VMMR3RegisterPatchMemory(PVM pVM, RTGCPTR pPatchMem, unsigned cbPatchMem)
 {
     VM_ASSERT_EMT(pVM);
+#ifdef VBOX_VMM_TARGET_X86
     if (HMIsEnabled(pVM))
         return HMR3EnablePatching(pVM, pPatchMem, cbPatchMem);
-
+#else
+    RT_NOREF(pVM, pPatchMem, cbPatchMem);
+#endif
     return VERR_NOT_SUPPORTED;
 }
 
@@ -1471,9 +1474,12 @@ VMMR3DECL(int) VMMR3RegisterPatchMemory(PVM pVM, RTGCPTR pPatchMem, unsigned cbP
  */
 VMMR3DECL(int) VMMR3DeregisterPatchMemory(PVM pVM, RTGCPTR pPatchMem, unsigned cbPatchMem)
 {
+#ifdef VBOX_VMM_TARGET_X86
     if (HMIsEnabled(pVM))
         return HMR3DisablePatching(pVM, pPatchMem, cbPatchMem);
-
+#else
+    RT_NOREF(pVM, pPatchMem, cbPatchMem);
+#endif
     return VINF_SUCCESS;
 }
 

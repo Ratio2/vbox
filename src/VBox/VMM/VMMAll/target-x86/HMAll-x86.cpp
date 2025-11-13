@@ -332,15 +332,6 @@ DECLINLINE(const char *) hmSvmGetSpecialExitReasonDesc(uint16_t uExit)
 #undef EXIT_REASON
 
 
-/**
- * Checks whether HM (VT-x/AMD-V) is being used by this VM.
- *
- * @retval  true if used.
- * @retval  false if software virtualization (raw-mode) is used.
- * @param   pVM        The cross context VM structure.
- * @sa      HMIsEnabled, HMR3IsEnabled
- * @internal
- */
 VMMDECL(bool) HMIsEnabledNotMacro(PVM pVM)
 {
     Assert(pVM->bMainExecutionEngine != VM_EXEC_ENGINE_NOT_SET);

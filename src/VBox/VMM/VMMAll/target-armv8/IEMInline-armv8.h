@@ -719,6 +719,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegFinishClearingFlags(PVMCPUCC pVCpu, int rc
  * below.
  *
  * @param   pVCpu               The cross context virtual CPU structure of the calling thread.
+ * @param   f32Bit              Set if it's a 32-bit wide instruction (default).
  * @param   rcNormal            VINF_SUCCESS to continue TB.
  *                              VINF_IEM_REEXEC_BREAK to force TB exit when
  *                              taking the wrong conditional branch.

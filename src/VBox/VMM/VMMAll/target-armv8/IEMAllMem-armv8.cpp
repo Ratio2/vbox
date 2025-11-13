@@ -592,7 +592,7 @@ VBOXSTRICTRC iemMemMap(PVMCPUCC pVCpu, void **ppvMem, uint8_t *pbUnmapInfo, size
  * @returns Pointer to the mapped memory.
  *
  * @param   pVCpu       The cross context virtual CPU structure of the calling thread.
- * @param   bUnmapInfo  Where to return unmap info to be passed to
+ * @param   pbUnmapInfo Where to return unmap info to be passed to
  *                      iemMemCommitAndUnmapJmp, iemMemCommitAndUnmapRwSafeJmp,
  *                      iemMemCommitAndUnmapWoSafeJmp,
  *                      iemMemCommitAndUnmapRoSafeJmp,
@@ -601,10 +601,6 @@ VBOXSTRICTRC iemMemMap(PVMCPUCC pVCpu, void **ppvMem, uint8_t *pbUnmapInfo, size
  * @param   cbMem       The number of bytes to map.  This is usually 1,
  *                      2, 4, 6, 8, 12, 16, 32 or 512.  When used by
  *                      string operations it can be up to a page.
- * @param   iSegReg     The index of the segment register to use for
- *                      this access.  The base and limits are checked.
- *                      Use UINT8_MAX to indicate that no segmentation
- *                      is required (for IDT, GDT and LDT accesses).
  * @param   GCPtrMem    The address of the guest memory.
  * @param   fAccess     How the memory is being accessed. The
  *                      IEM_ACCESS_TYPE_XXX part is used to figure out how to
@@ -618,7 +614,7 @@ VBOXSTRICTRC iemMemMap(PVMCPUCC pVCpu, void **ppvMem, uint8_t *pbUnmapInfo, size
  *                            IEM_MEMMAP_F_ALIGN_SSE, and
  *                            IEM_MEMMAP_F_ALIGN_GP_OR_AC.
  *                      Pass zero to skip alignment.
- * @tparam  a_fSafe     Whether this is a call from "safe" fallback function in
+ * @tparam  a_fSafeCall Whether this is a call from "safe" fallback function in
  *                      IEMAllMemRWTmpl.cpp.h (@c true) or a generic one that
  *                      needs counting as such in the statistics.
  */

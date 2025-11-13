@@ -660,7 +660,7 @@ VBOXSTRICTRC iemMemMap(PVMCPUCC pVCpu, void **ppvMem, uint8_t *pbUnmapInfo, size
  * @returns Pointer to the mapped memory.
  *
  * @param   pVCpu       The cross context virtual CPU structure of the calling thread.
- * @param   bUnmapInfo  Where to return unmap info to be passed to
+ * @param   pbUnmapInfo Where to return unmap info to be passed to
  *                      iemMemCommitAndUnmapJmp, iemMemCommitAndUnmapRwSafeJmp,
  *                      iemMemCommitAndUnmapWoSafeJmp,
  *                      iemMemCommitAndUnmapRoSafeJmp,
@@ -686,7 +686,7 @@ VBOXSTRICTRC iemMemMap(PVMCPUCC pVCpu, void **ppvMem, uint8_t *pbUnmapInfo, size
  *                            IEM_MEMMAP_F_ALIGN_SSE, and
  *                            IEM_MEMMAP_F_ALIGN_GP_OR_AC.
  *                      Pass zero to skip alignment.
- * @tparam  a_fSafe     Whether this is a call from "safe" fallback function in
+ * @tparam  a_fSafeCall Whether this is a call from "safe" fallback function in
  *                      IEMAllMemRWTmpl.cpp.h (@c true) or a generic one that
  *                      needs counting as such in the statistics.
  */
@@ -1358,7 +1358,6 @@ VBOXSTRICTRC iemMemStoreDataU128AlignedSse(PVMCPUCC pVCpu, uint8_t iSegReg, RTGC
 /**
  * Stores a data dqword, SSE aligned.
  *
- * @returns Strict VBox status code.
  * @param   pVCpu               The cross context virtual CPU structure of the calling thread.
  * @param   iSegReg             The index of the segment register to use for
  *                              this access.  The base and limits are checked.

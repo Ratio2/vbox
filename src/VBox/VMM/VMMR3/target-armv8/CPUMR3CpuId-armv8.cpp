@@ -107,6 +107,7 @@ static PSUPARMSYSREGVAL cpumCpuIdLookupIdReg(PSUPARMSYSREGVAL paIdRegs, uint32_t
  * Looks up @a idReg in the guest ID registers.
  *
  * @returns Pointer to matching ID register entry if found, NULL if not.
+ * @param   pVM         The cross context VM structure.
  * @param   idReg       The ID register to lookup.
  */
 static PSUPARMSYSREGVAL cpumR3CpuIdLookupGuestIdReg(PVM pVM, uint32_t idReg)
