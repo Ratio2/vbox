@@ -371,10 +371,10 @@ static RTEXITCODE ELFEDIT_NAME(Parse)(PELFEDITSTUBIMG pStubImg, RTFILE hFileElf)
     uint32_t idDynamic = UINT32_MAX;
     Elf_Shdr ShdrDyn; RT_ZERO(ShdrDyn);
     char *pachStrTab = NULL; size_t cbStrTab = 0;
-    Elf_Sym *paDynSyms = NULL; size_t cbDynSyms = 0; uint32_t u32DynSymInfo = 0;
+    Elf_Sym *paDynSyms = NULL; size_t cbDynSyms = 0;
     uint16_t *pu16GnuVerSym = NULL; size_t cbGnuVerSym = 0;
-    uint8_t *pbGnuVerDef = NULL; size_t cbGnuVerDef = 0; uint32_t cVerdefEntries = 0;
-    uint8_t *pbGnuVerNeed = NULL; size_t cbGnuVerNeed = 0; uint32_t cVerNeedEntries = 0;
+    uint8_t *pbGnuVerDef = NULL; size_t cbGnuVerDef = 0;
+    uint8_t *pbGnuVerNeed = NULL; size_t cbGnuVerNeed = 0;
 
     for (uint32_t i = 0; i < Hdr.e_shnum; i++)
     {
@@ -404,7 +404,6 @@ static RTEXITCODE ELFEDIT_NAME(Parse)(PELFEDITSTUBIMG pStubImg, RTFILE hFileElf)
             case SHT_DYNSYM:
             {
                 cbDynSyms = Shdr.sh_size;
-                u32DynSymInfo = Shdr.sh_info;
                 paDynSyms = (Elf_Sym *)RTMemAllocZ(cbDynSyms);
                 if (!paDynSyms)
                     return RTMsgErrorExit(RTEXITCODE_FAILURE, "Failed to allocate %zu bytes for .dynsym section\n", cbDynSyms);
@@ -438,7 +437,6 @@ static RTEXITCODE ELFEDIT_NAME(Parse)(PELFEDITSTUBIMG pStubImg, RTFILE hFileElf)
             {
                 cbGnuVerDef = Shdr.sh_size;
                 pbGnuVerDef = (uint8_t *)RTMemAllocZ(cbGnuVerDef);
-                cVerdefEntries = Shdr.sh_info;
                 if (!pbGnuVerDef)
                     return RTMsgErrorExit(RTEXITCODE_FAILURE, "Failed to allocate %zu bytes for .gnu.version_d section\n", cbGnuVerDef);
 
@@ -457,7 +455,6 @@ static RTEXITCODE ELFEDIT_NAME(Parse)(PELFEDITSTUBIMG pStubImg, RTFILE hFileElf)
             {
                 cbGnuVerNeed = Shdr.sh_size;
                 pbGnuVerNeed = (uint8_t *)RTMemAllocZ(cbGnuVerNeed);
-                cVerNeedEntries = Shdr.sh_info;
                 if (!pbGnuVerNeed)
                     return RTMsgErrorExit(RTEXITCODE_FAILURE, "Failed to allocate %zu bytes for .gnu.version_r section\n", cbGnuVerNeed);
 
