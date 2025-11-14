@@ -61,7 +61,7 @@
 #include <VBox/VBoxGuestLib.h>
 #include <VBox/HostServices/GuestPropertySvc.h> /* GUEST_PROP_MAX_NAME_LEN */
 #include "VBoxServiceInternal.h"
-#include "../../WINNT/VBoxTray/VBoxTrayMsg.h" /* For IPC. */
+#include "../../win/VBoxTray/VBoxTrayMsg.h" /* For IPC. */
 
 
 /*********************************************************************************************************************************

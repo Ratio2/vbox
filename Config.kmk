@@ -108,7 +108,7 @@ VBOX_PUEL_PRODUCT = $(VBOX_PRODUCT) Extension Pack
 #	debian/control
 #	src/VBox/Installer/linux/{debian,rpm}
 #	src/VBox/Installer/linux/virtualbox.desktop
-#	src/VBox/Additions/WINNT/Installer/ISO/ReadmeDrivers.txt
+#	src/VBox/Additions/win/Installer/ISO/ReadmeDrivers.txt
 #	src/VBox/Main/nls/*.ts
 #	src/VBox/ExtPacks/Puel/nls/*.ts
 # src/VBox/Frontends/VBoxManage/nls/*.ts
@@ -1317,7 +1317,7 @@ VBOX_BRAND_GUI_VBOX_64PX_PNG         := $(PATH_ROOT)/src/VBox/Frontends/VirtualB
 VBOX_BRAND_GUI_VBOX_SVG              := $(PATH_ROOT)/src/VBox/Artwork/NonOSE/virtualbox.svg
 VBOX_BRAND_WIN_INST_DLGJPG           := $(PATH_ROOT)/src/VBox/Installer/win/Binary/Dialog.jpg
 VBOX_BRAND_WIN_INST_EXT              :=
-VBOX_BRAND_WIN_ADD_INST_DLGBMP       := $(PATH_ROOT)/src/VBox/Additions/WINNT/Installer/welcome.bmp
+VBOX_BRAND_WIN_ADD_INST_DLGBMP       := $(PATH_ROOT)/src/VBox/Additions/win/Installer/welcome.bmp
 VBOX_BRAND_DARWIN_DISKIMAGE_DS_STORE := $(PATH_ROOT)/src/VBox/Installer/darwin/DiskImage/DS_Store
 VBOX_BRAND_DARWIN_DISKIMAGE_BG       := $(PATH_ROOT)/src/VBox/Installer/darwin/DiskImage/vbox_folder.tiff
 VBOX_BRAND_DARWIN_INSTALLER_BG       := $(PATH_ROOT)/src/VBox/Installer/darwin/VirtualBox_mpkg/background.tiff

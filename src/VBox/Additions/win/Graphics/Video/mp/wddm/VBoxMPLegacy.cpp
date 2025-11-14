@@ -41,7 +41,7 @@
 #include <VBox/VMMDev.h> /* for VMMDevVideoSetVisibleRegion */
 #include <VBoxVideo.h>
 #include <wingdi.h> /* needed for RGNDATA definition */
-#include <VBoxDisplay.h> /* this is from Additions/WINNT/include/ to include escape codes */
+#include <VBoxDisplay.h> /* this is from Additions/win/include/ to include escape codes */
 #include <VBoxVideoVBE.h>
 #include <VBox/Version.h>
 

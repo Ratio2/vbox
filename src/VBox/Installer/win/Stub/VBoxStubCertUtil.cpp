@@ -3,7 +3,7 @@
  * VBoxStub - VirtualBox's Windows installer stub (certificate manipulations).
  *
  * NOTE: The content of this file is partly
- *       grabbed from src/VBox/Additions/WINNT/tools/VBoxCertUtil.cpp
+ *       grabbed from src/VBox/Additions/win/tools/VBoxCertUtil.cpp
  */
 
 /*

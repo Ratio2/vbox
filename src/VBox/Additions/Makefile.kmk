@@ -78,7 +78,7 @@ ifeq ($(KBUILD_TARGET),win)
  ifdef VBOX_WITH_MESA3D
   include $(PATH_SUB_CURRENT)/3D/Makefile.kmk
  endif
- include $(PATH_SUB_CURRENT)/WINNT/Makefile.kmk
+ include $(PATH_SUB_CURRENT)/win/Makefile.kmk
 endif
 ifeq ($(KBUILD_TARGET),darwin)
  include $(PATH_SUB_CURRENT)/darwin/Makefile.kmk
@@ -318,9 +318,9 @@ ifdef VBOX_WITH_ADDITIONS_ISO.win.x86
  GUESTADDITIONS_FILESPEC.win.x86 = \
  	VBoxWindowsAdditions-x86.exe=$(VBOX_PATH_ADDITIONS.win.x86)/VBoxWindowsAdditions-x86.exe \
  	VBoxWindowsAdditions.exe=$(VBOX_PATH_ADDITIONS.win.x86)/VBoxWindowsAdditions.exe \
- 	AUTORUN.INF=$(VBOX_PATH_ADDITIONS_SRC)/WINNT/Installer/ISO/AUTORUN.INF \
+ 	AUTORUN.INF=$(VBOX_PATH_ADDITIONS_SRC)/win/Installer/ISO/AUTORUN.INF \
  	cert/VBoxCertUtil.exe=$(VBOX_PATH_ADDITIONS.win.x86)/VBoxCertUtil.exe \
- 	NT3x/Readme.txt=$(VBOX_PATH_ADDITIONS_SRC)/WINNT/Installer/ISO/NT3xReadme.txt \
+ 	NT3x/Readme.txt=$(VBOX_PATH_ADDITIONS_SRC)/win/Installer/ISO/NT3xReadme.txt \
  	NT3x/VBoxGuest.sys=$(VBOX_PATH_ADDITIONS.win.x86)/VBoxGuest.sys \
  	NT3x/VBoxMouseNT.sys=$(VBOX_PATH_ADDITIONS.win.x86)/VBoxMouseNT.sys \
  	NT3x/VBoxService.exe=$(VBOX_PATH_ADDITIONS.win.x86)/VBoxService.exe \
@@ -375,7 +375,7 @@ if defined(VBOX_WITH_ADDITIONS_ISO.win.amd64) || defined(VBOX_WITH_ADDITIONS_ISO
    	cert/vbox-sha256-r3-timestamp-root.cer=$(VBOX_PATH_ADDITIONS.win)/vbox-sha256-r3-timestamp-root.cer
   endif
  endif
- GUESTADDITIONS_FILESPEC.win += windows11-bypass.reg=$(VBOX_PATH_ADDITIONS_SRC)/WINNT/tools/windows11-bypass.reg
+ GUESTADDITIONS_FILESPEC.win += windows11-bypass.reg=$(VBOX_PATH_ADDITIONS_SRC)/win/tools/windows11-bypass.reg
 endif
 
 # haiku

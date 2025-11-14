@@ -54,7 +54,7 @@ VBoxGL_INCS     = \
 	$(VBOX_PATH_MESA)/src/gallium/frontends/wgl \
 	$(VBOX_PATH_MESA)/src/gallium/winsys/sw \
 	$(VBOX_PATH_MESA)/src/gallium/drivers \
-	$(PATH_ROOT)/src/VBox/Additions/WINNT/Graphics/Video \
+	$(PATH_ROOT)/src/VBox/Additions/win/Graphics/Video \
 	$(PATH_ROOT)/src/VBox/Runtime/common/table \
 	$(VBOX_PATH_VMSVGA_INC) \
 	$(VBOX_GRAPHICS_INCS)

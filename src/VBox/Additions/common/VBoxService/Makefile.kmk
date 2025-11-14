@@ -157,7 +157,7 @@ if1of ($(KBUILD_TARGET), win)
  VBoxService_INCS += \
  	$(PATH_ROOT)/src/VBox/Additions \
  	$(PATH_ROOT)/include/VBox/Graphics \
- 	$(PATH_ROOT)/src/VBox/Additions/WINNT/include
+ 	$(PATH_ROOT)/src/VBox/Additions/win/include
 endif
 
 ifdef VBOX_WITH_VBOXSERVICE_VMINFO
