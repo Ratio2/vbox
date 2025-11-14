@@ -420,7 +420,8 @@ static DECLCALLBACK(void) gcmR3PatchGuest(PVM pVM, GCMGSTPATCHID enmPatch)
          * Ensure that the state necessary for memory accesses is imported as we might
          * be called through an I/O port handler where this might not be the case.
          */
-        CPUM_IMPORT_EXTRN_RCSTRICT(VMMGetCpu(pVM),
+        PVMCPUCC pVCpu = VMMGetCpu(pVM);
+        CPUM_IMPORT_EXTRN_RCSTRICT(pVCpu,
                                      CPUMCTX_EXTRN_RIP
                                    | CPUMCTX_EXTRN_RFLAGS
                                    | CPUMCTX_EXTRN_SS   /* for CPL */
