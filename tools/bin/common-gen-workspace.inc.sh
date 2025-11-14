@@ -380,7 +380,6 @@ my_generate_all_projects()
     # src/VBox/RDP
     if test -z "$MY_OPT_MINIMAL"; then
         my_generate_project "RDP-Server"    "src/VBox/RDP/server"               --begin-incs "include" "src/VBox/RDP/server"                --end-includes "src/VBox/RDP/server"
-        my_generate_project "RDP-WebClient" "src/VBox/RDP/webclient"            --begin-incs "include" "src/VBox/RDP/webclient"             --end-includes "src/VBox/RDP/webclient"
         my_generate_project "RDP-Misc"      "src/VBox/RDP"                      --begin-incs "include"                                      --end-includes "src/VBox/RDP/auth" "src/VBox/RDP/tscpasswd" "src/VBox/RDP/x11server"
     fi
 
