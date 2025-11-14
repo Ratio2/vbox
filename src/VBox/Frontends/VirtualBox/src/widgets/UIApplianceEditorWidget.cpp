@@ -80,13 +80,13 @@ public:
     /** Appends the passed @a pChildItem to the item's list of children. */
     void appendChild(UIApplianceModelItem *pChildItem);
     /** Returns the child specified by the @a iIndex. */
-    virtual UIApplianceModelItem *childItem(int iIndex) const RT_OVERRIDE;
+    UIApplianceModelItem *childItem(int iIndex) const;
 
     /** Returns the row of the item in the parent. */
     int row() const;
 
     /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE;
+    int childCount() const;
     /** Returns the number of columns. */
     int columnCount() const { return 3; }
 

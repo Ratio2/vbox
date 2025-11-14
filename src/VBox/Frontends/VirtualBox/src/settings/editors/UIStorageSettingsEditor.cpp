@@ -239,11 +239,13 @@ public:
     virtual ItemType rtti() const = 0;
 
     /** Returns child item with specified @a iIndex. */
-    virtual AbstractItem *childItem(int iIndex) const RT_OVERRIDE = 0;
+    virtual AbstractItem *childItem(int iIndex) const = 0;
     /** Returns child item with specified @a uId. */
     virtual AbstractItem *childItemById(const QUuid &uId) const = 0;
     /** Returns position of specified child @a pItem. */
     virtual int posOfChild(AbstractItem *pItem) const = 0;
+    /** Returns the number of children. */
+    virtual int childCount() const = 0;
 
     /** Returns tool-tip information. */
     virtual QString toolTip() const = 0;

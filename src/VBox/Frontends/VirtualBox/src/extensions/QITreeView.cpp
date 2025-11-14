@@ -133,8 +133,8 @@ public:
 
             /* Push that top-most item's children to the stack in
              * reverse order to process them in the correct order afterwards: */
-            for (int i = pItemToEnumerate->childCount() - 1; i >= 0; --i)
-                itemsToEnumerate.push(pItemToEnumerate->childItem(i));
+            for (int i = pItemToEnumerate->count() - 1; i >= 0; --i)
+                itemsToEnumerate.push(pItemToEnumerate->child(i));
         }
 
         /* Get the local rect: */
@@ -154,38 +154,20 @@ public:
         /* Sanity check: */
         QITreeViewItem *pItem = item();
         AssertPtrReturn(pItem, 0);
-        QITreeView *pTree = pItem->parentTree();
-        AssertPtrReturn(pTree, 0);
-        QAbstractItemModel *pModel = pTree->model();
-        AssertPtrReturn(pModel, 0);
 
-        /* Return the number of children model has: */
-        return pModel->rowCount(pItem->modelIndex());
+        /* Return the number of children item has: */
+        return pItem->count();
     }
 
     /** Returns the child with the passed @a iIndex. */
     virtual QAccessibleInterface *child(int iIndex) const RT_OVERRIDE
     {
         /* Sanity check: */
-        AssertReturn(iIndex >= 0 && iIndex < childCount(), 0);
         QITreeViewItem *pItem = item();
         AssertPtrReturn(pItem, 0);
-        QITreeView *pTree = pItem->parentTree();
-        AssertPtrReturn(pTree, 0);
-        QAbstractItemModel *pModel = pTree->model();
-        AssertPtrReturn(pModel, 0);
 
-        /* Acquire parent model-index: */
-        const QModelIndex idxParent = pItem->modelIndex();
-        AssertReturn(idxParent.isValid(), 0);
-        /* Compose child model-index: */
-        const QModelIndex idxChild = pModel->index(iIndex, 0, idxParent);
-        AssertReturn(idxChild.isValid(), 0);
-        /* Acquire child item: */
-        QITreeViewItem *pChildItem = QITreeViewItem::toItem(idxChild);
-
-        /* Return child item's accessibility interface: */
-        return QAccessible::queryAccessibleInterface(pChildItem);
+        /* Return item's child accessibility interface: */
+        return QAccessible::queryAccessibleInterface(pItem->child(iIndex));
     }
 
     /** Returns the index of the passed @a pChild. */
@@ -321,11 +303,9 @@ public:
         /* Sanity check: */
         QITreeView *pTree = tree();
         AssertPtrReturn(pTree, 0);
-        QAbstractItemModel *pModel = pTree->model();
-        AssertPtrReturn(pModel, 0);
 
-        /* Return the number of children model has: */
-        return pModel->rowCount(pTree->rootIndex());
+        /* Return the number of children tree has: */
+        return pTree->count();
     }
 
     /** Returns the child with the passed @a iIndex. */
@@ -339,9 +319,6 @@ public:
         AssertPtrReturn(pTree, 0);
         QAbstractItemModel *pModel = pTree->model();
         AssertPtrReturn(pModel, 0);
-
-        /* Prepare child-index: */
-        QModelIndex idxChild;
 
         /* For Advanced interface enabled we have special processing: */
         if (isEnabled())
@@ -360,26 +337,21 @@ public:
             int iCurrentIndex = iColumnCount;
 
             // Search for sibling with corresponding index:
-            idxChild = pModel->index(0, 0, pTree->rootIndex());
+            QModelIndex idxChild = pModel->index(0, 0, pTree->rootIndex());
             while (idxChild.isValid() && iCurrentIndex < iIndex)
             {
                 ++iCurrentIndex;
                 if (iCurrentIndex % iColumnCount == 0)
                     idxChild = tree()->indexBelow(idxChild);
             }
-        }
-        else
-        {
-            //printf("Basic iIndex: %d\n", iIndex);
 
-            /* By default we'll just get top-level index of required row: */
-            idxChild = pModel->index(iIndex, 0, pTree->rootIndex());
+            // Return what we found:
+            return idxChild.isValid() ? QAccessible::queryAccessibleInterface(QITreeViewItem::toItem(idxChild)) : 0;
         }
 
-        /* Acquire child item: */
-        QITreeViewItem *pItem = QITreeViewItem::toItem(idxChild);
-        /* Return child item's accessibility interface: */
-        return QAccessible::queryAccessibleInterface(pItem);
+        /* Return the child with the passed iIndex: */
+        //printf("iIndex = %d\n", iIndex);
+        return QAccessible::queryAccessibleInterface(pTree->child(iIndex));
     }
 
     /** Returns the index of the passed @a pChild. */
@@ -520,6 +492,38 @@ QITreeViewItem *QITreeViewItem::toItem(const QModelIndex &idx)
     return reinterpret_cast<QITreeViewItem*>(idxSource.internalPointer());
 }
 
+int QITreeViewItem::count() const
+{
+    /* Sanity check: */
+    QITreeView *pTree = parentTree();
+    AssertPtrReturn(pTree, 0);
+    QAbstractItemModel *pModel = pTree->model();
+    AssertPtrReturn(pModel, 0);
+
+    /* Return the number of children model has for this item: */
+    return pModel->rowCount(modelIndex());
+}
+
+QITreeViewItem *QITreeViewItem::child(int iIndex) const
+{
+    /* Sanity check: */
+    AssertReturn(iIndex >= 0 && iIndex < count(), 0);
+    QITreeView *pTree = parentTree();
+    AssertPtrReturn(pTree, 0);
+    QAbstractItemModel *pModel = pTree->model();
+    AssertPtrReturn(pModel, 0);
+
+    /* Acquire parent model-index: */
+    const QModelIndex idxParent = modelIndex();
+    AssertReturn(idxParent.isValid(), 0);
+    /* Compose child model-index: */
+    const QModelIndex idxChild = pModel->index(iIndex, 0, idxParent);
+    AssertReturn(idxChild.isValid(), 0);
+
+    /* Return child-item: */
+    return QITreeViewItem::toItem(idxChild);
+}
+
 QRect QITreeViewItem::rect() const
 {
     /* We can only ask the parent-tree for a rectangle: */
@@ -604,6 +608,33 @@ QITreeView::QITreeView(QWidget *pParent)
     setHeaderHidden(true);
     /* Mark root hidden: */
     setRootIsDecorated(false);
+}
+
+int QITreeView::count() const
+{
+    /* Sanity check: */
+    QAbstractItemModel *pModel = model();
+    AssertPtrReturn(pModel, 0);
+
+    /* Return the number of children model has for root item: */
+    return pModel->rowCount(rootIndex());
+}
+
+QITreeViewItem *QITreeView::child(int iIndex) const
+{
+    /* Sanity check: */
+    AssertReturn(iIndex >= 0, 0);
+    if (count() == 0)
+        return 0;
+    QAbstractItemModel *pModel = model();
+    AssertPtrReturn(pModel, 0);
+
+    /* Compose child model-index: */
+    QModelIndex idxChild = pModel->index(iIndex, 0, rootIndex());
+    AssertReturn(idxChild.isValid(), 0);
+
+    /* Return tree child: */
+    return QITreeViewItem::toItem(idxChild);
 }
 
 QITreeViewItem *QITreeView::currentItem() const
