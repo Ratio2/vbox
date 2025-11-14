@@ -96,6 +96,7 @@ WITH_X11=1
 WITH_ALSA=1
 WITH_PULSE=1
 WITH_DBUS=1
+WITH_DXVK=1
 WITH_DEVMAPPER=1
 WITH_KMODS=1
 WITH_OPENGL=1
@@ -2172,6 +2173,20 @@ check_java()
 
 
 #
+# Check for stuff required for building DXVK
+#
+check_dxvk()
+{
+  test_header "DXVK support"
+  if ! which_wrapper glslangValidator > /dev/null; then
+    echo "  glslangValidator not found, automatically disabling DXVK support"
+    WITH_DXVK=0
+  else
+    log_success
+  fi
+}
+
+#
 # Setup wine
 #
 setup_wine()
@@ -2470,6 +2485,7 @@ EOF
 [ $WITH_ALSA    -eq 1 ] && echo "  --disable-alsa           disable the ALSA sound backend"
 [ $WITH_PULSE   -eq 1 ] && echo "  --disable-pulse          disable the PulseAudio backend"
 [ $WITH_DBUS    -eq 1 ] && echo "  --disable-dbus           don't use DBus and hal for hardware detection"
+[ $WITH_DXVK    -eq 1 ] && echo "  --disable-dxvk           don't use DXVK"
 [ $WITH_KMODS   -eq 1 ] && echo "  --disable-kmods          don't build Linux kernel modules (host and guest)"
 [ $WITH_OPENGL  -eq 1 ] && echo "  --disable-opengl         disable OpenGL support (2D & 3D)"
 [ $WITH_QT6     -eq 0 ] && echo "  --enable-qt6             enable Qt6 detection"
@@ -2565,6 +2581,7 @@ elif [ "$OS" = "haiku" ]; then
   WITH_ALSA=0
   WITH_PULSE=0
   WITH_DBUS=0
+  WITH_DXVK=0
   WITH_KMODS=0
   WITH_XPCOM=0
   BUILD_LIBXSLT=1
@@ -2685,6 +2702,9 @@ for option in "$@"; do
     --disable-dbus)
       [ $WITH_DBUS -eq 1 ] && WITH_DBUS=0
       ;;
+    --disable-dxvk)
+      [ $WITH_DXVK -eq 1 ] && WITH_DXVK=0
+      ;;      
     --disable-kmods)
       [ $WITH_KMODS -eq 1 ] && WITH_KMODS=0
       ;;
@@ -2977,6 +2997,7 @@ if [ $ONLY_ADDITIONS -eq 0 ]; then
   [ $WITH_QT6    -eq 1 ] && check_qt6
   [ $WITH_PYTHON -eq 1 ] && check_python
   [ $WITH_JAVA   -eq 1 ] && check_java
+  [ $WITH_DXVK   -eq 1 ] && check_dxvk
 
   # PulseAudio
   if [ $WITH_PULSE -eq 1 ]; then
@@ -3008,6 +3029,9 @@ if [ "$OS" = "linux" ]; then
     if [ $WITH_DBUS -eq 0 ]; then
       cnf_append "VBOX_WITH_DBUS" ""
     fi
+    if [ $WITH_DXVK -eq 0 ]; then
+      cnf_append "VBOX_WITH_DXVK" ""
+    fi    
     if [ $WITH_DEVMAPPER -eq 1 ]; then
       check_libdevmapper
     else
