@@ -1738,7 +1738,7 @@ extern "C" int main(void)
 }
 EOF
       [ -n "$INCVPX" ] && I_INCVPX=`prefix_I "$INCVPX"`
-      if test_compile "$LIBVPX $I_INCVPX" vpx vpx; then
+      if test_compile "$LIBVPX $I_INCVPX" vpx vpx nofatal; then
         if test_execute; then
           cnf_append "SDK_VBoxLibVpx_INCS" "$INCVPX"
           cnf_append "SDK_VBoxLibVpx_LIBS" "`strip_l "$LIBVPX"`"
