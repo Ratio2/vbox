@@ -3189,6 +3189,10 @@ vgaIoPortWriteVbeData(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32
 #ifdef VBE_BYTEWISE_IO
     if (cb == 1)
     {
+        // Any data register byte access clears index register flip-flops
+        pThis->fReadVBEIndex  = false;
+        pThis->fWriteVBEIndex = false;
+
         if (!pThis->fWriteVBEData)
         {
             if (    (pThis->vbe_index == VBE_DISPI_INDEX_ENABLE)
@@ -3204,7 +3208,9 @@ vgaIoPortWriteVbeData(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32
         }
 
         u32 = (pThis->cbWriteVBEData << 8) | (u32 & 0xFF);
+        // Clear both read and write flip-flops
         pThis->fWriteVBEData = false;
+        pThis->fReadVBEData  = false;
         cb = 2;
     }
 #endif
@@ -3227,12 +3233,18 @@ vgaIoPortWriteVbeIndex(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint3
 #ifdef VBE_BYTEWISE_IO
     if (cb == 1)
     {
+        // Any index register byte access clears data register flip-flops
+        pThis->fReadVBEData  = false;
+        pThis->fWriteVBEData = false;
+
         if (!pThis->fWriteVBEIndex)
         {
             pThis->cbWriteVBEIndex = u32 & 0x00FF;
             pThis->fWriteVBEIndex = true;
             return VINF_SUCCESS;
         }
+        // Clear both read and write flip-flops
+        pThis->fReadVBEIndex  = false;
         pThis->fWriteVBEIndex = false;
         vbe_ioport_write_index(pThis, offPort, (pThis->cbWriteVBEIndex << 8) | (u32 & 0x00FF));
         return VINF_SUCCESS;
@@ -3259,6 +3271,10 @@ vgaIoPortReadVbeData(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32_
 #ifdef VBE_BYTEWISE_IO
     if (cb == 1)
     {
+        // Any data register byte access clears index register flip-flops
+        pThis->fReadVBEIndex  = false;
+        pThis->fWriteVBEIndex = false;
+
         if (!pThis->fReadVBEData)
         {
             *pu32 = (vbe_ioport_read_data(pThis, offPort) >> 8) & 0xFF;
@@ -3266,7 +3282,9 @@ vgaIoPortReadVbeData(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32_
             return VINF_SUCCESS;
         }
         *pu32 = vbe_ioport_read_data(pThis, offPort) & 0xFF;
-        pThis->fReadVBEData = false;
+        // Clear both read and write flip-flops
+        pThis->fWriteVBEData = false;
+        pThis->fReadVBEData  = false;
         return VINF_SUCCESS;
     }
 #endif
@@ -3301,6 +3319,10 @@ vgaIoPortReadVbeIndex(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32
 #ifdef VBE_BYTEWISE_IO
     if (cb == 1)
     {
+        // Any index register byte access clears data register flip-flops
+        pThis->fReadVBEData  = false;
+        pThis->fWriteVBEData = false;
+
         if (!pThis->fReadVBEIndex)
         {
             *pu32 = (vbe_ioport_read_index(pThis, offPort) >> 8) & 0xFF;
@@ -3308,7 +3330,9 @@ vgaIoPortReadVbeIndex(PPDMDEVINS pDevIns, void *pvUser, RTIOPORT offPort, uint32
             return VINF_SUCCESS;
         }
         *pu32 = vbe_ioport_read_index(pThis, offPort) & 0xFF;
-        pThis->fReadVBEIndex = false;
+        // Clear both read and write flip-flops
+        pThis->fReadVBEIndex  = false;
+        pThis->fWriteVBEIndex = false;
         return VINF_SUCCESS;
     }
 #endif
@@ -4736,6 +4760,7 @@ static DECLCALLBACK(void) vgaR3InfoVBE(PPDMDEVINS pDevIns, PCDBGFINFOHLP pHlp, c
     NOREF(pszArgs);
 
     pHlp->pfnPrintf(pHlp, "LFB at %RGp\n", pThis->GCPhysVRAM);
+    pHlp->pfnPrintf(pHlp, "VBE index register: 0x%04x\n", pThis->vbe_index);
     if (!(pThis->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED))
         pHlp->pfnPrintf(pHlp, "VBE disabled\n");
     else
@@ -4753,6 +4778,12 @@ static DECLCALLBACK(void) vgaR3InfoVBE(PPDMDEVINS pDevIns, PCDBGFINFOHLP pHlp, c
         pHlp->pfnPrintf(pHlp, " Selected bank: 0x%04x\n", pThis->vbe_regs[VBE_DISPI_INDEX_BANK]);
         pHlp->pfnPrintf(pHlp, " DAC: %d-bit\n", pThis->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_8BIT_DAC ? 8 : 6);
     }
+#ifdef VBE_BYTEWISE_IO
+    if (pThis->fReadVBEIndex || pThis->fWriteVBEIndex)
+        pHlp->pfnPrintf(pHlp, "VBE index flip-flops: read=%d, write=%d\n", pThis->fReadVBEIndex, pThis->fWriteVBEIndex);
+    if (pThis->fReadVBEData || pThis->fWriteVBEData)
+        pHlp->pfnPrintf(pHlp, "VBE data  flip-flops: read=%d, write=%d\n", pThis->fReadVBEData, pThis->fWriteVBEData);
+#endif
 }
 
 
