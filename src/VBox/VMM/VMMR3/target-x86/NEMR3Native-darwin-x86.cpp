@@ -308,7 +308,7 @@ typedef hv_return_t FN_HV_VCPU_SET_MSR_ACCESS(hv_vcpuid_t vcpu, uint32_t msr, hv
 static void nemR3DarwinVmcsDump(PVMCPU pVCpu);
 
 /** NEM_DARWIN_PAGE_STATE_XXX names. */
-NEM_TMPL_STATIC const char * const g_apszPageStates[4] = { "not-set", "unmapped", "readable", "writable" };
+static const char * const g_apszPageStates[4] = { "not-set", "unmapped", "readable", "writable" };
 /** MSRs. */
 static SUPHWVIRTMSRS    g_HmMsrs;
 /** VMX: Set if swapping EFER is supported.  */

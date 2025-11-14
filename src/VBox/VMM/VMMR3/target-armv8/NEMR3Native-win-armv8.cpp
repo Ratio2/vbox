@@ -1648,7 +1648,7 @@ DECLHIDDEN(void) nemR3NativeResetCpu(PVMCPU pVCpu, bool fInitIpi)
 }
 
 
-NEM_TMPL_STATIC int nemHCWinCopyStateToHyperV(PVMCC pVM, PVMCPUCC pVCpu)
+static int nemR3WinCopyStateToHyperV(PVMCC pVM, PVMCPUCC pVCpu)
 {
     WHV_REGISTER_NAME  aenmNames[128];
     WHV_REGISTER_VALUE aValues[128];
@@ -1794,7 +1794,7 @@ NEM_TMPL_STATIC int nemHCWinCopyStateToHyperV(PVMCC pVM, PVMCPUCC pVCpu)
 }
 
 
-NEM_TMPL_STATIC int nemHCWinCopyStateFromHyperV(PVMCC pVM, PVMCPUCC pVCpu, uint64_t fWhat)
+static int nemR3WinCopyStateFromHyperV(PVMCC pVM, PVMCPUCC pVCpu, uint64_t fWhat)
 {
     WHV_REGISTER_NAME  aenmNames[256];
 
@@ -2012,7 +2012,7 @@ NEM_TMPL_STATIC int nemHCWinCopyStateFromHyperV(PVMCC pVM, PVMCPUCC pVCpu, uint6
 VMM_INT_DECL(int) NEMImportStateOnDemand(PVMCPUCC pVCpu, uint64_t fWhat)
 {
     STAM_REL_COUNTER_INC(&pVCpu->nem.s.StatImportOnDemand);
-    return nemHCWinCopyStateFromHyperV(pVCpu->pVMR3, pVCpu, fWhat);
+    return nemR3WinCopyStateFromHyperV(pVCpu->pVMR3, pVCpu, fWhat);
 }
 
 
@@ -2260,9 +2260,8 @@ DECLINLINE(uint64_t) nemR3WinGetGReg(PVMCPU pVCpu, uint8_t uReg)
  * @param   fUnmappedExit   Set if WHvRunVpExitReasonUnmappedGpa,
  *                          clear if WHvRunVpExitReasonGpaIntercept.
  * @param   uTscExit        The host TSC value at the exit.
- * @sa      nemHCWinHandleMessageMemory
  */
-NEM_TMPL_STATIC VBOXSTRICTRC
+static VBOXSTRICTRC
 nemR3WinHandleExitMemory(PVMCC pVM, PVMCPUCC pVCpu, MY_WHV_RUN_VP_EXIT_CONTEXT const *pExit, bool fUnmappedExit, uint64_t uTscExit)
 {
     Assert(pExit->MemoryAccess.Header.InterceptAccessType != 3);
@@ -2299,7 +2298,7 @@ nemR3WinHandleExitMemory(PVMCC pVM, PVMCPUCC pVCpu, MY_WHV_RUN_VP_EXIT_CONTEXT c
                      fUnmappedExit ? "Unmapped" : "Intercept", pExit->MemoryAccess.Gva, GCPhys, pExit->MemoryAccess.Header.Pc,
                      cbInstr, uIss, fL2Fault, fWrite, f64BitReg, fSignExtend, uReg, uAcc));
 
-        int rc = nemHCWinCopyStateFromHyperV(pVM, pVCpu, CPUMCTX_EXTRN_GPRS_MASK | CPUMCTX_EXTRN_PC);
+        int rc = nemR3WinCopyStateFromHyperV(pVM, pVCpu, CPUMCTX_EXTRN_GPRS_MASK | CPUMCTX_EXTRN_PC);
         AssertRCReturn(rc, rc);
 
         uint64_t u64Val = 0;
@@ -2337,7 +2336,7 @@ nemR3WinHandleExitMemory(PVMCC pVM, PVMCPUCC pVCpu, MY_WHV_RUN_VP_EXIT_CONTEXT c
         else
             STAM_REL_COUNTER_INC(&pVCpu->nem.s.StatExitMemInterceptToIem);
 
-        int rc = nemHCWinCopyStateFromHyperV(pVM, pVCpu, IEM_CPUMCTX_EXTRN_MUST_MASK);
+        int rc = nemR3WinCopyStateFromHyperV(pVM, pVCpu, IEM_CPUMCTX_EXTRN_MUST_MASK);
         AssertRCReturn(rc, rc);
 
 #ifdef VBOX_WITH_IEM_TARGETING_ARM
@@ -2441,9 +2440,8 @@ nemR3WinHandleExitMemory(PVMCC pVM, PVMCPUCC pVCpu, MY_WHV_RUN_VP_EXIT_CONTEXT c
  * @param   pVCpu           The cross context per CPU structure.
  * @param   pExit           The VM exit information to handle.
  * @param   uTscExit        The host TSC value at the exit.
- * @sa      nemHCWinHandleMessageMemory
  */
-NEM_TMPL_STATIC VBOXSTRICTRC
+static VBOXSTRICTRC
 nemR3WinHandleExitHypercall(PVMCC pVM, PVMCPUCC pVCpu, MY_WHV_RUN_VP_EXIT_CONTEXT const *pExit, uint64_t uTscExit)
 {
     EMHistoryAddExit(pVCpu, EMEXIT_MAKE_FT_EX(EMEXIT_F_KIND_EM, EMEXITTYPE_A64_HVC, pExit->Hypercall.Immediate),
@@ -2474,7 +2472,7 @@ nemR3WinHandleExitHypercall(PVMCC pVM, PVMCPUCC pVCpu, MY_WHV_RUN_VP_EXIT_CONTEX
                 int rc = CFGMR3QueryBool(CFGMR3GetChild(CFGMR3GetRoot(pVM), "PDM"), "HaltOnReset", &fHaltOnReset);
                 if (RT_SUCCESS(rc) && fHaltOnReset)
                 {
-                    Log(("nemHCLnxHandleExitHypercall: Halt On Reset!\n"));
+                    Log(("nemR3WinHandleExitHypercall: Halt On Reset!\n"));
                     rcStrict = VINF_EM_HALT;
                 }
                 else
@@ -2540,9 +2538,8 @@ nemR3WinHandleExitHypercall(PVMCC pVM, PVMCPUCC pVCpu, MY_WHV_RUN_VP_EXIT_CONTEX
  * @param   pVCpu           The cross context per CPU structure.
  * @param   pExit           The VM exit information to handle.
  * @param   uTscExit        The host TSC value at the exit.
- * @sa      nemHCWinHandleMessageUnrecoverableException
  */
-NEM_TMPL_STATIC VBOXSTRICTRC
+static VBOXSTRICTRC
 nemR3WinHandleExitUnrecoverableException(PVMCC pVM, PVMCPUCC pVCpu, MY_WHV_RUN_VP_EXIT_CONTEXT const *pExit, uint64_t uTscExit)
 {
 #if 0
@@ -2576,15 +2573,13 @@ nemR3WinHandleExitUnrecoverableException(PVMCC pVM, PVMCPUCC pVCpu, MY_WHV_RUN_V
  * @param   pVCpu           The cross context per CPU structure.
  * @param   pExit           The VM exit information to handle.
  * @param   uTscExit        The host TSC value at the exit.
- * @sa      nemHCWinHandleMessage
  */
-NEM_TMPL_STATIC VBOXSTRICTRC nemR3WinHandleExit(PVMCC pVM, PVMCPUCC pVCpu, MY_WHV_RUN_VP_EXIT_CONTEXT const *pExit,
-                                                uint64_t uTscExit)
+static VBOXSTRICTRC nemR3WinHandleExit(PVMCC pVM, PVMCPUCC pVCpu, MY_WHV_RUN_VP_EXIT_CONTEXT const *pExit, uint64_t uTscExit)
 {
 #ifdef LOG_ENABLED
     if (LogIs3Enabled())
     {
-        int rc = nemHCWinCopyStateFromHyperV(pVM, pVCpu, CPUMCTX_EXTRN_ALL);
+        int rc = nemR3WinCopyStateFromHyperV(pVM, pVCpu, CPUMCTX_EXTRN_ALL);
         AssertRCReturn(rc, rc);
 
         nemR3WinLogState(pVM, pVCpu);
@@ -2705,7 +2700,7 @@ VMMR3_INT_DECL(VBOXSTRICTRC) NEMR3RunGC(PVM pVM, PVMCPU pVCpu)
             if (VMCPU_CMPXCHG_STATE(pVCpu, VMCPUSTATE_STARTED_EXEC_NEM_WAIT, VMCPUSTATE_STARTED_EXEC_NEM))
             {
                 /* Ensure that Hyper-V has the whole state. */
-                int rc2 = nemHCWinCopyStateToHyperV(pVM, pVCpu);
+                int rc2 = nemR3WinCopyStateToHyperV(pVM, pVCpu);
                 AssertRCReturn(rc2, rc2);
 
 #ifdef LOG_ENABLED
@@ -2815,7 +2810,7 @@ VMMR3_INT_DECL(VBOXSTRICTRC) NEMR3RunGC(PVM pVM, PVMCPU pVCpu)
 
         if (pVCpu->cpum.GstCtx.fExtrn & fImport)
         {
-            int rc2 = nemHCWinCopyStateFromHyperV(pVM, pVCpu, fImport);
+            int rc2 = nemR3WinCopyStateFromHyperV(pVM, pVCpu, fImport);
             if (RT_SUCCESS(rc2))
                 pVCpu->cpum.GstCtx.fExtrn &= ~fImport;
             else if (RT_SUCCESS(rcStrict))

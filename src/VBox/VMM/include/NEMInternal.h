@@ -156,15 +156,7 @@ typedef struct
 typedef NEMHVMMIO2REGION *PNEMHVMMIO2REGION;
 # endif
 
-#endif
-
-
-/** Trick to make slickedit see the static functions in the template. */
-#ifndef IN_SLICKEDIT
-# define NEM_TMPL_STATIC static
-#else
-# define NEM_TMPL_STATIC
-#endif
+#endif /* RT_OS_DARWIN && VBOX_WITH_NATIVE_NEM */
 
 
 /**
