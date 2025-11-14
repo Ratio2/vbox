@@ -354,11 +354,14 @@ DECLINLINE(RTUID) vboxdrvLinuxEuid(void)
 
 #ifdef SUPDRV_LINUX_HAS_KVM_HWVIRT_API
 /**
- * This is a hack/workaround that attempts to detect whether the kvm_intel/kvm_amd
- * module is likely to be loaded. See @bugref{10963#c14} for details.
+ * This is a hack/workaround that attempts to detect whether
+ * kvm_enable_virtualization() is likely to have been called. See
+ * @bugref{10963#c14} for details.
  */
-static bool supdrvLinuxIsKvmModLikelyLoaded(void)
+static bool supdrvLinuxIsKvmVirtEnabledLikelyCalled(void)
 {
+    /** @todo Try get address of kvm_usage_count and its mutex via kallsyms_lookup_name()
+      *       which in turn should be looked up by a kprobe. */
     /*
      * We don't disable preemption/interrupts here because we assume all CPUs will have
      * the relevant bits identical in CR4 and EFER.
@@ -1797,7 +1800,7 @@ int VBOXCALL supdrvOSEnableHwvirt(bool fEnable)
 #ifdef SUPDRV_LINUX_HAS_KVM_HWVIRT_API
     if (   g_pfnKvmEnableVirtualization
         && g_pfnKvmDisableVirtualization
-        && supdrvLinuxIsKvmModLikelyLoaded())
+        && supdrvLinuxIsKvmVirtEnabledLikelyCalled())
     { /* likely */ }
     else
         return VERR_NOT_AVAILABLE;
