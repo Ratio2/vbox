@@ -54,17 +54,17 @@ public:
     /** Constructs top-level summary tree-widget item.
       * @param  pParentTree  Brings the reference to parent tree-widget.
       * @param  strName      Brings the item's name.
-      * @param  data         Brings the item's data.
+      * @param  value        Brings the item's value.
       * @param  icon         Brings the item's icon. */
     UIWizardNewVMSummaryItem(QITreeWidget *pParentTree, const QString &strName,
-                             const QVariant &data = QVariant(), const QIcon &icon = QIcon());
+                             const QVariant &value = QVariant(), const QIcon &icon = QIcon());
     /** Constructs child-level summary tree-widget item.
       * @param  pParentItem  Brings the reference to parent tree-widget item.
       * @param  strName      Brings the item's name.
-      * @param  data         Brings the item's data.
+      * @param  value        Brings the item's value.
       * @param  icon         Brings the item's icon. */
     UIWizardNewVMSummaryItem(UIWizardNewVMSummaryItem *pParentItem, const QString &strName,
-                             const QVariant &data = QVariant(), const QIcon &icon = QIcon());
+                             const QVariant &value = QVariant(), const QIcon &icon = QIcon());
 
 protected:
 
@@ -75,8 +75,8 @@ private:
 
     /** Returns the item's name. */
     const QString &name() const { return m_strName; }
-    /** Returns the item's data. */
-    const QVariant &value() const { return m_data; }
+    /** Returns the item's value. */
+    const QVariant &value() const { return m_value; }
     /** Returns the item's icon. */
     const QIcon &icon() const { return m_icon; }
 
@@ -85,8 +85,8 @@ private:
 
     /** Holds the item's name. */
     QString   m_strName;
-    /** Holds the item's data. */
-    QVariant  m_data;
+    /** Holds the item's value. */
+    QVariant  m_value;
     /** Holds the item's icon. */
     QIcon     m_icon;
 };
@@ -97,20 +97,20 @@ private:
 *********************************************************************************************************************************/
 
 UIWizardNewVMSummaryItem::UIWizardNewVMSummaryItem(QITreeWidget *pParentTree, const QString &strName,
-                                                   const QVariant &data /* = QVariant() */, const QIcon &icon /* = QIcon() */)
+                                                   const QVariant &value /* = QVariant() */, const QIcon &icon /* = QIcon() */)
     : QITreeWidgetItem(pParentTree)
     , m_strName(strName)
-    , m_data(data)
+    , m_value(value)
     , m_icon(icon)
 {
     prepare();
 }
 
 UIWizardNewVMSummaryItem::UIWizardNewVMSummaryItem(UIWizardNewVMSummaryItem *pParentItem, const QString &strName,
-                                                   const QVariant &data /* = QVariant() */, const QIcon &icon /* = QIcon() */)
+                                                   const QVariant &value /* = QVariant() */, const QIcon &icon /* = QIcon() */)
     : QITreeWidgetItem(pParentItem)
     , m_strName(strName)
-    , m_data(data)
+    , m_value(value)
     , m_icon(icon)
 {
     prepare();
