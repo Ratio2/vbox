@@ -36,34 +36,43 @@
 
 /* Forward declarations: */
 class QIRichTextLabel;
-class QITreeView;
-class UIWizardNewVMSummaryModel;
+class QITreeWidget;
 
+/** UINativeWizardPage extension for summary page of New VM wizard. */
 class UIWizardNewVMSummaryPage : public UINativeWizardPage
 {
     Q_OBJECT;
 
 public:
 
+    /** Constructs summary page.
+      * @param  strHelpKeyword  Brings the Help context keyword. */
     UIWizardNewVMSummaryPage(const QString strHelpKeyword = QString());
 
-private slots:
+protected slots:
 
+    /** Handles translation event. */
     virtual void sltRetranslateUI() RT_OVERRIDE RT_FINAL;
+
+protected:
+
+    /** Handles the page initialization. */
+    virtual void initializePage() RT_OVERRIDE RT_FINAL;
+    /** Tests the page for validity, tranfers to the Next page is Ok.
+      * @returns whether page state to go to next page is bearable. */
+    virtual bool validatePage() RT_OVERRIDE RT_FINAL;
 
 private:
 
+    /** Prepares everything. */
     void prepare();
-    void createConnections();
-    virtual void initializePage() RT_OVERRIDE RT_FINAL;
-    virtual bool isComplete() const RT_OVERRIDE RT_FINAL;
-    virtual bool validatePage() RT_OVERRIDE RT_FINAL;
-    /** @name Widgets
-     * @{ */
-       QIRichTextLabel *m_pLabel;
-       QITreeView *m_pTree;
-    /** @} */
-    UIWizardNewVMSummaryModel *m_pModel;
+    /** Populates data. */
+    void populateData();
+
+    /** Holds the label instance. */
+    QIRichTextLabel *m_pLabel;
+    /** Holds the tree instance. */
+    QITreeWidget    *m_pTree;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_wizards_newvm_UIWizardNewVMSummaryPage_h */
