@@ -382,29 +382,6 @@ AssertCompile(PGM_MAX_PAGES_PER_ROM_RANGE <= PGM_MAX_PAGES_PER_RAM_RANGE);
 #define PGM_GCPHYS_2_PTR_EX(pVM, GCPhys, ppv) \
     pgmPhysGCPhys2R3Ptr(pVM, GCPhys, (PRTR3PTR)(ppv)) /** @todo this isn't asserting! */
 
-/** @def PGM_DYNMAP_UNUSED_HINT
- * Hints to the dynamic mapping code in RC and R0/darwin that the specified page
- * is no longer used.
- *
- * For best effect only apply this to the page that was mapped most recently.
- *
- * @param   pVCpu   The cross context virtual CPU structure of the calling EMT.
- * @param   pvPage  The pool page.
- */
-#define PGM_DYNMAP_UNUSED_HINT(pVCpu, pvPage)  do {} while (0)
-
-/** @def PGM_DYNMAP_UNUSED_HINT_VM
- * Hints to the dynamic mapping code in RC and R0/darwin that the specified page
- * is no longer used.
- *
- * For best effect only apply this to the page that was mapped most recently.
- *
- * @param   pVM     The cross context VM structure.
- * @param   pvPage  The pool page.
- */
-#define PGM_DYNMAP_UNUSED_HINT_VM(pVM, pvPage)  PGM_DYNMAP_UNUSED_HINT(VMMGetCpu(pVM), pvPage)
-
-
 /** @def PGM_INVL_PG
  * Invalidates a page.
  *

@@ -1457,7 +1457,6 @@ int pgmShwSyncPaePDPtr(PVMCPUCC pVCpu, RTGCPTR GCPtr, X86PGPAEUINT uGstPdpe, PX8
         /* Hook it up. */
         ASMAtomicWriteU64(&pPdpe->u, pShwPage->Core.Key | (uGstPdpe & (X86_PDPE_P | X86_PDPE_A)) | (uPdpe & PGM_PDPT_FLAGS));
     }
-    PGM_DYNMAP_UNUSED_HINT(pVCpu, pPdpe);
 
     *ppPD = (PX86PDPAE)PGMPOOL_PAGE_2_PTR_V2(pVM, pVCpu, pShwPage);
     return VINF_SUCCESS;

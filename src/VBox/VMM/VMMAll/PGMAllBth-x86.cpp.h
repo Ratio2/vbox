@@ -2420,7 +2420,6 @@ static int PGM_BTH_NAME(SyncPage)(PVMCPUCC pVCpu, GSTPDE PdeSrc, RTGCPTR GCPtrPa
                      *        case. */
                 }
             }
-            PGM_DYNMAP_UNUSED_HINT(pVCpu, pPdeDst);
             return VINF_SUCCESS;
         }
 
@@ -2446,7 +2445,6 @@ static int PGM_BTH_NAME(SyncPage)(PVMCPUCC pVCpu, GSTPDE PdeSrc, RTGCPTR GCPtrPa
     pgmPoolFreeByPage(pPool, pShwPage, pShwPde->idx, iPDDst);
     SHW_PDE_ATOMIC_SET(*pPdeDst, 0);
 
-    PGM_DYNMAP_UNUSED_HINT(pVCpu, pPdeDst);
     PGM_INVL_VCPU_TLBS(pVCpu);
     return VINF_PGM_SYNCPAGE_MODIFIED_PDE;
 
@@ -3532,7 +3530,6 @@ static int PGM_BTH_NAME(SyncPT)(PVMCPUCC pVCpu, unsigned iPDSrc, PGSTPD pPDSrc, 
                 }
             }
             SHW_PDE_ATOMIC_SET2(*pPdeDst, PdeDst);
-            PGM_DYNMAP_UNUSED_HINT(pVCpu, pPdeDst);
             return VINF_SUCCESS;
         }
         else
@@ -3574,7 +3571,6 @@ static int PGM_BTH_NAME(SyncPT)(PVMCPUCC pVCpu, unsigned iPDSrc, PGSTPD pPDSrc, 
                 PdeDst.u = (PdeDst.u & (SHW_PDE_PG_MASK | X86_PDE_AVL_MASK))
                          | GST_GET_PDE_SHW_FLAGS(pVCpu, PdeSrc);
                 SHW_PDE_ATOMIC_SET2(*pPdeDst, PdeDst);
-                PGM_DYNMAP_UNUSED_HINT(pVCpu, pPdeDst);
 
                 /*
                  * Directory/page user or supervisor privilege: (same goes for read/write)
@@ -3668,7 +3664,6 @@ static int PGM_BTH_NAME(SyncPT)(PVMCPUCC pVCpu, unsigned iPDSrc, PGSTPD pPDSrc, 
                 PdeDst.u &= ~(SHWUINT)X86_PDE_RW;
             }
             SHW_PDE_ATOMIC_SET2(*pPdeDst, PdeDst);
-            PGM_DYNMAP_UNUSED_HINT(pVCpu, pPdeDst);
 
             /*
              * Fill the shadow page table.
