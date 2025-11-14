@@ -1762,7 +1762,7 @@ sub CheckForLibVorbis(strOptLibVorbis)
    CfgPrintAssign "SDK_VBoxLibVorbis_VBOX_DEFAULT_INCS", strPathLibVorbis
    CfgPrintAssign "SDK_VBoxLibVorbis_INCS", strPathLibVorbis
    CfgPrintAssign "SDK_VBoxLibVorbis_LIBS", strPathLibVorbis & "/lib/.libs/libvorbis.lib"
-                     
+
    strPathXml2 = UnixSlashes(PathAbs(strPathLibVorbis))
    PrintResult "libvorbis", strPathLibVorbis
 end sub
