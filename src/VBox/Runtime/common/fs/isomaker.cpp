@@ -4733,7 +4733,7 @@ RTDECL(int) RTFsIsoMakerRename(RTFSISOMAKER hIsoMaker, uint32_t fNamespaces, con
                      */
                     PPRTFSISOMAKERNAME const ppObjName = (PPRTFSISOMAKERNAME)(  (uintptr_t)pNewName->pObj
                                                                               + g_aRTFsIsoNamespaces[i].offName);
-                    AssertStmt(*ppObjName == pFromName, VERR_ISOMK_IPE_NAMESPACE_6);
+                    AssertStmt(*ppObjName == pFromName, rc = VERR_ISOMK_IPE_NAMESPACE_6);
                     *ppObjName = pNewName;
 
                     PRTFSISOMAKERNAMEDIR const pDir = pNewName->pDir;
@@ -4746,7 +4746,7 @@ RTDECL(int) RTFsIsoMakerRename(RTFSISOMAKER hIsoMaker, uint32_t fNamespaces, con
                     }
                 }
                 else
-                    AssertFailedStmt(VERR_ISOMK_IPE_NAMESPACE_6);
+                    AssertFailedStmt(rc = VERR_ISOMK_IPE_NAMESPACE_6);
             }
         }
 
