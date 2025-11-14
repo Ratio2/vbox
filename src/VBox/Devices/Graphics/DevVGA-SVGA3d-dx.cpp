@@ -2246,7 +2246,10 @@ static int dxSetOrGrowCOTable(PVGASTATECC pThisCC, PVMSVGA3DDXCONTEXT pDXContext
 
         /* When growing a COTable, the valid size can't be greater than the old COTable size. */
         if (fGrow)
-            validSizeInBytes = RT_MIN(validSizeInBytes, vmsvgaR3MobSize(pDXContext->aCOTMobs[idxCOTable]));
+        {
+            uint32_t const cbCOTable = vmsvgaR3MobSize(pDXContext->aCOTMobs[idxCOTable]);
+            validSizeInBytes = RT_MIN(validSizeInBytes, cbCOTable);
+        }
 
         /* Create a memory pointer, which is accessible by host. */
         rc = vmsvgaR3MobBackingStoreCreate(pSvgaR3State, pMob, fGrow ? 0 : validSizeInBytes);
