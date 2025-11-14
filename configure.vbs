@@ -1605,6 +1605,183 @@ function CheckForXml2Sub(strPathXml2)
    end if
 end function
 
+''
+' Checks for libvpx.
+'
+sub CheckForLibVpx(strOptLibVpx)
+   dim strPathLibVpx
+   PrintHdr "libvpx"
+
+   '
+   ' Part of tarball / svn, so we can exit immediately if no path was specified.
+   '
+   if (strOptLibVpx = "") then
+      PrintResultMsg "libvpx", "src/lib/libvpx-*"
+      exit sub
+   end if
+
+   '
+   ' Try find some xml2 dll/lib.
+   '
+   strPathLibVpx = ""
+   if (strOptLibVpx <> "") then
+      if CheckForLibVpxSub(strOptLibVpx) then strPathLibVpx = strOptLibVpx
+   end if
+
+   ' Success?
+   if strPathLibVpx = "" then
+      if strOptLibVpx = "" then
+         MsgError "Can't locate libvpx. Try specify the path with the --with-libvpx=<path> argument. " _
+                & "If still no luck, consult the configure.log and the build requirements."
+      else
+         MsgError "Can't locate libvpx. Please consult the configure.log and the build requirements."
+      end if
+      exit sub
+   end if
+
+   strPathLibVpx = UnixSlashes(PathAbs(strPathLibVpx))
+   CfgPrintAssign "SDK_VBoxLibVpx_VBOX_DEFAULT_INCS", strPathLibVpx
+   CfgPrintAssign "SDK_VBoxLibVpx_INCS", strPathLibVpx
+   CfgPrintAssign "SDK_VBoxLibVpx_LIBS", strPathLibVpx & "/libvpx.lib"
+
+   strPathXml2 = UnixSlashes(PathAbs(strPathLibVpx))
+   PrintResult "libvpx", strPathLibVpx
+end sub
+
+'' Checks if the specified path points to an usable libvpx or not.
+function CheckForLibVpxSub(strPathLibVpx)
+   dim str
+
+   CheckForLibVpxSub = False
+   LogPrint "trying: strPathLibVpx=" & strPathLibVpx
+   if   LogFileExists(strPathLibVpx, "vpx_version.h") _
+    And LogFileExists(strPathLibVpx, "vpxenc.h") _
+      then
+      str = LogFindFile(strPathLibVpx, "libvpx.lib")
+      if str <> "" then
+         CheckForLibVpxSub = True
+      end if
+   end if
+end function
+
+''
+' Checks for libogg.
+'
+''
+' Checks for libogg.
+'
+sub CheckForLibOgg(strOptLibOgg)
+   dim strPathLibOgg
+   PrintHdr "libogg"
+
+   '
+   ' Part of tarball / svn, so we can exit immediately if no path was specified.
+   '
+   if (strOptLibOgg = "") then
+      PrintResultMsg "libogg", "src/lib/libogg-*"
+      exit sub
+   end if
+
+   '
+   ' Try find some ogg dll/lib.
+   '
+   strPathLibOgg = ""
+   if (strOptLibOgg <> "") then
+      if CheckForLibOggSub(strOptLibOgg) then strPathLibOgg = strOptLibOgg
+   end if
+
+   ' Success?
+   if strPathLibOgg = "" then
+      if strOptLibOgg = "" then
+         MsgError "Can't locate libogg. Try specify the path with the --with-libogg=<path> argument. " _
+                & "If still no luck, consult the configure.log and the build requirements."
+      else
+         MsgError "Can't locate libogg. Please consult the configure.log and the build requirements."
+      end if
+      exit sub
+   end if
+
+   strPathLibOgg = UnixSlashes(PathAbs(strPathLibOgg))
+   CfgPrintAssign "SDK_VBoxLibOgg_VBOX_DEFAULT_INCS", strPathLibOgg
+   CfgPrintAssign "SDK_VBoxLibOgg_INCS", strPathLibOgg
+   CfgPrintAssign "SDK_VBoxLibOgg_LIBS", strPathLibOgg & "/src/.libs/libogg.lib"
+
+   strPathXml2 = UnixSlashes(PathAbs(strPathLibOgg))
+   PrintResult "libogg", strPathLibOgg
+end sub
+
+'' Checks if the specified path points to an usable libogg or not.
+function CheckForLibOggSub(strPathLibOgg)
+   dim str
+
+   CheckForLibOggSub = False
+   LogPrint "trying: strPathLibOgg=" & strPathLibOgg
+   if LogFileExists(strPathLibOgg, "include/ogg/ogg.h") then
+      str = LogFindFile(strPathLibOgg, "src/.libs/libogg.lib")
+      if str <> "" then
+         CheckForLibOggSub = True
+      end if
+   end if
+end function
+
+''
+' Checks for libvorbis.
+'
+sub CheckForLibVorbis(strOptLibVorbis)
+   dim strPathLibVorbis
+   PrintHdr "libvorbis"
+
+   '
+   ' Part of tarball / svn, so we can exit immediately if no path was specified.
+   '
+   if (strOptLibVorbis = "") then
+      PrintResultMsg "libvorbis", "src/lib/libvorbis-*"
+      exit sub
+   end if
+
+   '
+   ' Try find some vorbis dll/lib.
+   '
+   strPathLibVorbis = ""
+   if (strOptLibVorbis <> "") then
+      if CheckForLibVorbisSub(strOptLibVorbis) then strPathLibVorbis = strOptLibVorbis
+   end if
+
+   ' Success?
+   if strPathLibVorbis = "" then
+      if strOptLibVorbis = "" then
+         MsgError "Can't locate libvorbis. Try specify the path with the --with-libvorbis=<path> argument. " _
+                & "If still no luck, consult the configure.log and the build requirements."
+      else
+         MsgError "Can't locate libvorbis. Please consult the configure.log and the build requirements."
+      end if
+      exit sub
+   end if
+
+   strPathLibVorbis = UnixSlashes(PathAbs(strPathLibVorbis))
+   CfgPrintAssign "SDK_VBoxLibVorbis_VBOX_DEFAULT_INCS", strPathLibVorbis
+   CfgPrintAssign "SDK_VBoxLibVorbis_INCS", strPathLibVorbis
+   CfgPrintAssign "SDK_VBoxLibVorbis_LIBS", strPathLibVorbis & "/lib/.libs/libvorbis.lib"
+                     
+   strPathXml2 = UnixSlashes(PathAbs(strPathLibVorbis))
+   PrintResult "libvorbis", strPathLibVorbis
+end sub
+
+'' Checks if the specified path points to an usable libvorbis or not.
+function CheckForLibVorbisSub(strPathLibVorbis)
+   dim str
+
+   CheckForLibVorbisSub = False
+   LogPrint "trying: strPathLibVorbis=" & strPathLibVorbis
+   if   LogFileExists(strPathLibVorbis, "include/vorbis/vorbisenc.h") _
+    And LogFileExists(strPathLibVorbis, "include/vorbis/vorbisfile.h") _
+      then
+      str = LogFindFile(strPathLibVorbis, "lib/.libs/libvorbis.lib")
+      if str <> "" then
+         CheckForLibVorbisSub = True
+      end if
+   end if
+end function
 
 '' Checks for openssl
 sub CheckForSsl(strOptSsl, bln32Bit)
@@ -1974,6 +2151,9 @@ sub usage
    Print "  --with-nasm=PATH        Where NASM is to be found (optional)"
    Print "  --with-openwatcom=PATH  Where OpenWatcom 1.9 is to be found (optional)."
    Print "  --with-libxml2=PATH     To use a libxml2 other than the VBox one (opt)."
+   Print "  --with-libvpx=PATH      To use a libvpx other than the VBox one (opt)."
+   Print "  --with-libogg=PATH      To use a libogg other than the VBox one (opt)."
+   Print "  --with-libvorbis=PATH   To use a libvorbis other than the VBox one (opt)."
    Print "  --with-openssl=PATH     To use an openssl other than the VBox one (opt)."
    Print "  --with-openssl32=PATH   The 32-bit variant of openssl (optional)."
    Print "  --with-libcurl=PATH     To use a cURL other than the VBox one (optional)."
@@ -2022,6 +2202,9 @@ function Main
    strOptNasm = ""
    strOptOpenWatcom = ""
    strOptXml2 = ""
+   strOptLibVpx = ""
+   strOptLibOgg = ""
+   strOptLibVorbis = ""
    strOptSsl = ""
    strOptSsl32 = ""
    strOptCurl = ""
@@ -2087,6 +2270,12 @@ function Main
             strOptOpenWatcom = strPath
          case "--with-libxml2"
             strOptXml2 = strPath
+         case "--with-libvpx"
+            strOptLibVpx = strPath
+         case "--with-libogg"
+            strOptLibOgg = strPath
+         case "--with-libvorbis"
+            strOptLibVorbis = strPath
          case "--with-openssl"
             strOptSsl = strPath
          case "--with-openssl32"
@@ -2210,9 +2399,9 @@ function Main
    end if
    CheckForQt           strOptQt, strOptQtInfix
    CheckForPython       strOptPython
-   CfgPrintAssign "VBOX_WITH_LIBVPX",    "" '' @todo look for libvpx 1.1.0+
-   CfgPrintAssign "VBOX_WITH_LIBOGG",    "" '' @todo look for libogg 1.3.5+
-   CfgPrintAssign "VBOX_WITH_LIBVORBIS", "" '' @todo look for libvorbis 1.3.7+
+   CheckForLibVpx       strOptLibVpx
+   CheckForLibOgg       strOptLibOgg
+   CheckForLibVorbis    strOptLibVorbis
 
    EnvPrintAppend "PATH", DosSlashes(g_strPath & "\tools\win." & g_strHostArch & "\bin"), ";"
    if g_strHostArch = "amd64" then
