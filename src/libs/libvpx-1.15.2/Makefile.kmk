@@ -214,7 +214,6 @@ VBox-libvpx_SOURCES = \
 	vpx/src/vpx_encoder.c \
 	vpx/src/vpx_codec.c \
 	vpx/src/vpx_image.c \
-	vpx/src/vpx_tpl.c \
 	vpx_mem/vpx_mem.c \
 	vpx_scale/generic/vpx_scale.c \
 	vpx_scale/generic/yv12config.c \
