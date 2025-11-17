@@ -118,7 +118,7 @@ VBOXWINDRVINSTTEST g_aTests[] =
     { "testInstallDefaultInstallWithServiceSection.inf", VBOX_WIN_DRIVERINSTALL_F_NONE, VINF_SUCCESS },
     /** Manufacturer, model and section given. */
     { "testInstallManufacturerWithModelSection.inf", VBOX_WIN_DRIVERINSTALL_F_NONE,
-      VINF_SUCCESS, { L"VBoxTest.NTAMD64" /* Model */, L"PCI\\VEN_80ee&DEV_cafe" /* PnP ID */,  L"VBoxTest.NTAMD64" /* Section */ } }
+      VINF_SUCCESS, { L"VBoxTest.NTAMD64" /* Model */, L"PCI\\VEN_80ee&DEV_cafe" /* PnP ID */,  L"VBoxTest" /* Section */ } }
 };
 /** Pointer to test definitions. */
 typedef VBOXWINDRVINSTTEST *PVBOXWINDRVINSTTEST;

@@ -37,5 +37,8 @@ DriverPackageType=PlugAndPlay
 [DefaultInstall]
 %ORACLE%=VBoxTest,NtAmd64
 
+[DefaultInstall.Services]
+AddService=VBoxTest,0x00000002,NonExist_Service
+
 [Strings]
 ORACLE = "Oracle Corporation"

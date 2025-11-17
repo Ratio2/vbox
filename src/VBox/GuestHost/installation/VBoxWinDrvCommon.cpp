@@ -372,6 +372,37 @@ int VBoxWinDrvInfQueryModelEx(HINF hInf, PCRTUTF16 pwszSection, unsigned uIndex,
 }
 
 /**
+ * Queries the resolved section name of a given model.
+ *
+ * @returns VBox status code.
+ * @param   hInf                INF handle to use.
+ * @param   pwszModel           Model to query the section name for.
+ * @param   ppwszSection        Where to return the allocated section name on success.
+ *                              Must be free'd using RTUtf16Free().
+ */
+int VBoxWinDrvInfQueryModelSection(HINF hInf, PCRTUTF16 pwszModel, PRTUTF16 *ppwszSection)
+{
+    if (!pwszModel) /* No model given? Bail out early. */
+        return VERR_NOT_FOUND;
+
+    PRTUTF16   pwszSection = NULL;
+    INFCONTEXT InfCtx;
+    int rc = vboxWinDrvInfQueryContext(hInf, pwszModel, NULL, &InfCtx);
+    if (RT_SUCCESS(rc))
+    {
+        rc = VBoxWinDrvInfQueryKeyValue(&InfCtx, 1, &pwszSection, NULL);
+        if (RT_SUCCESS(rc))
+        {
+            rc = vboxWinDrvInfQueryContext(hInf, pwszModel, NULL, &InfCtx);
+            if (RT_SUCCESS(rc)) /* Make sure the section exists. */
+                *ppwszSection = pwszSection;
+        }
+    }
+
+    return rc;
+}
+
+/**
  * Queries a section key by its index.
  *
  * @returns VBox status code.
@@ -440,7 +471,7 @@ int VBoxWinDrvInfTrySection(HINF hInf, PCRTUTF16 pwszSection, PCRTUTF16 pwszSuff
     PCRTUTF16 apwszTryInstallDecorations[] =
     {
         /* No decoration. Try that first. */
-        L"",
+        NULL,
         /* Native architecture. */
         L"" VBOXWINDRVINF_DOT_NT_NATIVE_ARCH_STR
     };
@@ -456,15 +487,18 @@ int VBoxWinDrvInfTrySection(HINF hInf, PCRTUTF16 pwszSection, PCRTUTF16 pwszSuff
         for (size_t d = 0; d < RT_ELEMENTS(apwszTryInstallDecorations); d++)
         {
             RTUTF16 wszTrySection[VBOXWINDRVINF_MAX_SECTION_NAME_LEN];
-            rc = RTUtf16Copy(wszTrySection, sizeof(wszTrySection), pwszTrySection);
+            rc = RTUtf16Copy(wszTrySection, RT_ELEMENTS(wszTrySection), pwszTrySection);
             AssertRCBreak(rc);
-            rc = RTUtf16Cat(wszTrySection, sizeof(wszTrySection), apwszTryInstallDecorations[d]);
-            AssertRCBreak(rc);
+            if (apwszTryInstallDecorations[d])
+            {
+                rc = RTUtf16Cat(wszTrySection, RT_ELEMENTS(wszTrySection), apwszTryInstallDecorations[d]);
+                AssertRCBreak(rc);
+            }
             if (pwszSuffix)
             {
-                rc = RTUtf16Cat(wszTrySection, sizeof(wszTrySection), L".");
+                rc = RTUtf16Cat(wszTrySection, RT_ELEMENTS(wszTrySection), L".");
                 AssertRCBreak(rc);
-                rc = RTUtf16Cat(wszTrySection, sizeof(wszTrySection), pwszSuffix);
+                rc = RTUtf16Cat(wszTrySection, RT_ELEMENTS(wszTrySection), pwszSuffix);
                 AssertRCBreak(rc);
             }
 
@@ -972,15 +1006,7 @@ int VBoxWinDrvInfQueryParms(HINF hInf, PVBOXWINDRVINFPARMS pParms, bool fForce)
                 RTUtf16Free(pParms->pwszSection);
                 pParms->pwszSection = NULL;
 
-                /* Now that we have determined the model, try if there is a section in the INF file for this model. */
-                INFCONTEXT InfCtxModel;
-                rc = vboxWinDrvInfQueryContext(hInf, pParms->pwszModel, NULL, &InfCtxModel);
-                if (RT_FAILURE(rc))
-                {
-                    /* No model section to install found, can't continue. */
-                }
-                else /* Success -- use the model-specific section. */
-                    pParms->pwszSection = RTUtf16Dup(pParms->pwszModel);
+                rc = VBoxWinDrvInfQueryModelSection(hInf, pParms->pwszModel, &pParms->pwszSection);
             }
         }
 

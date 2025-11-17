@@ -37,7 +37,7 @@ DriverPackageType=PlugAndPlay
 [DefaultInstall]
 %ORACLE%=VBoxTest,NtAmd64
 
-[DefaultInstall.NTARM64.Services]
+[DefaultInstall.NTAMD64.Services]
 AddService=VBoxTest,0x00000002,VBoxTest_Service
 
 [VBoxTest_Service]
