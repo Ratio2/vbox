@@ -189,7 +189,7 @@ static const SSMFIELD g_aX2ApicPageFields[] =
  * Instantiate the APIC R3-context common code.
  */
 #define VMM_APIC_TEMPLATE_R3_COMMON
-#include "../VMMAll/APICAllCommon.cpp.h"
+#include "../VMMAll/target-x86/APICAllCommon-x86.cpp.h"
 #undef VMM_APIC_TEMPLATE_R3_COMMON
 
 

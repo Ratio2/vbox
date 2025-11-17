@@ -26,8 +26,8 @@
  */
 
 
-#ifndef VMM_INCLUDED_SRC_VMMAll_APICAllCommon_cpp_h
-#define VMM_INCLUDED_SRC_VMMAll_APICAllCommon_cpp_h
+#ifndef VMM_INCLUDED_SRC_VMMAll_APICAllCommon_x86_cpp_h
+#define VMM_INCLUDED_SRC_VMMAll_APICAllCommon_x86_cpp_h
 #ifndef RT_WITHOUT_PRAGMA_ONCE
 # pragma once
 #endif
@@ -869,5 +869,5 @@ static void apicR3CommonDbgInfo(PVMCPUCC pVCpu, PCDBGFINFOHLP pHlp, uint64_t uBa
 #endif /* IN_RING3 && VMM_APIC_TEMPLATE_R3_COMMON */
 
 
-#endif /* VMM_INCLUDED_SRC_VMMAll_APICAllCommon_cpp_h */
+#endif /* VMM_INCLUDED_SRC_VMMAll_APICAllCommon_x86_cpp_h */
 

@@ -122,7 +122,7 @@ static CPUMMSRRANGE const g_MsrRange_x2Apic_Invalid = X2APIC_MSRRANGE_INVALID(MS
  */
 #define VMM_APIC_TEMPLATE_ALL_COMMON
 #define VMM_APIC_TEMPLATE_R3_COMMON
-#include "../VMMAll/APICAllCommon.cpp.h"
+#include "../VMMAll/target-x86/APICAllCommon-x86.cpp.h"
 #undef VMM_APIC_TEMPLATE_ALL_COMMON
 #undef VMM_APIC_TEMPLATE_R3_COMMON
 
