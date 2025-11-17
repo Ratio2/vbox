@@ -109,7 +109,9 @@ else
  if1of ($(KBUILD_TARGET_ARCH), $(VBOX_SUPPORTED_HOST_ARCHS))
   include $(PATH_SUB_CURRENT)/ExtPacks/Makefile.kmk
  endif
- include $(PATH_SUB_CURRENT)/ImageMounter/Makefile.kmk
+ ifdef VBOX_WITH_MAIN
+  include $(PATH_SUB_CURRENT)/ImageMounter/Makefile.kmk
+ endif
  if defined(VBOX_WITH_INSTALLER) && "$(intersects $(KBUILD_TARGET_ARCH),$(VBOX_SUPPORTED_HOST_ARCHS))" != ""
   include $(PATH_SUB_CURRENT)/Installer/Makefile.kmk 		        # Keep this last.
  endif
