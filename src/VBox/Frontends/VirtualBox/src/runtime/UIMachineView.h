@@ -273,8 +273,9 @@ protected:
     UIActionPool* actionPool() const;
     QSize sizeHint() const RT_OVERRIDE;
 
-    /** Retrieves the last guest-screen size-hint from extra-data. */
-    QSize storedGuestScreenSizeHint() const;
+    /** Retrieves stored guest-screen size-hint from extra-data.
+      * @param  fFailsafe  Pass true to ensure valid hint is returned. */
+    QSize storedGuestScreenSizeHint(bool fFailsafe = true) const;
     /** Stores a guest-screen @a sizeHint to extra-data. */
     void setStoredGuestScreenSizeHint(const QSize &sizeHint);
 

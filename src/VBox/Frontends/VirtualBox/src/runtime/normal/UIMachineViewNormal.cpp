@@ -154,8 +154,12 @@ void UIMachineViewNormal::resendSizeHint()
     if (uimachine()->requestedVisualState() == UIVisualStateType_Seamless) // Seamless only for now.
         return;
 
-    /* Get the last guest-screen size-hint, taking the scale factor into account. */
-    const QSize storedSizeHint = storedGuestScreenSizeHint();
+    /* Acquire stored guest-screen size-hint: */
+    const QSize storedSizeHint = storedGuestScreenSizeHint(false /* that means - look for stored hint only */);
+    /* Make sure valid guest-screen size-hint stored: */
+    if (storedSizeHint.width() <= 0 || storedSizeHint.height() <= 0)
+        return;
+    /* Take the scale factor into account: */
     const QSize effectiveSizeHint = scaledBackward(storedSizeHint);
     LogRel(("GUI: UIMachineViewNormal::resendSizeHint: Restoring guest size-hint for screen %d to %dx%d\n",
             (int)screenId(), effectiveSizeHint.width(), effectiveSizeHint.height()));
