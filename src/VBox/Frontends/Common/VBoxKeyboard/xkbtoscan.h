@@ -42,7 +42,7 @@ struct
 {
     const char cszName[XKB_NAME_SIZE];
     unsigned uScan;
-} xkbMap[] =
+} const xkbMap[] =
 {
     { { 'E', 'S', 'C',  0  }, 0x1 },
     { { 'A', 'E', '0', '1' }, 0x2 },
