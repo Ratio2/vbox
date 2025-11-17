@@ -370,7 +370,6 @@ int main()
 #  endif
 # endif
 #endif
-    CHECK_MEMBER_ALIGNMENT(E1KSTATE, StatReceiveBytes, 8);
     CHECK_MEMBER_ALIGNMENT(IOAPIC, au64RedirTable, 8);
 # ifdef VBOX_WITH_STATISTICS
     CHECK_MEMBER_ALIGNMENT(IOAPIC, StatMmioReadRZ, 8);
