@@ -65,7 +65,7 @@ builddir := $(bldbase)/builddir
 stagedir := $(bldbase)/rpmbuild
 rpmlib   := $(shell if [ `uname -m` = "x86_64" ]; then echo "lib64"; else echo "lib"; fi)
 verfile  := $(builddir)/version-generated.mk
-ose      := $(if $(OSE),1,$(if $(wildcard $(vboxroot)/src/VBox/RDP/server),,1))
+ose      := $(if $(OSE),1,$(if $(wildcard $(vboxroot)/src/VBox/ExtPacks/Puel),,1))
 chrarch  := $(shell if [ `uname -m` = "x86_64" ]; then echo "amd64"; else echo "x86"; fi)
 -include $(vboxroot)/SVN_REVISION
 

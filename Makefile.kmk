@@ -2245,9 +2245,9 @@ ZIPROOT ?= VirtualBox-$(VBOX_VERSION_STRING)
 ZIPNAME ?= VirtualBox-$(VBOX_VERSION_STRING).zip
 snapshot-puel:
 	@$(call MSG_L1,Creating zip $(ZIPPATH)/$(ZIPNAME))
-	@if [ ! -r "$(PATH_ROOT)/src/VBox/RDP/server/server.cpp" ]; then \
+	@if [ ! -r "$(PATH_ROOT)/src/VBox/ExtPacks/Puel/ExtPack.xml" ]; then \
 	    echo; \
-	    echo "Did not find RDP stuff, is this an OSE branch?"; \
+	    echo "Did not find PUEL ExtPack stuff, is this an OSE branch?"; \
 	    echo; \
 	    exit 1; \
 	 fi

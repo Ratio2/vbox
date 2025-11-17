@@ -31,8 +31,8 @@ if [ ! -r "$vboxdir/Config.kmk" -o ! -r "$vboxdir/Doxyfile.Core" ]; then
   echo "Is $vboxdir really a VBox tree?"
   exit 1
 fi
-if [ -r "$vboxdir/src/VBox/RDP/server/server.cpp" ]; then
-  echo "Found RDP stuff, refused to build OSE tarball!"
+if [ -r "$vboxdir/src/VBox/ExtPacks/Puel/ExtPack.xml" ]; then
+  echo "Found PUEL ExtPack stuff, refused to build OSE tarball!"
   exit 1
 fi
 vermajor=`grep "^VBOX_VERSION_MAJOR *=" "$vboxdir/Version.kmk"|sed -e "s|.*= *\(.*\)|\1|g"`
