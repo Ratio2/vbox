@@ -34,12 +34,7 @@
 #include <VBox/gic.h>
 #include <VBox/vmm/pdmdev.h>
 #include <VBox/vmm/pdmgic.h>
-#include <VBox/vmm/cpum.h>
-#include <VBox/vmm/hm.h>
-#include <VBox/vmm/mm.h>
 #include <VBox/vmm/pdmdev.h>
-#include <VBox/vmm/ssm.h>
-#include <VBox/vmm/vm.h>
 
 #include <Hypervisor/Hypervisor.h>
 
