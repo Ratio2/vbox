@@ -180,7 +180,7 @@ int vbox_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 
-#if RTLNX_VER_MIN(6,17,0)
+#if RTLNX_VER_MIN(6,17,0) || RTLNX_RHEL_RANGE(9,8, 9,99)
 	const struct drm_format_info *format = drm_get_format_info(dev, mode_cmd->pixel_format, 0);
 	drm_helper_mode_fill_fb_struct(dev, &vbox_fb->base, format, mode_cmd);
 #elif RTLNX_VER_MIN(4,11,0) || RTLNX_RHEL_MAJ_PREREQ(7,5)
@@ -201,7 +201,7 @@ int vbox_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *vbox_user_framebuffer_create(
 		struct drm_device *dev,
 		struct drm_file *filp,
-#if RTLNX_VER_MIN(6,17,0)
+#if RTLNX_VER_MIN(6,17,0) || RTLNX_RHEL_RANGE(9,8, 9,99)
 		const struct drm_format_info *info,
 #endif
 #if RTLNX_VER_MIN(4,5,0) || RTLNX_RHEL_MAJ_PREREQ(7,3)
