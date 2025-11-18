@@ -357,7 +357,7 @@ int vboxWddmEnforceSingleVMode(VBOXWDDM_VMODES *pModes, uint32_t u32Target)
 
     if (u32XRes > 0 && u32YRes > 0)
     {
-        /* Appling the arbitrary 8K limits to always have a sensible values */
+        /* Applying the arbitrary 8K limits to always have a sensible values */
         u32XRes = u32XRes > 7680 ? 7680 : u32XRes < 800 ? 800 : u32XRes;
         u32YRes = u32YRes > 4320 ? 4320 : u32YRes < 600 ? 600 : u32YRes;
 
@@ -374,11 +374,6 @@ int vboxWddmEnforceSingleVMode(VBOXWDDM_VMODES *pModes, uint32_t u32Target)
 
 int vboxWddmVModesInitForTarget(PVBOXMP_DEVEXT pExt, VBOXWDDM_VMODES *pModes, uint32_t u32Target)
 {
-    if (RT_SUCCESS(vboxWddmEnforceSingleVMode(pModes, u32Target)))
-    {
-        return VINF_SUCCESS;
-    }
-
     for (uint32_t i = 0; i < RT_ELEMENTS(g_VBoxBuiltinResolutions); ++i)
     {
         vboxWddmVModesAdd(pExt, pModes, u32Target, &g_VBoxBuiltinResolutions[i], FALSE);
@@ -478,16 +473,79 @@ void VBoxWddmVModesCleanup()
     vboxWddmVModesCleanup(pModes);
 }
 
+int vboxWddmGetVModeHintsFromExtradata(VBOXWDDM_VMODES *pModes, int cDisplays)
+{
+    VMMDevDisplayChangeRequestMulti *pReq = NULL;
+    size_t cbAlloc;
+    int rc;
+
+    cbAlloc = RT_UOFFSETOF(VMMDevDisplayChangeRequestMulti, aDisplays) + cDisplays * sizeof(VMMDevDisplayDef);
+    rc = VbglR0GRAlloc((VMMDevRequestHeader **)&pReq, cbAlloc, VMMDevReq_GetDisplayChangeRequestMulti);
+
+    AssertRCReturn(rc, rc);
+
+    pReq->header.size = (uint32_t)cbAlloc;
+    pReq->cDisplays   = cDisplays;
+    pReq->eventAck    = 0;
+
+    rc = VbglR0GRPerform(&pReq->header);
+
+    LogRel2(("vboxWddmGetVModeHintsFromExtradata: VbglR0GRPerform rc %d, cDisplays %d\n", rc, pReq->cDisplays));
+
+    AssertRCReturnStmt(rc, VbglR0GRFree(&pReq->header), rc);
+
+    for(uint32_t i = 0; i < pReq->cDisplays; i++)
+    {
+        VMMDevDisplayDef *pDisplayDef = &pReq->aDisplays[i];
+        LogRel2(("vboxWddmGetVModeHintsFromExtradata: #%d id%d %d,%d-%dx%d 0x%X\n", i, pDisplayDef->idDisplay,
+            pDisplayDef->xOrigin, pDisplayDef->yOrigin,
+            pDisplayDef->cx, pDisplayDef->cy,
+            pDisplayDef->fDisplayFlags));
+
+            uint32_t u32XRes = pDisplayDef->cx, u32YRes = pDisplayDef->cy;
+
+            if (u32XRes == 800 && u32YRes == 600 && (pDisplayDef->fDisplayFlags & VMMDEV_DISPLAY_DISABLED))
+            {
+                LogRel2(("vboxWddmGetVModeHintsFromExtradata: #%d Ignore the 'default' hint 800x600\n", i));
+                continue;
+            }
+
+            if (u32XRes == 0 && u32YRes == 0)
+            {
+                LogRel2(("vboxWddmGetVModeHintsFromExtradata: #%d The 'zero' hint 0x0 means no hint defined\n", i));
+                continue;
+            }
+
+            /* Applying the arbitrary 8K limits to always have a sensible values */
+            u32XRes = u32XRes > 7680 ? 7680 : u32XRes < 800 ? 800 : u32XRes;
+            u32YRes = u32YRes > 4320 ? 4320 : u32YRes < 600 ? 600 : u32YRes;
+
+            RTRECTSIZE rect = {u32XRes, u32YRes};
+            VBoxVModesAdd(&pModes->Modes, i, CR_RSIZE2U64(rect));
+            LogRel(("vboxWddmGetVModeHintsFromExtradata: #%d added mode (%dx%d)\n", i, u32XRes, u32YRes));
+    }
+
+    VbglR0GRFree(&pReq->header);
+
+    return rc;
+}
+
 int VBoxWddmVModesInit(PVBOXMP_DEVEXT pExt)
 {
     VBOXWDDM_VMODES *pModes = &g_VBoxWddmVModes;
+    int rc;
 
     vboxWddmVModesInit(pModes, VBoxCommonFromDeviceExt(pExt)->cDisplays);
 
-    int rc;
+    //vboxWddmGetVModeHintsFromExtradata(pModes, VBoxCommonFromDeviceExt(pExt)->cDisplays);
 
     for (int i = 0; i < VBoxCommonFromDeviceExt(pExt)->cDisplays; ++i)
     {
+        if (RT_SUCCESS(vboxWddmEnforceSingleVMode(pModes, (uint32_t)i)))
+        {
+            continue;
+        }
+
         rc = vboxWddmVModesInitForTarget(pExt, pModes, (uint32_t)i);
         if (RT_FAILURE(rc))
         {
