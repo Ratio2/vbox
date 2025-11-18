@@ -49,6 +49,7 @@ class UIScaleFactorEditor;
 class UIVideoMemoryEditor;
 class UIVRDESettingsEditor;
 struct UIDataSettingsMachineDisplay;
+class CRecordingScreenSettings;
 typedef UISettingsCache<UIDataSettingsMachineDisplay> UISettingsCacheMachineDisplay;
 
 /** Machine settings: Display page. */
@@ -147,6 +148,8 @@ private:
     bool saveRemoteDisplayData();
     /** Saves existing 'Recording' data from cache. */
     bool saveRecordingData();
+    /** Saves existing 'Recording' / 'Audio Profile' data from cache. */
+    bool saveRecordingAudioProfileData(const QString &strProfile, CRecordingScreenSettings &comSettings);
 
     /** Updates minimum layout hint. */
     void updateMinimumLayoutHint();

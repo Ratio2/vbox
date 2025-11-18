@@ -98,10 +98,10 @@ public:
     /** Returns bit rate. */
     int bitRate() const;
 
-    /** Defines audio quality @a iRate. */
-    void setAudioQualityRate(int iRate);
-    /** Returns audio quality rate. */
-    int audioQualityRate() const;
+    /** Defines audio @a strProfile. */
+    void setAudioProfile(const QString &strProfile);
+    /** Returns audio profile. */
+    QString audioProfile() const;
 
     /** Defines enabled @a screens. */
     void setScreens(const QVector<bool> &screens);
@@ -181,15 +181,15 @@ private:
         QString  m_strFilePath;
 
         /** Holds the frame width. */
-        int  m_iFrameWidth;
+        int      m_iFrameWidth;
         /** Holds the frame height. */
-        int  m_iFrameHeight;
+        int      m_iFrameHeight;
         /** Holds the frame rate. */
-        int  m_iFrameRate;
+        int      m_iFrameRate;
         /** Holds the bit rate. */
-        int  m_iBitRate;
-        /** Holds the audio quality rate. */
-        int  m_iAudioQualityRate;
+        int      m_iBitRate;
+        /** Holds the audio profile. */
+        QString  m_strAudioProfile;
 
         /** Holds the screens. */
         QVector<bool>  m_screens;
@@ -241,18 +241,18 @@ private:
         QLabel             *m_pLabelBitRateMed;
         /** Holds the bit rate max label instance. */
         QLabel             *m_pLabelBitRateMax;
-        /** Holds the audio quality label instance. */
-        QLabel             *m_pLabelAudioQuality;
-        /** Holds the audio quality settings widget instance. */
-        QWidget            *m_pWidgetAudioQualitySettings;
-        /** Holds the audio quality slider instance. */
-        QIAdvancedSlider   *m_pSliderAudioQuality;
-        /** Holds the audio quality min label instance. */
-        QLabel             *m_pLabelAudioQualityMin;
-        /** Holds the audio quality med label instance. */
-        QLabel             *m_pLabelAudioQualityMed;
-        /** Holds the audio quality max label instance. */
-        QLabel             *m_pLabelAudioQualityMax;
+        /** Holds the audio profile label instance. */
+        QLabel             *m_pLabelAudioProfile;
+        /** Holds the audio profile settings widget instance. */
+        QWidget            *m_pWidgetAudioProfileSettings;
+        /** Holds the audio profile slider instance. */
+        QIAdvancedSlider   *m_pSliderAudioProfile;
+        /** Holds the audio profile min label instance. */
+        QLabel             *m_pLabelAudioProfileMin;
+        /** Holds the audio profile med label instance. */
+        QLabel             *m_pLabelAudioProfileMed;
+        /** Holds the audio profile max label instance. */
+        QLabel             *m_pLabelAudioProfileMax;
         /** Holds the size hint label instance. */
         QLabel             *m_pLabelSizeHint;
         /** Holds the screens label instance. */

@@ -85,7 +85,7 @@ struct UIDataSettingsMachineDisplay
         , m_iRecordingVideoFrameHeight(0)
         , m_iRecordingVideoFrameRate(0)
         , m_iRecordingVideoBitRate(0)
-        , m_strRecordingOptions(QString())
+        , m_strAudioProfile(QString())
     {}
 
     /** Returns whether the @a other passed data is equal to this one. */
@@ -114,7 +114,7 @@ struct UIDataSettingsMachineDisplay
                && (m_iRecordingVideoBitRate == other.m_iRecordingVideoBitRate)
                && (m_vecRecordingScreens == other.m_vecRecordingScreens)
                && (m_strRecordingFeatures == other.m_strRecordingFeatures)
-               && (m_strRecordingOptions == other.m_strRecordingOptions)
+               && (m_strAudioProfile == other.m_strAudioProfile)
                ;
     }
 
@@ -127,7 +127,6 @@ struct UIDataSettingsMachineDisplay
     enum RecordingOption
     {
         RecordingOption_Unknown,
-        RecordingOption_AC_Profile
         /** @todo r=andy Add RecordingOption_VC_Quality ('vc_quality' in recording options) handling. */
     };
 
@@ -136,7 +135,6 @@ struct UIDataSettingsMachineDisplay
     {
         /* Compare case-sensitive: */
         QMap<QString, RecordingOption> keys;
-        keys["ac_profile"] = RecordingOption_AC_Profile;
         /** @todo r=andy Add RecordingOption_VC_Quality ('vc_quality' in recording options) handling. */
         /* Return known value or RecordingOption_Unknown otherwise: */
         return keys.value(strKey, RecordingOption_Unknown);
@@ -147,7 +145,6 @@ struct UIDataSettingsMachineDisplay
     {
         /* Compare case-sensitive: */
         QMap<RecordingOption, QString> values;
-        values[RecordingOption_AC_Profile] = "ac_profile";
         /** @todo r=andy Add RecordingOption_VC_Quality ('vc_quality' in recording options) handling. */
         /* Return known value or QString() otherwise: */
         return values.value(enmKey);
@@ -191,23 +188,6 @@ struct UIDataSettingsMachineDisplay
     }
 
     /** @todo r=andy Add getVideoQualityFromOptions() via 'vc_quality'. */
-
-    /** Searches for ac_profile and return 1 for "low", 2 for "med", and 3 for "high". Returns 2
-        if ac_profile is missing */
-    static int getAudioQualityFromOptions(const QString &strOptions)
-    {
-        QList<RecordingOption> aKeys;
-        QStringList aValues;
-        parseRecordingOptions(strOptions, aKeys, aValues);
-        int iIndex = aKeys.indexOf(RecordingOption_AC_Profile);
-        if (iIndex == -1)
-            return 2;
-        if (aValues.value(iIndex).compare("low", Qt::CaseInsensitive) == 0)
-            return 1;
-        if (aValues.value(iIndex).compare("high", Qt::CaseInsensitive) == 0)
-            return 3;
-        return 2;
-    }
 
     /** Sets the video recording options for @a enmOptions to @a values. */
     static QString setRecordingOptions(const QString &strOptions,
@@ -283,8 +263,8 @@ struct UIDataSettingsMachineDisplay
     QVector<bool>               m_vecRecordingScreens;
     /** Holds the recording features. */
     QVector<KRecordingFeature>  m_strRecordingFeatures;
-    /** Holds the recording options. */
-    QString                     m_strRecordingOptions;
+    /** Holds the audio profile. */
+    QString                     m_strAudioProfile;
 };
 
 
@@ -424,7 +404,14 @@ void UIMachineSettingsDisplay::loadToCacheFrom(QVariant &data)
         oldDisplayData.m_iRecordingVideoFrameRate = comRecordingScreen0Settings.GetVideoFPS();
         oldDisplayData.m_iRecordingVideoBitRate = comRecordingScreen0Settings.GetVideoRate();
         oldDisplayData.m_strRecordingFeatures = comRecordingScreen0Settings.GetFeatures();
-        oldDisplayData.m_strRecordingOptions = comRecordingScreen0Settings.GetOptions();
+        const ULONG uHz = comRecordingScreen0Settings.GetAudioHz();
+        const ULONG uChannels = comRecordingScreen0Settings.GetAudioChannels();
+        if (uHz == 8000 && uChannels == 1)
+            oldDisplayData.m_strAudioProfile = "low";
+        else if (uHz == 48000 && uChannels == 2)
+            oldDisplayData.m_strAudioProfile = "high";
+        else
+            oldDisplayData.m_strAudioProfile = "med";
     }
 
     CRecordingScreenSettingsVector comRecordingScreenSettingsVector = recordingSettings.GetScreens();
@@ -502,6 +489,7 @@ void UIMachineSettingsDisplay::getFromCache()
         m_pEditorRecordingSettings->setFrameRate(oldDisplayData.m_iRecordingVideoFrameRate);
         m_pEditorRecordingSettings->setBitRate(oldDisplayData.m_iRecordingVideoBitRate);
         m_pEditorRecordingSettings->setScreens(oldDisplayData.m_vecRecordingScreens);
+        m_pEditorRecordingSettings->setAudioProfile(oldDisplayData.m_strAudioProfile);
 
         /* Load old 'Recording' features: */
         UISettingsDefs::RecordingMode enmMode;
@@ -514,11 +502,6 @@ void UIMachineSettingsDisplay::getFromCache()
         else
             enmMode = UISettingsDefs::RecordingMode_AudioOnly;
         m_pEditorRecordingSettings->setMode(enmMode);
-
-        /* Load old 'Recording' options: */
-        const int iAudioQualityRate =
-            UIDataSettingsMachineDisplay::getAudioQualityFromOptions(oldDisplayData.m_strRecordingOptions);
-        m_pEditorRecordingSettings->setAudioQualityRate(iAudioQualityRate);
     }
 
     /* Polish page finally: */
@@ -576,6 +559,7 @@ void UIMachineSettingsDisplay::putToCache()
         newDisplayData.m_iRecordingVideoFrameRate = m_pEditorRecordingSettings->frameRate();
         newDisplayData.m_iRecordingVideoBitRate = m_pEditorRecordingSettings->bitRate();
         newDisplayData.m_vecRecordingScreens = m_pEditorRecordingSettings->screens();
+        newDisplayData.m_strAudioProfile = m_pEditorRecordingSettings->audioProfile();
 
         /* Gather new 'Recording' features: */
         switch (m_pEditorRecordingSettings->mode())
@@ -592,20 +576,6 @@ void UIMachineSettingsDisplay::putToCache()
             default:
                 break;
         }
-
-        /* Gather new 'Recording' options: */
-        QStringList optionValues;
-        switch (m_pEditorRecordingSettings->audioQualityRate())
-        {
-            case 1: optionValues.append("low"); break;
-            case 2: optionValues.append("med"); break;
-            default: optionValues.append("high"); break;
-        }
-        QVector<UIDataSettingsMachineDisplay::RecordingOption> optionKeys;
-        optionKeys.append(UIDataSettingsMachineDisplay::RecordingOption_AC_Profile);
-        newDisplayData.m_strRecordingOptions =
-            UIDataSettingsMachineDisplay::setRecordingOptions(m_pCache->base().m_strRecordingOptions,
-                                                              optionKeys, optionValues);
     }
 
     /* Cache new data: */
@@ -1262,8 +1232,6 @@ bool UIMachineSettingsDisplay::saveRecordingData()
     CRecordingSettings recordingSettings = m_machine.GetRecordingSettings();
     Assert(recordingSettings.isNotNull());
 
-    /** @todo r=andy Make the code below more compact -- too much redundancy here. */
-
     /* Save new 'Recording' data for online case: */
     if (isMachineOnline())
     {
@@ -1339,12 +1307,10 @@ bool UIMachineSettingsDisplay::saveRecordingData()
                     comRecordingScreenSettings.SetFeatures(newDisplayData.m_strRecordingFeatures);
                     fSuccess = comRecordingScreenSettings.isOk();
                 }
-                /* Save recording options: */
-                if (fSuccess && newDisplayData.m_strRecordingOptions != oldDisplayData.m_strRecordingOptions)
-                {
-                    comRecordingScreenSettings.SetOptions(newDisplayData.m_strRecordingOptions);
-                    fSuccess = comRecordingScreenSettings.isOk();
-                }
+                /* Save audio profile: */
+                if (fSuccess && newDisplayData.m_strAudioProfile != oldDisplayData.m_strAudioProfile)
+                    fSuccess = saveRecordingAudioProfileData(newDisplayData.m_strAudioProfile, comRecordingScreenSettings);
+
                 /* Finally, save the screen's recording state: */
                 /* Note: Must come last, as modifying options with an enabled recording state is not possible. */
                 if (fSuccess && newDisplayData.m_vecRecordingScreens != oldDisplayData.m_vecRecordingScreens)
@@ -1420,12 +1386,9 @@ bool UIMachineSettingsDisplay::saveRecordingData()
                 comRecordingScreenSettings.SetFeatures(newDisplayData.m_strRecordingFeatures);
                 fSuccess = comRecordingScreenSettings.isOk();
             }
-            /* Save capture options: */
-            if (fSuccess && newDisplayData.m_strRecordingOptions != oldDisplayData.m_strRecordingOptions)
-            {
-                comRecordingScreenSettings.SetOptions(newDisplayData.m_strRecordingOptions);
-                fSuccess = comRecordingScreenSettings.isOk();
-            }
+            /* Save audio profile: */
+            if (fSuccess && newDisplayData.m_strAudioProfile != oldDisplayData.m_strAudioProfile)
+                fSuccess = saveRecordingAudioProfileData(newDisplayData.m_strAudioProfile, comRecordingScreenSettings);
 
             /* Finally, save the screen's recording state: */
             /* Note: Must come last, as modifying options with an enabled recording state is not possible. */
@@ -1458,6 +1421,47 @@ bool UIMachineSettingsDisplay::saveRecordingData()
             notifyOperationProgressError(UIErrorString::formatErrorInfo(recordingSettings));
         else if (!m_machine.isOk()) /* Machine could indicate an error when saving the settings. */
             notifyOperationProgressError(UIErrorString::formatErrorInfo(m_machine));
+    }
+
+    /* Return result: */
+    return fSuccess;
+}
+
+bool UIMachineSettingsDisplay::saveRecordingAudioProfileData(const QString &strProfile, CRecordingScreenSettings &comSettings)
+{
+    /* Profiles: */
+    QMap<QString, ULONG> mapAudioHz;
+    QMap<QString, ULONG> mapAudioBits;
+    QMap<QString, ULONG> mapAudioChannels;
+    /* Low profile: */
+    mapAudioHz["low"] = 8000;
+    mapAudioBits["low"] = 16;
+    mapAudioChannels["low"] = 1;
+    /* Med profile: */
+    mapAudioHz["med"] = 22050;
+    mapAudioBits["med"] = 16;
+    mapAudioChannels["med"] = 2;
+    /* High profile: */
+    mapAudioHz["high"] = 48000;
+    mapAudioBits["high"] = 16;
+    mapAudioChannels["high"] = 2;
+
+    /* Assign profile settings: */
+    bool fSuccess = true;
+    if (fSuccess)
+    {
+        comSettings.SetAudioHz(mapAudioHz.value(strProfile));
+        fSuccess = comSettings.isOk();
+    }
+    if (fSuccess)
+    {
+        comSettings.SetAudioBits(mapAudioBits.value(strProfile));
+        fSuccess = comSettings.isOk();
+    }
+    if (fSuccess)
+    {
+        comSettings.SetAudioChannels(mapAudioChannels.value(strProfile));
+        fSuccess = comSettings.isOk();
     }
 
     /* Return result: */

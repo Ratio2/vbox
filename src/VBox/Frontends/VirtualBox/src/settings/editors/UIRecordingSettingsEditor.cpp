@@ -60,7 +60,6 @@ UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     , m_iFrameHeight(0)
     , m_iFrameRate(0)
     , m_iBitRate(0)
-    , m_iAudioQualityRate(0)
     , m_pCheckboxFeature(0)
     , m_pLabelMode(0)
     , m_pComboMode(0)
@@ -83,12 +82,12 @@ UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     , m_pLabelBitRateMin(0)
     , m_pLabelBitRateMed(0)
     , m_pLabelBitRateMax(0)
-    , m_pLabelAudioQuality(0)
-    , m_pWidgetAudioQualitySettings(0)
-    , m_pSliderAudioQuality(0)
-    , m_pLabelAudioQualityMin(0)
-    , m_pLabelAudioQualityMed(0)
-    , m_pLabelAudioQualityMax(0)
+    , m_pLabelAudioProfile(0)
+    , m_pWidgetAudioProfileSettings(0)
+    , m_pSliderAudioProfile(0)
+    , m_pLabelAudioProfileMin(0)
+    , m_pLabelAudioProfileMed(0)
+    , m_pLabelAudioProfileMax(0)
     , m_pLabelSizeHint(0)
     , m_pLabelScreens(0)
     , m_pScrollerScreens(0)
@@ -257,21 +256,32 @@ int UIRecordingSettingsEditor::bitRate() const
     return m_pSpinboxBitRate ? m_pSpinboxBitRate->value() : m_iBitRate;
 }
 
-void UIRecordingSettingsEditor::setAudioQualityRate(int iRate)
+void UIRecordingSettingsEditor::setAudioProfile(const QString &strProfile)
 {
     /* Update cached value and
      * slider if value has changed: */
-    if (m_iAudioQualityRate != iRate)
+    if (m_strAudioProfile != strProfile)
     {
-        m_iAudioQualityRate = iRate;
-        if (m_pSliderAudioQuality)
-            m_pSliderAudioQuality->setValue(m_iAudioQualityRate);
+        m_strAudioProfile = strProfile;
+        if (m_pSliderAudioProfile)
+        {
+            const QStringList profiles = QStringList() << "low" << "med" << "high";
+            int iIndexOfProfile = profiles.indexOf(m_strAudioProfile);
+            if (iIndexOfProfile == -1)
+                iIndexOfProfile = 1; // "med" by default
+            m_pSliderAudioProfile->setValue(iIndexOfProfile);
+        }
     }
 }
 
-int UIRecordingSettingsEditor::audioQualityRate() const
+QString UIRecordingSettingsEditor::audioProfile() const
 {
-    return m_pSliderAudioQuality ? m_pSliderAudioQuality->value() : m_iAudioQualityRate;
+    if (m_pSliderAudioProfile)
+    {
+        const QStringList profiles = QStringList() << "low" << "med" << "high";
+        return profiles.value(m_pSliderAudioProfile->value(), "med" /* by default */);
+    }
+    return m_strAudioProfile;
 }
 
 void UIRecordingSettingsEditor::setScreens(const QVector<bool> &screens)
@@ -337,12 +347,12 @@ void UIRecordingSettingsEditor::sltRetranslateUI()
     m_pLabelBitRateMed->setText(tr("medium", "quality"));
     m_pLabelBitRateMax->setText(tr("high", "quality"));
 
-    m_pLabelAudioQuality->setText(tr("&Audio Quality"));
-    m_pSliderAudioQuality->setToolTip(tr("Audio quality. Increasing this value will make the audio "
+    m_pLabelAudioProfile->setText(tr("&Audio Profile"));
+    m_pSliderAudioProfile->setToolTip(tr("Audio profile. Increasing this value will make the audio "
                                          "sound better at the cost of an increased file size."));
-    m_pLabelAudioQualityMin->setText(tr("low", "quality"));
-    m_pLabelAudioQualityMed->setText(tr("medium", "quality"));
-    m_pLabelAudioQualityMax->setText(tr("high", "quality"));
+    m_pLabelAudioProfileMin->setText(tr("low", "profile"));
+    m_pLabelAudioProfileMed->setText(tr("medium", "profile"));
+    m_pLabelAudioProfileMax->setText(tr("high", "profile"));
 
     m_pLabelScreens->setText(tr("Scree&ns"));
 
@@ -720,67 +730,67 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     pLayoutSettings->addWidget(m_pSpinboxBitRate, 5, 2, 1, 2);
                 }
 
-                /* Prepare recording audio quality label: */
-                m_pLabelAudioQuality = new QLabel(pWidgetSettings);
-                if (m_pLabelAudioQuality)
+                /* Prepare recording audio profile label: */
+                m_pLabelAudioProfile = new QLabel(pWidgetSettings);
+                if (m_pLabelAudioProfile)
                 {
-                    m_pLabelAudioQuality->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-                    pLayoutSettings->addWidget(m_pLabelAudioQuality, 7, 0);
+                    m_pLabelAudioProfile->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+                    pLayoutSettings->addWidget(m_pLabelAudioProfile, 7, 0);
                 }
-                /* Prepare recording audio quality widget: */
-                m_pWidgetAudioQualitySettings = new QWidget(pWidgetSettings);
-                if (m_pWidgetAudioQualitySettings)
+                /* Prepare recording audio profile widget: */
+                m_pWidgetAudioProfileSettings = new QWidget(pWidgetSettings);
+                if (m_pWidgetAudioProfileSettings)
                 {
-                    /* Prepare recording audio quality layout: */
-                    QVBoxLayout *pLayoutRecordingAudioQuality = new QVBoxLayout(m_pWidgetAudioQualitySettings);
-                    if (pLayoutRecordingAudioQuality)
+                    /* Prepare recording audio profile layout: */
+                    QVBoxLayout *pLayoutRecordingAudioProfile = new QVBoxLayout(m_pWidgetAudioProfileSettings);
+                    if (pLayoutRecordingAudioProfile)
                     {
-                        pLayoutRecordingAudioQuality->setContentsMargins(0, 0, 0, 0);
+                        pLayoutRecordingAudioProfile->setContentsMargins(0, 0, 0, 0);
 
-                        /* Prepare recording audio quality slider: */
-                        m_pSliderAudioQuality = new QIAdvancedSlider(m_pWidgetAudioQualitySettings);
-                        if (m_pSliderAudioQuality)
+                        /* Prepare recording audio profile slider: */
+                        m_pSliderAudioProfile = new QIAdvancedSlider(m_pWidgetAudioProfileSettings);
+                        if (m_pSliderAudioProfile)
                         {
-                            if (m_pLabelAudioQuality)
-                                m_pLabelAudioQuality->setBuddy(m_pSliderAudioQuality);
-                            m_pSliderAudioQuality->setOrientation(Qt::Horizontal);
-                            m_pSliderAudioQuality->setMinimum(1);
-                            m_pSliderAudioQuality->setMaximum(3);
-                            m_pSliderAudioQuality->setPageStep(1);
-                            m_pSliderAudioQuality->setSingleStep(1);
-                            m_pSliderAudioQuality->setTickInterval(1);
-                            m_pSliderAudioQuality->setSnappingEnabled(true);
-                            m_pSliderAudioQuality->setOptimalHint(1, 2);
-                            m_pSliderAudioQuality->setWarningHint(2, 3);
+                            if (m_pLabelAudioProfile)
+                                m_pLabelAudioProfile->setBuddy(m_pSliderAudioProfile);
+                            m_pSliderAudioProfile->setOrientation(Qt::Horizontal);
+                            m_pSliderAudioProfile->setMinimum(0);
+                            m_pSliderAudioProfile->setMaximum(2);
+                            m_pSliderAudioProfile->setPageStep(1);
+                            m_pSliderAudioProfile->setSingleStep(1);
+                            m_pSliderAudioProfile->setTickInterval(1);
+                            m_pSliderAudioProfile->setSnappingEnabled(true);
+                            m_pSliderAudioProfile->setOptimalHint(0, 1);
+                            m_pSliderAudioProfile->setWarningHint(1, 2);
 
-                            pLayoutRecordingAudioQuality->addWidget(m_pSliderAudioQuality);
+                            pLayoutRecordingAudioProfile->addWidget(m_pSliderAudioProfile);
                         }
-                        /* Prepare recording audio quality scale layout: */
-                        QHBoxLayout *pLayoutRecordingAudioQualityScale = new QHBoxLayout;
-                        if (pLayoutRecordingAudioQualityScale)
+                        /* Prepare recording audio profile scale layout: */
+                        QHBoxLayout *pLayoutRecordingAudioProfileScale = new QHBoxLayout;
+                        if (pLayoutRecordingAudioProfileScale)
                         {
-                            pLayoutRecordingAudioQualityScale->setContentsMargins(0, 0, 0, 0);
+                            pLayoutRecordingAudioProfileScale->setContentsMargins(0, 0, 0, 0);
 
-                            /* Prepare recording audio quality min label: */
-                            m_pLabelAudioQualityMin = new QLabel(m_pWidgetAudioQualitySettings);
-                            if (m_pLabelAudioQualityMin)
-                                pLayoutRecordingAudioQualityScale->addWidget(m_pLabelAudioQualityMin);
-                            pLayoutRecordingAudioQualityScale->addStretch();
-                            /* Prepare recording audio quality med label: */
-                            m_pLabelAudioQualityMed = new QLabel(m_pWidgetAudioQualitySettings);
-                            if (m_pLabelAudioQualityMed)
-                                pLayoutRecordingAudioQualityScale->addWidget(m_pLabelAudioQualityMed);
-                            pLayoutRecordingAudioQualityScale->addStretch();
-                            /* Prepare recording audio quality max label: */
-                            m_pLabelAudioQualityMax = new QLabel(m_pWidgetAudioQualitySettings);
-                            if (m_pLabelAudioQualityMax)
-                                pLayoutRecordingAudioQualityScale->addWidget(m_pLabelAudioQualityMax);
+                            /* Prepare recording audio profile min label: */
+                            m_pLabelAudioProfileMin = new QLabel(m_pWidgetAudioProfileSettings);
+                            if (m_pLabelAudioProfileMin)
+                                pLayoutRecordingAudioProfileScale->addWidget(m_pLabelAudioProfileMin);
+                            pLayoutRecordingAudioProfileScale->addStretch();
+                            /* Prepare recording audio profile med label: */
+                            m_pLabelAudioProfileMed = new QLabel(m_pWidgetAudioProfileSettings);
+                            if (m_pLabelAudioProfileMed)
+                                pLayoutRecordingAudioProfileScale->addWidget(m_pLabelAudioProfileMed);
+                            pLayoutRecordingAudioProfileScale->addStretch();
+                            /* Prepare recording audio profile max label: */
+                            m_pLabelAudioProfileMax = new QLabel(m_pWidgetAudioProfileSettings);
+                            if (m_pLabelAudioProfileMax)
+                                pLayoutRecordingAudioProfileScale->addWidget(m_pLabelAudioProfileMax);
 
-                            pLayoutRecordingAudioQuality->addLayout(pLayoutRecordingAudioQualityScale);
+                            pLayoutRecordingAudioProfile->addLayout(pLayoutRecordingAudioProfileScale);
                         }
                     }
 
-                    pLayoutSettings->addWidget(m_pWidgetAudioQualitySettings, 7, 1, 2, 1);
+                    pLayoutSettings->addWidget(m_pWidgetAudioProfileSettings, 7, 1, 2, 1);
                 }
 
                 /* Prepare recording size hint label: */
@@ -882,8 +892,8 @@ void UIRecordingSettingsEditor::updateWidgetVisibility()
     /* Only the Audio stuff can be totally disabled, so we will add the code for hiding Audio stuff only: */
     const bool fAudioSettingsVisible =    m_supportedValues.isEmpty()
                                        || m_supportedValues.contains(UISettingsDefs::RecordingMode_AudioOnly);
-    m_pWidgetAudioQualitySettings->setVisible(fAudioSettingsVisible);
-    m_pLabelAudioQuality->setVisible(fAudioSettingsVisible);
+    m_pWidgetAudioProfileSettings->setVisible(fAudioSettingsVisible);
+    m_pLabelAudioProfile->setVisible(fAudioSettingsVisible);
 }
 
 void UIRecordingSettingsEditor::updateWidgetAvailability()
@@ -914,8 +924,8 @@ void UIRecordingSettingsEditor::updateWidgetAvailability()
     m_pWidgetBitRateSettings->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
     m_pSpinboxBitRate->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
 
-    m_pLabelAudioQuality->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordAudio);
-    m_pWidgetAudioQualitySettings->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordAudio);
+    m_pLabelAudioProfile->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordAudio);
+    m_pWidgetAudioProfileSettings->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordAudio);
 
     m_pLabelSizeHint->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
 
