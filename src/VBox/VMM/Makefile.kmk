@@ -553,7 +553,7 @@ ifdef VBOX_WITH_VIRT_ARMV8
  	VMMAll/PGMAllPhys.cpp \
  	VMMAll/EMAll.cpp \
  	VMMAll/target-armv8/GICAll-armv8.cpp \
- 	VMMAll/GITSAll.cpp \
+ 	VMMAll/target-armv8/GITSAll-armv8.cpp \
  	VMMAll/GIMAll.cpp \
  	VMMAll/PMUAll.cpp \
  	VMMAll/TMAll.cpp \

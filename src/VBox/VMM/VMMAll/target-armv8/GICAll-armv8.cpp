@@ -46,7 +46,8 @@
  * presence is optional. It provides MSI support along with routing interrupt
  * sources to specific PEs. The ITS is only accessible via its memory mapped I/O
  * region. When the MMIO handle for the its region is NIL_IOMMMIOHANDLE it's
- * considered to be disabled for the VM. Most of the ITS code lives in GITSAll.cpp.
+ * considered to be disabled for the VM. Most of the ITS code lives in
+ * GITSAll-armv8.cpp.
  *
  * This implementation only targets GICv3. This implementation does not support
  * dual security states, nor does it support exception levels (EL2, EL3). Earlier
