@@ -54,9 +54,9 @@ from testmanager                        import config;
 if sys.version_info[0] < 3:
     psycopg2.extensions.register_type(psycopg2.extensions.UNICODE);
     psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY);
-    unicode = unicode;  # pylint: disable=redefined-builtin,invalid-name,self-assigning-variable
+    unicode = unicode;  # pylint: disable=redefined-builtin,invalid-name,self-assigning-variable,undefined-variable
 else:
-    unicode = str;      # pylint: disable=redefined-builtin,invalid-name,self-assigning-variable
+    unicode = str;      # pylint: disable=redefined-builtin,invalid-name
 
 
 
