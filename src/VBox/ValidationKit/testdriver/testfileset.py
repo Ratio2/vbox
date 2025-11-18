@@ -301,7 +301,7 @@ class TestFileSet(object):
 
     ## @}
 
-    def __init__(self, fDosStyle, sBasePath, sSubDir, # pylint: disable=too-many-arguments
+    def __init__(self, fDosStyle, sBasePath, sSubDir, # pylint: disable=too-many-arguments,too-many-positional-arguments
                  asCompatibleWith = None,             # List of getHostOs values to the names must be compatible with.
                  oRngFileSizes = xrange(0, 16384),
                  oRngManyFiles = xrange(128, 512),

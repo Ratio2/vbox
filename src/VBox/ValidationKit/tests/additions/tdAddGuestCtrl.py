@@ -675,8 +675,9 @@ class tdTestFileOpenAndWrite(tdTestFileOpen):
     The chunks are a list of tuples(offset, bytes), where offset can be None
     if no seeking should be performed.
     """
-    def __init__(self, sFile = "", eAccessMode = None, eAction = None, eSharing = None, # pylint: disable=too-many-arguments
-                 fCreationMode = 0o660, atChunks = None, fUseAtApi = False, abContent = None, oCreds = None):
+    def __init__(self, sFile = "", eAccessMode = None, # pylint: disable=too-many-arguments,too-many-positional-arguments
+                 eAction = None, eSharing = None,  fCreationMode = 0o660, atChunks = None, fUseAtApi = False,
+                 abContent = None, oCreds = None):
         tdTestFileOpen.__init__(self, sFile, eAccessMode if eAccessMode is not None else vboxcon.FileAccessMode_WriteOnly,
                                 eAction, eSharing, fCreationMode, oCreds);
         assert atChunks is not None;

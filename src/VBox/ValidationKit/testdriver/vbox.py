@@ -607,8 +607,8 @@ class EventHandlerBase(object):
         return None;
 
     @staticmethod
-    def registerDerivedEventHandler(oVBoxMgr, fpApiVer, oSubClass, dArgsCopy, # pylint: disable=too-many-arguments
-                                    oSrcParent, sSrcParentNm, sICallbackNm,
+    def registerDerivedEventHandler(oVBoxMgr, fpApiVer, # pylint: disable=too-many-arguments,too-many-positional-arguments
+                                    oSubClass, dArgsCopy, oSrcParent, sSrcParentNm, sICallbackNm,
                                     fMustSucceed = True, sLogSuffix = '', aenmEvents = None):
         """
         Registers the callback / event listener.

@@ -366,8 +366,8 @@ class SchedQueueData(ModelDataBase):
         self.idTestSetGangLeader    = None;
         self.cMissingGangMembers    = 1;
 
-    def initFromValues(self, idSchedGroup, idGenTestCaseArgs, idTestGroup, aidTestGroupPreReqs, # pylint: disable=too-many-arguments
-                       bmHourlySchedule, cMissingGangMembers,
+    def initFromValues(self, idSchedGroup, idGenTestCaseArgs, # pylint: disable=too-many-arguments,too-many-positional-arguments
+                       idTestGroup, aidTestGroupPreReqs, bmHourlySchedule, cMissingGangMembers,
                        idItem = None, offQueue = None, tsConfig = None, tsLastScheduled = None, idTestSetGangLeader = None):
         """
         Reinitialize with all attributes potentially given as inputs.

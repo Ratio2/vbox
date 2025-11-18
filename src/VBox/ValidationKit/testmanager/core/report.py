@@ -239,8 +239,8 @@ class ReportModelBase(ModelLogicBase): # pylint: disable=too-few-public-methods
 
 class ReportTransientBase(object):
     """ Details on the test where a problem was first/last seen.  """
-    def __init__(self, idBuild, iRevision, sRepository, idTestSet, idTestResult, tsDone, # pylint: disable=too-many-arguments
-                 iPeriod, fEnter, idSubject, oSubject):
+    def __init__(self, idBuild, iRevision, sRepository, # pylint: disable=too-many-arguments,too-many-positional-arguments
+                 idTestSet, idTestResult, tsDone, iPeriod, fEnter, idSubject, oSubject):
         self.idBuild            = idBuild;      # Build ID.
         self.iRevision          = iRevision;    # SVN revision for build.
         self.sRepository        = sRepository;  # SVN repository for build.
@@ -254,8 +254,8 @@ class ReportTransientBase(object):
 
 class ReportFailureReasonTransient(ReportTransientBase):
     """ Details on the test where a failure reason was first/last seen.  """
-    def __init__(self, idBuild, iRevision, sRepository, idTestSet, idTestResult, tsDone,  # pylint: disable=too-many-arguments
-                 iPeriod, fEnter, oReason):
+    def __init__(self, idBuild, iRevision, sRepository, # pylint: disable=too-many-arguments,too-many-positional-arguments
+                 idTestSet, idTestResult, tsDone, iPeriod, fEnter, oReason):
         ReportTransientBase.__init__(self, idBuild, iRevision, sRepository, idTestSet, idTestResult, tsDone, iPeriod, fEnter,
                                      oReason.idFailureReason, oReason);
         self.oReason            = oReason;      # FailureReasonDataEx
@@ -975,8 +975,8 @@ class ReportGraphModel(ReportModelBase): # pylint: disable=too-few-public-method
             return oDataSeries;
 
 
-    def __init__(self, oDb, tsNow, cPeriods, cHoursPerPeriod, sSubject, aidSubjects, # pylint: disable=too-many-arguments
-                 aidTestBoxes, aidBuildCats, aidTestCases, fSepTestVars):
+    def __init__(self, oDb, tsNow, cPeriods, cHoursPerPeriod, # pylint: disable=too-many-arguments,too-many-positional-arguments
+                 sSubject, aidSubjects, aidTestBoxes, aidBuildCats, aidTestCases, fSepTestVars):
         assert(sSubject == self.ksSubEverything); # dummy
         ReportModelBase.__init__(self, oDb, tsNow, cPeriods, cHoursPerPeriod, sSubject, aidSubjects, oFilter = None);
         self.aidTestBoxes = aidTestBoxes;
