@@ -98,10 +98,9 @@ class TestFile(TestFsObj):
     def read(self, cbToRead):
         """ read() emulation. """
         assert self.off <= self.cbContent;
-        cbLeft = self.cbContent - self.off;
-        if cbLeft < cbToRead:
-            cbToRead = cbLeft;
-        abRet = self.abContent[self.off:(self.off + cbToRead)];
+        cbLeft   = self.cbContent - self.off;
+        cbToRead = min(cbToRead, cbLeft);
+        abRet    = self.abContent[self.off:(self.off + cbToRead)];
         assert len(abRet) == cbToRead;
         self.off += cbToRead;
         if sys.version_info[0] < 3:
@@ -126,9 +125,7 @@ class TestFile(TestFsObj):
         except:
             return reporter.error('seek error');
         while offFile < self.cbContent:
-            cbToRead = self.cbContent - offFile;
-            if cbToRead > 256*1024:
-                cbToRead = 256*1024;
+            cbToRead = min(self.cbContent - offFile, 256*1024);
             try:
                 abRead = oFile.read(cbToRead);
             except:
@@ -236,10 +233,9 @@ class TestFileZeroFilled(TestFile):
     def read(self, cbToRead):
         """ read() emulation. """
         assert self.off <= self.cbContent;
-        cbLeft = self.cbContent - self.off;
-        if cbLeft < cbToRead:
-            cbToRead = cbLeft;
-        abRet = bytearray(cbToRead);
+        cbLeft   = self.cbContent - self.off;
+        cbToRead = min(cbToRead, cbLeft);
+        abRet    = bytearray(cbToRead);
         assert len(abRet) == cbToRead;
         self.off += cbToRead;
         if sys.version_info[0] < 3:
@@ -415,10 +411,8 @@ class TestFileSet(object):
             cchMaxName = self.cchMaxPath - len(oParent.sPath) - 1;
         else:
             cchMaxName = self.cchMaxPath - 4;
-        if cchMaxName > self.cchMaxName:
-            cchMaxName = self.cchMaxName;
-        if cchMaxName <= 1:
-            cchMaxName = 2;
+        cchMaxName = min(cchMaxName, self.cchMaxName)
+        cchMaxName = max(cchMaxName, 2);
 
         while True:
             cchName = self.oRandom.randrange(1, cchMaxName);

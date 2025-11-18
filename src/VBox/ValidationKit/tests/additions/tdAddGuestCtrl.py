@@ -4372,53 +4372,53 @@ class SubTstDrvAddGuestCtrl(base.SubTestDriverBase):
             fRc = oCurTest.setEnvironment(oSession, oTxsSession, oTestVm);
             if fRc:
                 fRc, oCurGuestSession = oCurTest.createSession('remove final');
-            if fRc is True:
+                if fRc is True:
 
-                #
-                # Delete all the files in the many subdir of the test set.
-                #
-                reporter.log('Deleting the file in "%s" ...' % (self.oTestFiles.oManyDir.sPath,));
-                for oFile in self.oTestFiles.oManyDir.aoChildren:
-                    reporter.log2('"%s"' % (limitString(oFile.sPath),));
+                    #
+                    # Delete all the files in the many subdir of the test set.
+                    #
+                    reporter.log('Deleting the file in "%s" ...' % (self.oTestFiles.oManyDir.sPath,));
+                    for oFile in self.oTestFiles.oManyDir.aoChildren:
+                        reporter.log2('"%s"' % (limitString(oFile.sPath),));
+                        try:
+                            if self.oTstDrv.fpApiVer >= 5.0:
+                                oCurGuestSession.fsObjRemove(oFile.sPath);
+                            else:
+                                oCurGuestSession.fileRemove(oFile.sPath);
+                        except:
+                            fRc = reporter.errorXcpt('Removing "%s" failed' % (oFile.sPath,));
+
+                    # Remove the directory itself to verify that we've removed all the files in it:
+                    reporter.log('Removing the directory "%s" ...' % (self.oTestFiles.oManyDir.sPath,));
                     try:
-                        if self.oTstDrv.fpApiVer >= 5.0:
-                            oCurGuestSession.fsObjRemove(oFile.sPath);
-                        else:
-                            oCurGuestSession.fileRemove(oFile.sPath);
+                        oCurGuestSession.directoryRemove(self.oTestFiles.oManyDir.sPath);
                     except:
-                        fRc = reporter.errorXcpt('Removing "%s" failed' % (oFile.sPath,));
+                        fRc = reporter.errorXcpt('Removing directory "%s" failed' % (self.oTestFiles.oManyDir.sPath,));
 
-                # Remove the directory itself to verify that we've removed all the files in it:
-                reporter.log('Removing the directory "%s" ...' % (self.oTestFiles.oManyDir.sPath,));
-                try:
-                    oCurGuestSession.directoryRemove(self.oTestFiles.oManyDir.sPath);
-                except:
-                    fRc = reporter.errorXcpt('Removing directory "%s" failed' % (self.oTestFiles.oManyDir.sPath,));
+                    #
+                    # Recursively delete the entire test file tree from the root up.
+                    #
+                    # Note! On unix we cannot delete the root dir itself since it is residing
+                    #       in /var/tmp where only the owner may delete it.  Root is the owner.
+                    #
+                    if oTestVm.isWindows() or oTestVm.isOS2():
+                        afFlags = [vboxcon.DirectoryRemoveRecFlag_ContentAndDir,];
+                    else:
+                        afFlags = [vboxcon.DirectoryRemoveRecFlag_ContentOnly,];
+                    try:
+                        oProgress = oCurGuestSession.directoryRemoveRecursive(self.oTestFiles.oRoot.sPath, afFlags);
+                    except:
+                        fRc = reporter.errorXcpt('Removing tree "%s" failed' % (self.oTestFiles.oRoot.sPath,));
+                    else:
+                        oWrappedProgress = vboxwrappers.ProgressWrapper(oProgress, self.oTstDrv.oVBoxMgr, self.oTstDrv,
+                                                                        "remove-tree-root: %s" % (self.oTestFiles.oRoot.sPath,));
+                        reporter.log2('waiting ...')
+                        oWrappedProgress.wait();
+                        reporter.log2('isSuccess=%s' % (oWrappedProgress.isSuccess(),));
+                        if not oWrappedProgress.isSuccess():
+                            fRc = oWrappedProgress.logResult();
 
-                #
-                # Recursively delete the entire test file tree from the root up.
-                #
-                # Note! On unix we cannot delete the root dir itself since it is residing
-                #       in /var/tmp where only the owner may delete it.  Root is the owner.
-                #
-                if oTestVm.isWindows() or oTestVm.isOS2():
-                    afFlags = [vboxcon.DirectoryRemoveRecFlag_ContentAndDir,];
-                else:
-                    afFlags = [vboxcon.DirectoryRemoveRecFlag_ContentOnly,];
-                try:
-                    oProgress = oCurGuestSession.directoryRemoveRecursive(self.oTestFiles.oRoot.sPath, afFlags);
-                except:
-                    fRc = reporter.errorXcpt('Removing tree "%s" failed' % (self.oTestFiles.oRoot.sPath,));
-                else:
-                    oWrappedProgress = vboxwrappers.ProgressWrapper(oProgress, self.oTstDrv.oVBoxMgr, self.oTstDrv,
-                                                                    "remove-tree-root: %s" % (self.oTestFiles.oRoot.sPath,));
-                    reporter.log2('waiting ...')
-                    oWrappedProgress.wait();
-                    reporter.log2('isSuccess=%s' % (oWrappedProgress.isSuccess(),));
-                    if not oWrappedProgress.isSuccess():
-                        fRc = oWrappedProgress.logResult();
-
-                fRc = oCurTest.closeSession() and fRc;
+                    fRc = oCurTest.closeSession() and fRc;
 
         return (fRc, oTxsSession);
 

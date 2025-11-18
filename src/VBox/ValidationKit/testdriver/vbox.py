@@ -2325,6 +2325,7 @@ class TestDriver(base.TestDriver):                                              
                     reporter.log("  HPET:               %s" % (oVM.HPETEnabled,));
                 else:
                     reporter.log("  HPET:               %s" % (oVM.hpetEnabled,));
+        fAccelerate2DVideoEnabled = False;
         if self.fpApiVer >= 6.1 and hasattr(oVM, 'graphicsAdapter'):
             if self.fpApiVer >= 7.1 and hasattr(oVM.graphicsAdapter, 'isFeatureEnabled'):
                 fAccelerate3DEnabled = \
@@ -2616,7 +2617,7 @@ class TestDriver(base.TestDriver):                                              
             reporter.errorXcpt('failed to create vm "%s"' % (sName));
         return None;
 
-    # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-branches
+    # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals,too-many-statements,too-many-branches
     def createTestVM(self,
                      sName,
                      iGroup,
@@ -4548,11 +4549,11 @@ class TestDriver(base.TestDriver):                                              
                                           oStdErr = reporter.FileWrapper('stderr'), oStdOut = reporter.FileWrapper('stdout'),
                                           fIgnoreErrors = fIgnoreErrors);
 
-    def txsRunTest2(self, oTxsSession1, oTxsSession2, sTestName, cMsTimeout,
-            sExecName1, asArgs1,
-            sExecName2, asArgs2,
-            asAddEnv1 = (), sAsUser1 = '', fWithTestPipe1 = True,
-            asAddEnv2 = (), sAsUser2 = '', fWithTestPipe2 = True):
+    def txsRunTest2(self, oTxsSession1, oTxsSession2, sTestName, cMsTimeout, # pylint: disable=,too-many-positional-arguments
+                    sExecName1, asArgs1,
+                    sExecName2, asArgs2,
+                    asAddEnv1 = (), sAsUser1 = '', fWithTestPipe1 = True,
+                    asAddEnv2 = (), sAsUser2 = '', fWithTestPipe2 = True):
         """
         Executes the specified test tasks, waiting till they complete or
         times out.  The 1st task is started after the 2nd one.

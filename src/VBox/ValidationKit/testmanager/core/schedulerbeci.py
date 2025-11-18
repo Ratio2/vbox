@@ -68,10 +68,8 @@ class SchdulerBeci(SchedulerBase): # pylint: disable=too-few-public-methods
                 assert iPrio in range(32);
                 iPrio = iPrio // 4;
                 assert iPrio in range(8);
-                if iPrio > iMaxPriority:
-                    iMaxPriority = iPrio;
-                if iPrio < iMinPriority:
-                    iMinPriority = iPrio;
+                iMinPriority = min(iMinPriority, iPrio);
+                iMaxPriority = max(iMaxPriority, iPrio);
 
                 oTestCase.iBeciPrio      = iPrio;
                 oTestCase.iNextVariation = -1;

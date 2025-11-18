@@ -76,10 +76,8 @@ class WuiHlpBarGraph(WuiHlpGraphBase):
         for i in range(1, len(aoTable)):
             for oValue in aoTable[i].aoValues:
                 fpValue = float(oValue);
-                if fpValue < fpMin:
-                    fpMin = fpValue;
-                if fpValue > fpMax:
-                    fpMax = fpValue;
+                fpMin   = min(fpMin, fpValue);
+                fpMax   = max(fpMax, fpValue);
         assert fpMin >= 0;
 
         # Format the data.

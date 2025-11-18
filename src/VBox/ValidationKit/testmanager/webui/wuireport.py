@@ -620,8 +620,7 @@ class WuiReportFailureReasons(WuiReportFailuresBase):
 
                 if fIncludeWithoutReason:
                     aiValues.append(oPeriod.cWithoutReason);
-                    if oPeriod.cWithoutReason > cMax:
-                        cMax = oPeriod.cWithoutReason;
+                    cMax = max(cMax, oPeriod.cWithoutReason);
 
                 oTable.addRow(oPeriod.sDesc, aiValues);
 

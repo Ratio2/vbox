@@ -1313,8 +1313,7 @@ class TestDriverBase(object): # pylint: disable=too-many-instance-attributes
             if cMsToDeadline >= 0:
                 # Adjust for fudge and enforce the minimum timeout
                 cMsToDeadline -= self.secTimeoutFudge * 1000;
-                if cMsToDeadline < (cMsMinimum if cMsMinimum is not None else 10000):
-                    cMsToDeadline = cMsMinimum if cMsMinimum is not None else 10000;
+                cMsToDeadline  = max(cMsToDeadline, cMsMinimum if cMsMinimum is not None else 10000);
 
                 # Is the timeout beyond the (adjusted) deadline, if so change it.
                 if cMsTimeout > cMsToDeadline:

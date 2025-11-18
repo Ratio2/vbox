@@ -575,7 +575,7 @@ class SchedulerBase(object):
     def getElapsedSecs(self):
         """ Returns the number of seconds this scheduling task has been running. """
         tsSecNow = utils.timestampSecond();
-        if tsSecNow < self._tsSecStart: # paranoia
+        if tsSecNow < self._tsSecStart: # paranoia  # pylint: disable=consider-using-min-builtin
             self._tsSecStart = tsSecNow;
         return tsSecNow - self._tsSecStart;
 

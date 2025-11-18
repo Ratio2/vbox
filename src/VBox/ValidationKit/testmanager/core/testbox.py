@@ -1121,7 +1121,7 @@ ORDER BY ''' + ', '.join(asSortColumns), (tsNow, tsNow, idSchedGroup, tsNow, tsN
         return True;
 
 
-    def updateOnSignOn(self, idTestBox, idGenTestBox, sTestBoxAddr, sOs, sOsVersion, # pylint: disable=too-many-arguments,too-many-locals
+    def updateOnSignOn(self, idTestBox, idGenTestBox, sTestBoxAddr, sOs, sOsVersion, # pylint: disable=too-many-arguments,too-many-locals,too-many-positional-arguments
                        sCpuVendor, sCpuArch, sCpuName, lCpuRevision, cCpus, fCpuHwVirt, fCpuNestedPaging, fCpu64BitGuest,
                        fChipsetIoMmu, fRawMode, fNativeApi, cMbMemory, cMbScratch, sReport, iTestBoxScriptRev, iPythonHexVersion):
         """

@@ -744,9 +744,7 @@ class TestBoxController(object): # pylint: disable=too-few-public-methods
         offFile  = 0;
         oSrcFile = self._oSrvGlue.getBodyIoStreamBinary();
         while offFile < cbFile:
-            cbToRead = cbFile - offFile;
-            if cbToRead > 256*1024:
-                cbToRead = 256*1024;
+            cbToRead = min(cbFile - offFile, 256*1024);
             offFile += cbToRead;
 
             abBuf = oSrcFile.read(cbToRead);

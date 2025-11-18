@@ -551,6 +551,7 @@ class Session(TdTaskBase):
                 oTaskRc = None;
         else:
             reporter.log('taskThread: cancelled already');
+            oTaskRc = None;
 
         self.lockTask();
 

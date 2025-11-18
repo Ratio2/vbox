@@ -141,10 +141,8 @@ class WuiHlpBarGraph(WuiHlpGraphMatplotlibBase):
             for j, oValue in enumerate(aoTable[i].aoValues):
                 fpValue = float(oValue);
                 aoSeries[j].append(fpValue);
-                if fpValue < fpMin:
-                    fpMin = fpValue;
-                if fpValue > fpMax:
-                    fpMax = fpValue;
+                fpMin = min(fpMin, fpValue);
+                fpMax = min(fpMax, fpValue);
 
         fpMid = fpMin + (fpMax - fpMin) / 2.0;
 

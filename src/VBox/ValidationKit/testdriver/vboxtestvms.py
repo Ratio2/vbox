@@ -253,7 +253,7 @@ class BaseTestVm(object):
     Defaults to the x86 platform architecture.
     """
 
-    def __init__(self, # pylint: disable=too-many-arguments
+    def __init__(self, # pylint: disable=too-many-arguments,too-many-positional-arguments
                  sVmName,                                   # type: str
                  sPlatformArchitecture = 'x86',             # type: str
                  fGrouping = 0,                             # type: int
@@ -1052,7 +1052,7 @@ class TestVm(object):                                       # pylint: disable=to
     This is just a data object.
     """
 
-    def __init__(self, # pylint: disable=too-many-arguments
+    def __init__(self, # pylint: disable=too-many-arguments,too-many-positional-arguments
                  sVmName,                                   # type: str
                  fGrouping = 0,                             # type: int
                  oSet = None,                               # type: TestVmSet
@@ -1659,7 +1659,7 @@ class AncientTestVm(TestVm):
     """
 
 
-    def __init__(self, # pylint: disable=too-many-arguments
+    def __init__(self, # pylint: disable=too-many-arguments,too-many-positional-arguments
                  sVmName,                                   # type: str
                  fGrouping = g_kfGrpAncient | g_kfGrpNoTxs, # type: int
                  sHd = None,                                # type: str

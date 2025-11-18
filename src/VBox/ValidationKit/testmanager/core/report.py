@@ -320,10 +320,8 @@ class ReportPeriodBase(object):
             self.tsMax = oRow.tsMax;
 
         self.cHits += oRow.cHits;
-        if oRow.cHits > self.cMaxHits:
-            self.cMaxHits = oRow.cHits;
-        if oRow.cHits < self.cMinHits:
-            self.cMinHits = oRow.cHits;
+        self.cMaxHits = max(self.cMaxHits, oRow.cHits);
+        self.cMinHits = min(self.cMinHits, oRow.cHits);
 
         if idRow in self.oSet.dcHitsPerId:
             self.oSet.dcHitsPerId[idRow] += oRow.cHits;
@@ -375,14 +373,10 @@ class ReportPeriodWithTotalBase(ReportPeriodBase):
     def _doStatsForRow(self, oRow, idRow, oData):
         assert isinstance(oRow, ReportHitRowWithTotalBase);
         super(ReportPeriodWithTotalBase, self)._doStatsForRow(oRow, idRow, oData);
-        self.cTotal += oRow.cTotal;
-        if oRow.cTotal > self.cMaxTotal:
-            self.cMaxTotal = oRow.cTotal;
-        if oRow.cTotal < self.cMinTotal:
-            self.cMinTotal = oRow.cTotal;
-
-        if oRow.uPct > self.uMaxPct:
-            self.uMaxPct = oRow.uPct;
+        self.cTotal   += oRow.cTotal;
+        self.cMaxTotal = max(self.cMaxTotal, oRow.cTotal);
+        self.cMinTotal = min(self.cMinTotal, oRow.cTotal);
+        self.uMaxPct   = max(self.uMaxPct,   oRow.uPct);
 
         if idRow in self.oSet.dcTotalPerId:
             self.oSet.dcTotalPerId[idRow] += oRow.cTotal;
@@ -432,15 +426,11 @@ class ReportPeriodSetBase(object):
     def _doStatsForPeriod(self, oPeriod):
         """ Worker for appendPeriod and recalcStats. """
         self.cHits += oPeriod.cHits;
-        if oPeriod.cMaxHits > self.cMaxHits:
-            self.cMaxHits = oPeriod.cMaxHits;
-        if oPeriod.cMinHits < self.cMinHits:
-            self.cMinHits = oPeriod.cMinHits;
+        self.cMaxHits = max(self.cMaxHits, oPeriod.cMaxHits);
+        self.cMinHits = min(self.cMinHits, oPeriod.cMinHits);
 
-        if len(oPeriod.aoRows) > self.cMaxRows:
-            self.cMaxRows = len(oPeriod.aoRows);
-        if len(oPeriod.aoRows) < self.cMinRows:
-            self.cMinRows = len(oPeriod.aoRows);
+        self.cMaxRows = max(self.cMaxRows, len(oPeriod.aoRows));
+        self.cMinRows = min(self.cMinRows, len(oPeriod.aoRows));
 
     def recalcStats(self):
         """ Recalculates the statistics. ASSUMES finalizePass1 hasn't been done yet. """
@@ -513,14 +503,10 @@ class ReportPeriodSetWithTotalBase(ReportPeriodSetBase):
     def _doStatsForPeriod(self, oPeriod):
         assert isinstance(oPeriod, ReportPeriodWithTotalBase);
         super(ReportPeriodSetWithTotalBase, self)._doStatsForPeriod(oPeriod);
-        self.cTotal += oPeriod.cTotal;
-        if oPeriod.cMaxTotal > self.cMaxTotal:
-            self.cMaxTotal = oPeriod.cMaxTotal;
-        if oPeriod.cMinTotal < self.cMinTotal:
-            self.cMinTotal = oPeriod.cMinTotal;
-
-        if oPeriod.uMaxPct > self.uMaxPct:
-            self.uMaxPct = oPeriod.uMaxPct;
+        self.cTotal   += oPeriod.cTotal;
+        self.cMaxTotal = max(self.cMaxTotal, oPeriod.cMaxTotal);
+        self.cMinTotal = min(self.cMinTotal, oPeriod.cMinTotal);
+        self.uMaxPct   = max(self.uMaxPct,   oPeriod.uMaxPct);
 
     def recalcStats(self):
         self.dcTotalPerId       = {};
