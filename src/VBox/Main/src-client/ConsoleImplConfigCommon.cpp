@@ -2743,6 +2743,8 @@ int Console::i_configNetwork(const char *pszDevice,
 /// @todo aleksey: is there anything to be done here?
 #elif defined(RT_OS_FREEBSD)
 /** @todo FreeBSD: Check out this later (HIF networking). */
+#elif defined(RT_OS_DARWIN)
+/** @todo is there anything to be done here? */
 #else
 # error "Port me"
 #endif
