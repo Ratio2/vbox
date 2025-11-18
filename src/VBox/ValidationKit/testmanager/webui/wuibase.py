@@ -54,8 +54,11 @@ from testmanager.core.useraccount import UserAccountLogic
 
 # Python 3 hacks:
 if sys.version_info[0] >= 3:
-    unicode = str;  # pylint: disable=redefined-builtin,invalid-name
-    long = int;     # pylint: disable=redefined-builtin,invalid-name
+    unicode = str;     # pylint: disable=redefined-builtin,invalid-name
+    long = int;        # pylint: disable=redefined-builtin,invalid-name
+else:
+    unicode = unicode; # pylint: disable=redefined-builtin,invalid-name,self-assigning-variable
+    long = long;       # pylint: disable=redefined-builtin,invalid-name,self-assigning-variable
 
 
 class WuiException(TMExceptionBase):

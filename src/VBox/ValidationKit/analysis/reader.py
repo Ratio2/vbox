@@ -61,6 +61,8 @@ from common import utils;
 # Python 3 hacks:
 if sys.version_info[0] >= 3:
     long = int;     # pylint: disable=redefined-builtin,invalid-name
+else:
+    long = long;    # pylint: disable=redefined-builtin,invalid-name,self-assigning-variable
 
 # pylint: disable=missing-docstring
 

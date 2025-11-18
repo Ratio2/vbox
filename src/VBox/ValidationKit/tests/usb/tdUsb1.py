@@ -62,7 +62,9 @@ import usbgadget;
 
 # Python 3 hacks:
 if sys.version_info[0] >= 3:
-    xrange = range; # pylint: disable=redefined-builtin,invalid-name
+    xrange = range;     # pylint: disable=redefined-builtin,invalid-name
+else:
+    xrange = xrange;    # pylint: disable=redefined-builtin,invalid-name,self-assigning-variable
 
 
 class tdUsbBenchmark(vbox.TestDriver):                                      # pylint: disable=too-many-instance-attributes

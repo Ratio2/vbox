@@ -56,7 +56,9 @@ from testdriver.base    import TdTaskBase;
 
 # Python 3 hacks:
 if sys.version_info[0] >= 3:
-    long = int;     # pylint: disable=redefined-builtin,invalid-name
+    long = int;         # pylint: disable=redefined-builtin,invalid-name
+else:
+    long = long;        # pylint: disable=redefined-builtin,invalid-name,self-assigning-variable
 
 
 ## @name USB gadget impersonation string constants.

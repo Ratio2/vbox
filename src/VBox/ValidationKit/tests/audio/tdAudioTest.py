@@ -64,7 +64,6 @@ from testdriver import vboxcon;
 from testdriver import vboxtestvms
 from common     import utils;
 
-# pylint: disable=unnecessary-semicolon
 
 class tdDebugSettings(object):
     """
