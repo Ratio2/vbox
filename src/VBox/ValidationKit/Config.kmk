@@ -205,7 +205,7 @@ define def_vbox_validationkit_py_check
   pyunittest: $(name)-pyunittest.o
   $(PATH_TARGET)/pyunittest/$(name).o $(name)-pyunittest.o:: $(py) | $(PATH_TARGET)/pyunittest/
 	$(QUIET2)$(call MSG_L1,Unittesting Python source $(py)...)
-	$(QUIET)$(REDIRECT) -E LC_ALL=C -E PYTHONPATH="$(VBOX_PYTHONPATH_VALIDATIONKIT)" -C $(dir $(py)) \
+	$(QUIET)$(REDIRECT_EXT) -E LC_ALL=C -E PYTHONPATH="$(VBOX_PYTHONPATH_VALIDATIONKIT)" -C $(dir $(py)) \
 		$(if-expr $(KBUILD_KMK_REVISION)-0 >= 3685,--translate-exitcode 5=0,) \
 		-- $(VBOX_UNITTEST_PYTHON) -m unittest -v $(notdir $(basename $(py)))
 	$(QUIET)$(APPEND) -t "$(PATH_TARGET)/pyunittest/$(name).o"
