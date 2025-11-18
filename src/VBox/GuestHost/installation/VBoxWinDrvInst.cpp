@@ -1476,9 +1476,9 @@ static int vboxWinDrvInstallPerform(PVBOXWINDRVINSTINTERNAL pCtx, PVBOXWINDRVINS
                     rc = vboxWinDrvInstLogLastError(pCtx, "GetFullPathNameW() failed");
 
                 if (RT_SUCCESS(rc))
-                    rc = vboxWinDrvTryInfSection(pCtx,
-                                                 pParms->pwszInfFile, pParms->u.UnInstall.pwszSection,
-                                                 vboxWinDrvInstallTryInfSectionCallback);
+                    /* rc ignored, keep going */ vboxWinDrvTryInfSection(pCtx,
+                                                                         pParms->pwszInfFile, pParms->u.UnInstall.pwszSection,
+                                                                         vboxWinDrvInstallTryInfSectionCallback);
             }
 
             if (RT_FAILURE(rc))
