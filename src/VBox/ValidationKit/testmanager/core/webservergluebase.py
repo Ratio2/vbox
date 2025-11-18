@@ -40,7 +40,7 @@ __version__ = "$Revision$"
 
 
 # Standard python imports.
-import cgitb;   # pylint: disable=deprecated-module ## @todo these will be retired in python 3.13!
+import cgitb;   # pylint: disable=deprecated-module     # Retired in python 3.13. Install (python3-)legacy-cgi.
 import codecs;
 import os
 import sys
@@ -520,7 +520,7 @@ class WebServerGlueBase(object):
         if aXcptInfo[0] is not None:
             if self._fHtmlDebugOutput:
                 self.write('<h1>Backtrace:</h1>\n');
-                self.write(cgitb.html(aXcptInfo, 5));
+                self.write(self.formatExceptionAsHtml(aXcptInfo, 5));
             else:
                 self.write('Backtrace\n'
                            '---------\n'
@@ -714,4 +714,12 @@ class WebServerGlueBase(object):
             try:    self._afnDebugInfo.remove(fnDebugInfo);
             except: pass;
         return True;
+
+    def formatExceptionAsHtml(self, oXcptInfo = None, cLinesContext = 5):
+        """
+        Wrapper around cgitb.html.
+        """
+        if not oXcptInfo:
+            oXcptInfo = sys.exc_info();
+        return cgitb.html(oXcptInfo, cLinesContext);
 

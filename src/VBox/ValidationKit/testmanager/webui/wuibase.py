@@ -465,7 +465,7 @@ class WuiDispatcherBase(object):
 
         sValue = self.getStringParam(sName, None, None if lDefault is None else str(lDefault));
         try:
-            lValue = long(sValue);
+            lValue = long(sValue); # pylint: disable=possibly-used-before-assignment
         except:
             raise WuiException('%s parameter %s value "%s" cannot be convert to an integer'
                                % (self._sAction, sName, sValue));
@@ -948,8 +948,6 @@ class WuiDispatcherBase(object):
 
         sRedirAction is what action to redirect to on success.
         """
-        import cgitb;   # pylint: disable=deprecated-module ## @todo these will be retired in python 3.13!
-
         idEntry = self.getIntParam(sParamId, iMin = 1, iMax = 0x7ffffffe)
         fCascade = self.getBoolParam('fCascadeDelete', False);
         sRedirectTo = self.getRedirectToParameter(self._sActionUrlBase + sRedirAction);
@@ -967,7 +965,7 @@ class WuiDispatcherBase(object):
             self._sPageTitle  = 'Unable to delete entry';
             self._sPageBody   = str(oXcpt);
             if config.g_kfDebugDbXcpt:
-                self._sPageBody += cgitb.html(sys.exc_info());
+                self._sPageBody += self._oSrvGlue.formatExceptionAsHtml(sys.exc_info());
             self._sRedirectTo = None;
         return False;
 

@@ -40,7 +40,6 @@ __version__ = "$Revision$"
 
 
 # Standard python imports.
-import cgitb;   # pylint: disable=deprecated-module ## @todo these will be retired in python 3.13!
 import sys;
 
 # Validation Kit imports.
@@ -424,7 +423,7 @@ class WuiAdmin(WuiDispatcherBase):
             self._sPageTitle  = 'Unable to delete record'
             self._sPageBody   = str(oXcpt);
             if config.g_kfDebugDbXcpt:
-                self._sPageBody += cgitb.html(sys.exc_info());
+                self._sPageBody += self._oSrvGlue.formatExceptionAsHtml(sys.exc_info());
             self._sRedirectTo = None
 
         return False
@@ -753,7 +752,7 @@ class WuiAdmin(WuiDispatcherBase):
                     self._oDb.rollback();
                     self._sPageBody += '<p>SchedulerBase.recreateQueue threw an exception: %s</p>' \
                                     % (webutils.escapeElem(str(oXcpt)),);
-                    self._sPageBody += cgitb.html(sys.exc_info());
+                    self._sPageBody += self._oSrvGlue.formatExceptionAsHtml(sys.exc_info());
                 else:
                     if not aoErrors:
                         self._sPageBody += '<p>Successfully regenerated.</p>';
