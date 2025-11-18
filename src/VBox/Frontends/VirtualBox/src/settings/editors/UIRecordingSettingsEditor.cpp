@@ -372,7 +372,7 @@ void UIRecordingSettingsEditor::sltRetranslateUI()
 
     m_pLabelVideoQuality->setText(tr("&Video Quality"));
     m_pSliderVideoQuality->setToolTip(tr("Video quality. Increasing this value will make the video "
-                                         "look better at the cost of an increased file size."));
+                                         "look better at the cost of a decreased VM performance."));
     m_pLabelVideoQualityMin->setText(tr("default", "quality"));
     m_pLabelVideoQualityMed->setText(tr("good", "quality"));
     m_pLabelVideoQualityMax->setText(tr("best", "quality"));
