@@ -431,8 +431,8 @@ const DISOPCODE g_aTwoByteMapX86[256] =
     OP("unpcklps %Vps,%Wq",  IDX_ParseModRM,     IDX_UseModRM,  0,          OP_UNPCKLPS,        OP_PARM_Vps,        OP_PARM_Wq,     OP_PARM_NONE,   DISOPTYPE_HARMLESS),
     OP("unpckhps %Vps,%Wq",  IDX_ParseModRM,     IDX_UseModRM,  0,          OP_UNPCKHPS,        OP_PARM_Vps,        OP_PARM_Wq,     OP_PARM_NONE,   DISOPTYPE_HARMLESS),
     /* can also be movlhps when reg->reg */
-    OP("&movhps/movlhps %Vq,%Wq",     IDX_ParseModRM,     IDX_UseModRM,  0,          OP_MOVHPS,          OP_PARM_Wq,         OP_PARM_Vq,     OP_PARM_NONE,   DISOPTYPE_HARMLESS),
-    OP("movhps %Wq,%Vq",     IDX_ParseModRM,     IDX_UseModRM,  0,          OP_MOVHPS,          OP_PARM_Vq,         OP_PARM_Wq,     OP_PARM_NONE,   DISOPTYPE_HARMLESS),
+    OP("&movhps/movlhps %Vq,%Wq", IDX_ParseModRM, IDX_UseModRM, 0,          OP_MOVHPS,          OP_PARM_Vq,         OP_PARM_Wq,     OP_PARM_NONE,   DISOPTYPE_HARMLESS),
+    OP("movhps %Mq,%Vq",     IDX_ParseModRM,      IDX_UseModRM,  0,         OP_MOVHPS,          OP_PARM_Mq,         OP_PARM_Vq,     OP_PARM_NONE,   DISOPTYPE_HARMLESS),
     OP("prefetch Grp16",     IDX_ParseGrp16,     0,             0,          OP_PREFETCH_GRP16,  OP_PARM_NONE,       OP_PARM_NONE,   OP_PARM_NONE,   DISOPTYPE_HARMLESS),
     INVALID_OPCODE,
     INVALID_OPCODE,
