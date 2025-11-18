@@ -86,7 +86,7 @@
 /** The device could not be found. */
 #define HV_NO_DEVICE            0xfae94006
 /** The operation is not supportd on this platform with this configuration. */
-#define HV_UNSUPPORTED          0xfae94007
+#define HV_UNSUPPORTED          0xfae9400f
 /** @} */
 
 
