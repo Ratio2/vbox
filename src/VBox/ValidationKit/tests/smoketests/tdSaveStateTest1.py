@@ -164,21 +164,26 @@ class tdSaveStateTest1(vbox.TestDriver):
         # Try waiting for a bit longer (15 minutes) until the CD is available to avoid running into timeouts.
         oSession, oTxsSession = self.startVmAndConnectToTxsViaTcp(oTestVm.sVmName, fCdWait = True, cMsCdWait = 15 * 60 * 1000);
         if oSession is not None:
-            self.addTask(oTxsSession);
-
+            _ = oTxsSession;
             ## @todo restore is not working properly fully and need to implement disk images
             fRc = oSession.saveState();
             if not fRc:
                 return reporter.error("Failed to take save state");
             reporter.log("Machine is in saved state");
-            oSession, oTxsSession = self.startVmAndConnectToTxsViaTcp(oTestVm.sVmName, fCdWait = True, cMsCdWait = 15 * 60 * 1000);
+            ## @todo check the state?
+            # Minimal terminateVmBySession.
+            oSession.close();
+            self.waitOnDirectSessionClose(oSession.oVM, 10000);
+            self.removeTask(oSession);
+
+            # Start the VM again, implicitly restoring the state and reconnecting to TXS.
+            # The timeout is shorter here, as this shouldn't take quite as much time.
+            oSession, oTxsSession = self.startVmAndConnectToTxsViaTcp(oTestVm.sVmName, fCdWait = True, cMsCdWait = 3 * 60 * 1000);
             if oSession is None or oTxsSession is None:
                 return reporter.error("Failed to start test VM");
             reporter.log("Successfully started VM after saving state");
-            self.addTask(oTxsSession);
 
             # cleanup.
-            self.removeTask(oTxsSession);
             self.terminateVmBySession(oSession)
             return True;
         return None;
