@@ -470,7 +470,7 @@ HRESULT Appliance::interpret()
 #ifdef VBOX_WITH_E1000
                     defaultAdapterVBox = NetworkAdapterType_I82540EM;
 #else
-                    defaultAdapterVBox = NetworkAdapterType_Am79C973A;
+                    defaultAdapterVBox = NetworkAdapterType_Am79C973;
 #endif
                 }
 

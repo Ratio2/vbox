@@ -1385,7 +1385,7 @@ void NetworkAdapter::i_applyDefaults(GuestOSType *aOsType)
 #ifdef VBOX_WITH_E1000
         defaultType = NetworkAdapterType_I82540EM;
 #else
-        defaultType = NetworkAdapterType_Am79C973A;
+        defaultType = NetworkAdapterType_Am79C973;
 #endif
     }
 
