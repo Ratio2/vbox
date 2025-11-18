@@ -47,10 +47,7 @@
 #ifdef VBOX_INCLUDED_vmm_pdmgic_h
 /** The VirtualBox GIC backend. */
 extern const PDMGICBACKEND g_GicBackend;
-# ifdef RT_OS_DARWIN
-/** The Hypervisor.Framework GIC backend. */
-extern const PDMGICBACKEND g_GicHvfBackend;
-# elif defined(RT_OS_WINDOWS)
+# if defined(RT_OS_WINDOWS)
 /** The Hyper-V GIC backend. */
 extern const PDMGICBACKEND g_GicHvBackend;
 # elif defined(RT_OS_LINUX)
