@@ -333,7 +333,11 @@ private slots:
         void sltHandleSelectionChanged();
 
         /** Handles signal about context-menu being shown. */
-        void sltUpdateContextMenu();
+        void sltHandleContextMenuAboutToShow();
+        /** Handles signal about context-menu being hidden. */
+        void sltHandleContextMenuAboutToHide();
+        /** Clears context-menu flags. */
+        void sltClearContextMenuFlags();
     /** @} */
 
     /** @name Selection stuff.
