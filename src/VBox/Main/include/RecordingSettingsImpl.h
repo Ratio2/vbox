@@ -99,6 +99,7 @@ private:
     HRESULT getScreenSettings(ULONG uScreenId, ComPtr<IRecordingScreenSettings> &aRecordScreenSettings);
     HRESULT resume(void);
     HRESULT start(ComPtr<IProgress> &aProgress);
+    HRESULT stop(void);
 
 private:
 

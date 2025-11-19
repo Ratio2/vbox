@@ -440,6 +440,19 @@ HRESULT RecordingSettings::start(ComPtr<IProgress> &aProgress)
 #endif
 }
 
+HRESULT RecordingSettings::stop(void)
+{
+#ifndef VBOX_WITH_RECORDING
+    RT_NOREF(aProgress);
+    ReturnComNotImplemented();
+#else
+    if (m->mProgress.isNull())
+        return setError(E_FAIL, tr("Recording not started (yet)"));
+
+    return m->mProgress->Cancel();
+#endif
+}
+
 // IRecordSettings methods
 /////////////////////////////////////////////////////////////////////////////
 

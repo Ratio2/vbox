@@ -6521,7 +6521,7 @@
 
   <interface
     name="IRecordingSettings" extends="$unknown"
-    uuid="83cfdc66-4f20-4569-ad39-8722f7d472b3"
+    uuid="454da458-ff50-454a-9978-a03968b36270"
     wsmap="managed"
     rest="managed"
     >
@@ -6551,6 +6551,20 @@
         Unable to start recording due to recording already being started or not
         available. See error message for more information.
       </result>
+    </method>
+
+    <method name="stop">
+      <desc>
+        Stops the recording.
+        <note>
+          The recording progress object will be canceled by this call.
+        </note>
+        If recording already has been stopped, this attribute does nothing.
+        <result name="E_FAIL">
+          Unable to stop recording.
+          See error message for more information.
+        </result>
+      </desc>
     </method>
 
     <method name="resume">
@@ -6615,7 +6629,8 @@
       <desc>
         Returns the recording progress object. Also valid when recording has been paused.
 
-        Cancelling the progress will stop the recording.
+        Cancelling the progress will stop the recording. This has the same
+        effect as <link to="IRecordingSettings::stop"/>.
 
         <result name="E_FAIL">
           Failed to get the recording progress object due to not (yet) started
