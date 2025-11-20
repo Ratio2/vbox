@@ -550,8 +550,7 @@ protected:
     /** Handles translation event. */
     virtual void retranslateUi() RT_OVERRIDE
     {
-        /// @todo replace that one with separate "New" before 6.2
-        setIconText(QApplication::translate("UIActionPool", "&New...").remove('.'));
+        setIconText(QApplication::translate("UIActionPool", "&New"));
         setName(QApplication::translate("UIActionPool", "&New Machine..."));
         setStatusTip(QApplication::translate("UIActionPool", "Create new virtual machine"));
         setToolTip(simplifyText(text()) + (shortcut().isEmpty() ? QString() : QString(" (%1)").arg(shortcut().toString())));
@@ -870,7 +869,7 @@ protected:
     /** Handles translation event. */
     virtual void retranslateUi() RT_OVERRIDE
     {
-        setName(QApplication::translate("UIActionPool", "Cl&one..."));
+        setName(QApplication::translate("UIActionPool", "&Clone..."));
         setStatusTip(QApplication::translate("UIActionPool", "Clone selected virtual machine"));
     }
 };
@@ -1444,7 +1443,7 @@ protected:
     /** Handles translation event. */
     virtual void retranslateUi() RT_OVERRIDE
     {
-        setName(QApplication::translate("UIActionPool", "C&onsole"));
+        setName(QApplication::translate("UIActionPool", "Conso&le"));
     }
 };
 
