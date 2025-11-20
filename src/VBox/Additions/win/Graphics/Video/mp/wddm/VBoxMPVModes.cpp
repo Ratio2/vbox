@@ -313,7 +313,7 @@ int vboxWddmVModesAdd(PVBOXMP_DEVEXT pExt, VBOXWDDM_VMODES *pModes, uint32_t u32
 
 #define VBOXWDDM_PROPNAME_PREFIX "/VirtualBox/VMInfo/Video/"
 
-int vboxWddmEnforceSingleVMode(VBOXWDDM_VMODES *pModes, uint32_t u32Target)
+int vboxWddmAddVModesFromGuestProps(VBOXWDDM_VMODES *pModes, uint32_t u32Target)
 {
     VBGLGSTPROPCLIENT hPropClient;
     int rc;
@@ -364,7 +364,7 @@ int vboxWddmEnforceSingleVMode(VBOXWDDM_VMODES *pModes, uint32_t u32Target)
         RTRECTSIZE rect = {u32XRes, u32YRes};
         VBoxVModesAdd(&pModes->Modes, u32Target, CR_RSIZE2U64(rect));
 
-        LogRel(("vboxWddmEnforceSingleVMode %dx%d for target %d\n", u32XRes, u32YRes, u32Target));
+        LogRel(("Target #%d mode %dx%d added from guestprops\n", u32Target, u32XRes, u32YRes));
         return VINF_SUCCESS;
     }
 
@@ -473,7 +473,7 @@ void VBoxWddmVModesCleanup()
     vboxWddmVModesCleanup(pModes);
 }
 
-int vboxWddmGetVModeHintsFromExtradata(VBOXWDDM_VMODES *pModes, int cDisplays)
+int vboxWddmAddVModesFromGuestHints(VBOXWDDM_VMODES *pModes, int cDisplays)
 {
     VMMDevDisplayChangeRequestMulti *pReq = NULL;
     size_t cbAlloc;
@@ -490,14 +490,14 @@ int vboxWddmGetVModeHintsFromExtradata(VBOXWDDM_VMODES *pModes, int cDisplays)
 
     rc = VbglR0GRPerform(&pReq->header);
 
-    LogRel2(("vboxWddmGetVModeHintsFromExtradata: VbglR0GRPerform rc %d, cDisplays %d\n", rc, pReq->cDisplays));
+    LogRel2(("vboxWddmAddVModesFromGuestHints: VbglR0GRPerform rc %d, cDisplays %d\n", rc, pReq->cDisplays));
 
     AssertRCReturnStmt(rc, VbglR0GRFree(&pReq->header), rc);
 
     for(uint32_t i = 0; i < pReq->cDisplays; i++)
     {
         VMMDevDisplayDef *pDisplayDef = &pReq->aDisplays[i];
-        LogRel2(("vboxWddmGetVModeHintsFromExtradata: #%d id%d %d,%d-%dx%d 0x%X\n", i, pDisplayDef->idDisplay,
+        LogRel2(("Hint %d for target #%d %d,%d-%dx%d 0x%X\n", i, pDisplayDef->idDisplay,
             pDisplayDef->xOrigin, pDisplayDef->yOrigin,
             pDisplayDef->cx, pDisplayDef->cy,
             pDisplayDef->fDisplayFlags));
@@ -506,13 +506,13 @@ int vboxWddmGetVModeHintsFromExtradata(VBOXWDDM_VMODES *pModes, int cDisplays)
 
             if (u32XRes == 800 && u32YRes == 600 && (pDisplayDef->fDisplayFlags & VMMDEV_DISPLAY_DISABLED))
             {
-                LogRel2(("vboxWddmGetVModeHintsFromExtradata: #%d Ignore the 'default' hint 800x600\n", i));
+                LogRel2(("Target #%d ignores the 'default' hint 800x600\n", i));
                 continue;
             }
 
             if (u32XRes == 0 && u32YRes == 0)
             {
-                LogRel2(("vboxWddmGetVModeHintsFromExtradata: #%d The 'zero' hint 0x0 means no hint defined\n", i));
+                LogRel2(("Target #%d, 'zero' hint 0x0 means no hint defined\n", i));
                 continue;
             }
 
@@ -520,9 +520,13 @@ int vboxWddmGetVModeHintsFromExtradata(VBOXWDDM_VMODES *pModes, int cDisplays)
             u32XRes = u32XRes > 7680 ? 7680 : u32XRes < 800 ? 800 : u32XRes;
             u32YRes = u32YRes > 4320 ? 4320 : u32YRes < 600 ? 600 : u32YRes;
 
-            RTRECTSIZE rect = {u32XRes, u32YRes};
-            VBoxVModesAdd(&pModes->Modes, i, CR_RSIZE2U64(rect));
-            LogRel(("vboxWddmGetVModeHintsFromExtradata: #%d added mode (%dx%d)\n", i, u32XRes, u32YRes));
+            if (CrSaGetSize(&pModes->Modes.aTargets[i]) == 0)
+            {
+                RTRECTSIZE rect = {u32XRes, u32YRes};
+
+                VBoxVModesAdd(&pModes->Modes, i, CR_RSIZE2U64(rect));
+                LogRel(("Target #%d added mode (%dx%d) from guesthints\n", i, u32XRes, u32YRes));
+            }
     }
 
     VbglR0GRFree(&pReq->header);
@@ -537,14 +541,17 @@ int VBoxWddmVModesInit(PVBOXMP_DEVEXT pExt)
 
     vboxWddmVModesInit(pModes, VBoxCommonFromDeviceExt(pExt)->cDisplays);
 
-    //vboxWddmGetVModeHintsFromExtradata(pModes, VBoxCommonFromDeviceExt(pExt)->cDisplays);
+    for (int i = 0; i < VBoxCommonFromDeviceExt(pExt)->cDisplays; ++i)
+    {
+        vboxWddmAddVModesFromGuestProps(pModes, (uint32_t)i);
+    }
+
+    vboxWddmAddVModesFromGuestHints(pModes, VBoxCommonFromDeviceExt(pExt)->cDisplays);
 
     for (int i = 0; i < VBoxCommonFromDeviceExt(pExt)->cDisplays; ++i)
     {
-        if (RT_SUCCESS(vboxWddmEnforceSingleVMode(pModes, (uint32_t)i)))
-        {
+        if (CrSaGetSize(&pModes->Modes.aTargets[i]))
             continue;
-        }
 
         rc = vboxWddmVModesInitForTarget(pExt, pModes, (uint32_t)i);
         if (RT_FAILURE(rc))
