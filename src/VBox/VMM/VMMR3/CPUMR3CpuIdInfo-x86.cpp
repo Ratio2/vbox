@@ -209,13 +209,25 @@ static DBGFREGSUBFIELD const g_aLeaf7Sub0EbxSubFields[] =
 /** CPUID(7,0).ECX field descriptions.   */
 static DBGFREGSUBFIELD const g_aLeaf7Sub0EcxSubFields[] =
 {
-    DBGFREGSUBFIELD_RO("PREFETCHWT1\0" "PREFETCHWT1 instruction",                        0, 1, 0),
-    DBGFREGSUBFIELD_RO("UMIP\0"         "User mode insturction prevention",              2, 1, 0),
-    DBGFREGSUBFIELD_RO("PKU\0"          "Protection Key for Usermode pages",             3, 1, 0),
-    DBGFREGSUBFIELD_RO("OSPKE\0"        "CR4.PKU mirror",                                4, 1, 0),
-    DBGFREGSUBFIELD_RO("MAWAU\0"        "Value used by BNDLDX & BNDSTX",                17, 5, 0),
-    DBGFREGSUBFIELD_RO("RDPID\0"        "Read processor ID support",                    22, 1, 0),
-    DBGFREGSUBFIELD_RO("SGX_LC\0"       "Supports SGX Launch Configuration",            30, 1, 0),
+    DBGFREGSUBFIELD_RO("PREFETCHWT1\0"      "PREFETCHWT1 instruction",                       0, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512_VBMI\0"      "Supports the AVX512_VBMI instructions",         1, 1, 0),
+    DBGFREGSUBFIELD_RO("UMIP\0"             "User mode insturction prevention",              2, 1, 0),
+    DBGFREGSUBFIELD_RO("PKU\0"              "Protection Key for Usermode pages",             3, 1, 0),
+    DBGFREGSUBFIELD_RO("OSPKE\0"            "CR4.PKU mirror",                                4, 1, 0),
+    DBGFREGSUBFIELD_RO("WAITPKG\0"          "TPAUSE, UMONITOR & UMWAIT support",             5, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512_VBMI2\0"     "Supports the AVX512_VBMI2 instructions",        6, 1, 0),
+    DBGFREGSUBFIELD_RO("CET_SS\0"           "CET shadow stack support",                      7, 1, 0),
+    DBGFREGSUBFIELD_RO("GFNI\0"             "Supports the GFNI instruction set",             8, 1, 0),
+    DBGFREGSUBFIELD_RO("VAES\0"             "Supports the VEX encoded AES instruction set",  9, 1, 0),
+    DBGFREGSUBFIELD_RO("VPCLMULQDQ\0"       "Supports the VPCLMULQDQ instruction",          10, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512_VNNI\0"      "Supports the AVX512_VNNI instructions",        11, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512_BITALG\0"    "Supports the AVX512_BITALG instructions",      12, 1, 0),
+    DBGFREGSUBFIELD_RO("TME_EN\0"           "Supports 4 IA32_TME_ MSRs",                    13, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512_VPOPCNTDQ\0" "Supports the AVX512_VPOPCNTDQ instructions",   14, 1, 0),
+    DBGFREGSUBFIELD_RO("LA57\0"             "57-bit linear addresses",                      16, 1, 0),
+    DBGFREGSUBFIELD_RO("MAWAU\0"            "Value used by BNDLDX & BNDSTX",                17, 5, 0),
+    DBGFREGSUBFIELD_RO("RDPID\0"            "Read processor ID support",                    22, 1, 0),
+    DBGFREGSUBFIELD_RO("SGX_LC\0"           "Supports SGX Launch Configuration",            30, 1, 0),
     DBGFREGSUBFIELD_TERMINATOR()
 };
 

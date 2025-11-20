@@ -703,6 +703,8 @@ typedef const X86CPUIDFEATEDX *PCX86CPUIDFEATEDX;
 #define X86_CPUID_STEXT_FEATURE_ECX_OSPKE             RT_BIT_32(4)
 /** ECX Bit 7 - CET_SS - Supports CET shadow stack features. */
 #define X86_CPUID_STEXT_FEATURE_ECX_CET_SS            RT_BIT_32(7)
+/** ECX Bit 15 - LA57  - Supports 5-level paging. */
+#define X86_CPUID_STEXT_FEATURE_ECX_LA57              RT_BIT_32(16)
 /** ECX Bits 17-21 - MAWAU - Value used by BNDLDX and BNDSTX. */
 #define X86_CPUID_STEXT_FEATURE_ECX_MAWAU             UINT32_C(0x003e0000)
 /** ECX Bit 22 - RDPID - Support pread process ID. */
