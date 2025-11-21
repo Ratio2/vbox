@@ -443,7 +443,6 @@ HRESULT RecordingSettings::start(ComPtr<IProgress> &aProgress)
 HRESULT RecordingSettings::stop(void)
 {
 #ifndef VBOX_WITH_RECORDING
-    RT_NOREF(aProgress);
     ReturnComNotImplemented();
 #else
     if (m->mProgress.isNull())
