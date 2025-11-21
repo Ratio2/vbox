@@ -1579,6 +1579,15 @@ static int vgsvcVMInfoWriteNetwork(void)
             RTStrPrintf(szPropPath, sizeof(szPropPath), "/VirtualBox/GuestInfo/Net/%RU32/Status", cIfsReported);
             VGSvcPropCacheUpdate(&g_VMInfoPropCache, szPropPath, pIfCurr->ifa_flags & IFF_UP ? "Up" : "Down");
 
+# ifdef RT_OS_FREEBSD /** @todo Check the other guests. */
+            RTStrPrintf(szPropPath, sizeof(szPropPath), "/VirtualBox/GuestInfo/Net/%RU32/Name", cIfsReported);
+            int rc2 = RTStrValidateEncoding(pIfCurr->ifa_name);
+            if (RT_SUCCESS(rc2))
+                VGSvcPropCacheUpdate(&g_VMInfoPropCache, szPropPath, "%s", pIfCurr->ifa_name);
+            else
+                VGSvcPropCacheUpdate(&g_VMInfoPropCache, szPropPath, NULL);
+# endif
+
             cIfsReported++;
         }
     }
