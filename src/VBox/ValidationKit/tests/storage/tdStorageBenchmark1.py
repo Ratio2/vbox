@@ -1169,7 +1169,8 @@ class tdStorageBenchmark(vbox.TestDriver):                                      
 
         return (None, None);
 
-    def testOneCfg(self, sVmName, eStorageController, sHostIoCache, sDiskFormat, # pylint: disable=too-many-arguments,too-many-locals,too-many-statements
+    def testOneCfg(self, # pylint: disable=too-many-arguments,too-many-locals,too-many-statements,too-many-positional-arguments
+                   sVmName, eStorageController, sHostIoCache, sDiskFormat,
                    sDiskVariant, sDiskPath, cCpus, sIoTest, sVirtMode, sTestSet):
         """
         Runs the specified VM thru test #1.

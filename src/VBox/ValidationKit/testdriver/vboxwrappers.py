@@ -2250,7 +2250,8 @@ class SessionWrapper(TdTaskBase):
 
         return oHd;
 
-    def createAndAttachHd(self, sHd, sFmt = "VDI", sController = "IDE Controller", cb = 10*1024*1024*1024, # pylint: disable=too-many-arguments
+    def createAndAttachHd(self, sHd, sFmt = "VDI", # pylint: disable=too-many-arguments,too-many-positional-arguments
+                          sController = "IDE Controller", cb = 10*1024*1024*1024,
                           iPort = 0, iDevice = 0, fImmutable = True, cMsTimeout = 60000, tMediumVariant = None):
         """
         Creates and attaches a HD to a VM.
@@ -2532,8 +2533,8 @@ class SessionWrapper(TdTaskBase):
 
         return fRc;
 
-    def addUsbDeviceFilter(self, sName, sVendorId = None, sProductId = None, sRevision = None, # pylint: disable=too-many-arguments
-                           sManufacturer = None, sProduct = None, sSerialNumber = None,
+    def addUsbDeviceFilter(self, sName, sVendorId = None, # pylint: disable=too-many-arguments,too-many-positional-arguments
+                           sProductId = None, sRevision = None,  sManufacturer = None, sProduct = None, sSerialNumber = None,
                            sPort = None, sRemote = None):
         """
         Creates a USB device filter and inserts it into the VM.

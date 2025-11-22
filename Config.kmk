@@ -2426,7 +2426,7 @@ VBOX_PYLINT_FLAGS = $(if-expr $(VBOX_PYLINT_VERSION) >= 10500,--reports=n,--repo
 	--max-returns=100 \
 	--max-public-methods=139 \
 	--max-args=9 \
-	$(if-expr $(VBOX_PYLINT_VERSION) >= 30307,--max-positional-arguments=9,) \
+	$(if-expr $(VBOX_PYLINT_VERSION) >= 30304,--max-positional-arguments=9,) \
 	--max-module-lines=4096 \
 	--max-locals=32 \
 	$(if-expr $(VBOX_PYLINT_VERSION) >= 10500,--max-bool-expr=99,) \

@@ -324,8 +324,8 @@ class tdStorageStress(vbox.TestDriver):                                      # p
 
     # pylint: disable=too-many-arguments
 
-    def test1OneCfg(self, sVmName, eStorageController, sDiskFormat, sDiskPath1, sDiskPath2, \
-                    sGuestFs, cCpus, fHwVirt, fNestedPaging):
+    def test1OneCfg(self, sVmName, eStorageController, sDiskFormat, # pylint: disable=too-many-positional-arguments
+                    sDiskPath1, sDiskPath2, sGuestFs, cCpus, fHwVirt, fNestedPaging):
         """
         Runs the specified VM thru test #1.
 
