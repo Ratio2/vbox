@@ -317,8 +317,12 @@
 # define SVM_EXIT_WRITE_CR15_TRAP        0x9f
 /** MCOMMIT instruction. */
 # define SVM_EXIT_MCOMMIT                0xa3
+/** TLBSYNC instruction. */
+# define SVM_EXIT_TLBSYNC                0xa4
 /** Bus lock event happened (also called split lock). */
 # define SVM_EXIT_BUSLOCK                0xa5
+/** HLT instruction executed while no virtual interrupt is pending. */
+# define SVM_EXIT_IDLE_HLT               0xa6
 
 /** Nested paging: host-level page fault occurred (EXITINFO1 contains fault errorcode; EXITINFO2 contains the guest physical address causing the fault). */
 # define SVM_EXIT_NPF                    0x400
