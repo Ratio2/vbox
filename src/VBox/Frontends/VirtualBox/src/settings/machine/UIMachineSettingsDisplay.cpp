@@ -693,11 +693,6 @@ void UIMachineSettingsDisplay::polishPage()
            ((isMachineOffline() || isMachineSaved()))
         || (isMachineOnline() && !m_pCache->base().m_fRecordingEnabled);
     m_pEditorRecordingSettings->setOptionsAvailable(fIsRecordingOptionsEnabled);
-    // Recording screens option should be enabled only if:
-    // 1. Machine is in *any* valid state.
-    const bool fIsRecordingScreenOptionsEnabled =
-        isMachineInValidMode();
-    m_pEditorRecordingSettings->setScreenOptionsAvailable(fIsRecordingScreenOptionsEnabled);
 }
 
 void UIMachineSettingsDisplay::sltHandleMonitorCountChange()

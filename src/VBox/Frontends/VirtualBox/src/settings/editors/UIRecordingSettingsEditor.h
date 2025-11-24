@@ -65,8 +65,6 @@ public:
 
     /** Defines whether options are @a fAvailable. */
     void setOptionsAvailable(bool fAvailable);
-    /** Defines whether screen options are @a fAvailable. */
-    void setScreenOptionsAvailable(bool fAvailable);
 
     /** Defines @a enmMode. */
     void setMode(UISettingsDefs::RecordingMode enmMode);
@@ -175,8 +173,6 @@ private:
 
         /** Holds whether options are available. */
         bool  m_fOptionsAvailable;
-        /** Holds whether screen options are available. */
-        bool  m_fScreenOptionsAvailable;
 
         /** Holds the list of supported modes. */
         QVector<UISettingsDefs::RecordingMode>  m_supportedValues;
