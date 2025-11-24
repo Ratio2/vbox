@@ -7213,7 +7213,7 @@ static VBOXSTRICTRC vmxHCHandleSplitLockAcXcpt(PVMCPUCC pVCpu, PVMXTRANSIENT pVm
                                        HMVMX_CPUMCTX_XPCT_AC>(pVCpu, pVmxTransient->pVmcsInfo, __FUNCTION__);
         AssertRCReturn(rc, rc);
 
-        VBOXVMM_XCPT_DF(pVCpu, &pVCpu->cpum.GstCtx);
+        VBOXVMM_VMX_SPLIT_LOCK(pVCpu, &pVCpu->cpum.GstCtx);
 
         if (DBGF_IS_EVENT_ENABLED(pVM, DBGFEVENT_VMX_SPLIT_LOCK))
         {

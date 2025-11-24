@@ -8985,7 +8985,7 @@ HMSVM_EXIT_DECL hmR0SvmExitBusLock(PVMCPUCC pVCpu, PSVMTRANSIENT pSvmTransient)
     else
     {
         HMSVM_CPUMCTX_IMPORT_STATE(pVCpu, HMSVM_CPUMCTX_EXTRN_ALL);
-        VBOXVMM_XCPT_DF(pVCpu, &pVCpu->cpum.GstCtx);
+        VBOXVMM_SVM_BUS_LOCK_THRESHOLD(pVCpu, &pVCpu->cpum.GstCtx);
 
         if (DBGF_IS_EVENT_ENABLED(pVM, DBGFEVENT_SVM_BUS_LOCK_THRESHOLD))
         {
