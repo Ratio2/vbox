@@ -193,9 +193,11 @@ static DBGFREGSUBFIELD const g_aLeaf7Sub0EbxSubFields[] =
     DBGFREGSUBFIELD_RO("MPE\0"              "Intel Memory Protection Extensions",           14, 1, 0),
     DBGFREGSUBFIELD_RO("PQE\0"              "Platform Quality of Service Enforcement",      15, 1, 0),
     DBGFREGSUBFIELD_RO("AVX512F\0"          "AVX512 Foundation instructions",               16, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512DQ\0"         "Supports the AVX512DQ instructions",           17, 1, 0),
     DBGFREGSUBFIELD_RO("RDSEED\0"           "RDSEED instruction",                           18, 1, 0),
     DBGFREGSUBFIELD_RO("ADX\0"              "ADCX/ADOX instructions",                       19, 1, 0),
     DBGFREGSUBFIELD_RO("SMAP\0"             "Supervisor Mode Access Prevention",            20, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512_IFMA\0"      "Supports the AVX512_IFMA instructions",        21, 1, 0),
     DBGFREGSUBFIELD_RO("CLFLUSHOPT\0"       "CLFLUSHOPT (Cache Line Flush) instruction",    23, 1, 0),
     DBGFREGSUBFIELD_RO("CLWB\0"             "CLWB instruction",                             24, 1, 0),
     DBGFREGSUBFIELD_RO("INTEL_PT\0"         "Intel Processor Trace",                        25, 1, 0),
@@ -203,6 +205,8 @@ static DBGFREGSUBFIELD const g_aLeaf7Sub0EbxSubFields[] =
     DBGFREGSUBFIELD_RO("AVX512ER\0"         "AVX512 Exponential & Reciprocal instructions", 27, 1, 0),
     DBGFREGSUBFIELD_RO("AVX512CD\0"         "AVX512 Conflict Detection instructions",       28, 1, 0),
     DBGFREGSUBFIELD_RO("SHA\0"              "Secure Hash Algorithm extensions",             29, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512BW\0"         "Supports the AVX512BW instructions",           30, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512VL\0"         "Supports the AVX512VL instructions",           31, 1, 0),
     DBGFREGSUBFIELD_TERMINATOR()
 };
 
@@ -227,23 +231,46 @@ static DBGFREGSUBFIELD const g_aLeaf7Sub0EcxSubFields[] =
     DBGFREGSUBFIELD_RO("LA57\0"             "57-bit linear addresses",                      16, 1, 0),
     DBGFREGSUBFIELD_RO("MAWAU\0"            "Value used by BNDLDX & BNDSTX",                17, 5, 0),
     DBGFREGSUBFIELD_RO("RDPID\0"            "Read processor ID support",                    22, 1, 0),
+    DBGFREGSUBFIELD_RO("KEY_LOCKER\0"       "Supports Key Locker",                          23, 1, 0),
+    DBGFREGSUBFIELD_RO("BUS_LOCK_DETECT\0"  "Supports OS bus-lock detection",               24, 1, 0),
+    DBGFREGSUBFIELD_RO("CLDEMOTE\0"         "Supports cache line demote",                   25, 1, 0),
+    DBGFREGSUBFIELD_RO("MOVDIRI\0"          "Supports the MOVDIRI instruction",             27, 1, 0),
+    DBGFREGSUBFIELD_RO("MOVDIRI64B\0"       "Supports the MOVDIRI64B instruction",          28, 1, 0),
+    DBGFREGSUBFIELD_RO("ENQCMD\0"           "Supports the Eqnqueue Stores",                 29, 1, 0),
     DBGFREGSUBFIELD_RO("SGX_LC\0"           "Supports SGX Launch Configuration",            30, 1, 0),
+    DBGFREGSUBFIELD_RO("PKS\0"              "Supports protection keys for supervisor pages",31, 1, 0),
     DBGFREGSUBFIELD_TERMINATOR()
 };
 
 /** CPUID(7,0).EDX field descriptions.   */
 static DBGFREGSUBFIELD const g_aLeaf7Sub0EdxSubFields[] =
 {
-    DBGFREGSUBFIELD_RO("MCU_OPT_CTRL\0" "Supports IA32_MCU_OPT_CTRL ",                   9, 1, 0),
-    DBGFREGSUBFIELD_RO("MD_CLEAR\0"     "Supports MDS related buffer clearing",         10, 1, 0),
-    DBGFREGSUBFIELD_RO("TSX_FORCE_ABORT\0" "Supports IA32_TSX_FORCE_ABORT",             11, 1, 0),
-    DBGFREGSUBFIELD_RO("CET_IBT\0"      "Supports indirect branch tracking w/ CET",     20, 1, 0),
-    DBGFREGSUBFIELD_RO("IBRS_IBPB\0"    "IA32_SPEC_CTRL.IBRS and IA32_PRED_CMD.IBPB",   26, 1, 0),
-    DBGFREGSUBFIELD_RO("STIBP\0"        "Supports IA32_SPEC_CTRL.STIBP",                27, 1, 0),
-    DBGFREGSUBFIELD_RO("FLUSH_CMD\0"    "Supports IA32_FLUSH_CMD",                      28, 1, 0),
-    DBGFREGSUBFIELD_RO("ARCHCAP\0"      "Supports IA32_ARCH_CAP",                       29, 1, 0),
-    DBGFREGSUBFIELD_RO("CORECAP\0"      "Supports IA32_CORE_CAP",                       30, 1, 0),
-    DBGFREGSUBFIELD_RO("SSBD\0"         "Supports IA32_SPEC_CTRL.SSBD",                 31, 1, 0),
+    DBGFREGSUBFIELD_RO("SGX_KEYS\0"         "Supports Attestation Service for Intel SGX",    1, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512_4VNNIW\0"    "Supports the AVX512_4VNNIW instructions",       2, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512_4FMAPS\0"    "Supports the AVX512_4FMAPS instructions",       3, 1, 0),
+    DBGFREGSUBFIELD_RO("FAST_SHORT_REP_MOVSB\0Supports fast short REP MOVSB",                4, 1, 0),
+    DBGFREGSUBFIELD_RO("UINTR\0"            "Supports user interrupts",                      5, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512_VP2INTERSECT\0" "Supports the AVX512_VP2INTERSECT instr.",    8, 1, 0),
+    DBGFREGSUBFIELD_RO("MCU_OPT_CTRL\0"     "Supports IA32_MCU_OPT_CTRL ",                   9, 1, 0),
+    DBGFREGSUBFIELD_RO("MD_CLEAR\0"         "Supports MDS related buffer clearing",         10, 1, 0),
+    DBGFREGSUBFIELD_RO("RTM_ALWAYS_ABORT\0" "XBEGIN always aborts and does fallback",       11, 1, 0),
+    DBGFREGSUBFIELD_RO("RTM_FORCE_ABORT\0"  "Supports IA32_TSX_FORCE_ABORT",                13, 1, 0),
+    DBGFREGSUBFIELD_RO("SERIALIZE\0"        "Supports the SERIALIZE instruction",           14, 1, 0),
+    DBGFREGSUBFIELD_RO("HYBRID\0"           "Identifiers the CPU as a hybrid part",         15, 1, 0),
+    DBGFREGSUBFIELD_RO("TSXLDTRK\0"         "Supports susp/resume of TSX ld addr tracking", 16, 1, 0),
+    DBGFREGSUBFIELD_RO("PCONFIG\0"          "Supports the PCONFIG instruction",             18, 1, 0),
+    DBGFREGSUBFIELD_RO("ARCH_LBRS\0"        "Supports architectural LBRs",                  19, 1, 0),
+    DBGFREGSUBFIELD_RO("CET_IBT\0"          "Supports indirect branch tracking w/ CET",     20, 1, 0),
+    DBGFREGSUBFIELD_RO("AMX_BF16\0"         "Supports tile comp. ops on bfloat16 number",   22, 1, 0),
+    DBGFREGSUBFIELD_RO("AVX512_FP16\0"      "Supports the FP16 data type with AVX512",      23, 1, 0),
+    DBGFREGSUBFIELD_RO("AMX_TILE\0"         "Supports the tile architecture",               24, 1, 0),
+    DBGFREGSUBFIELD_RO("AMX_INT8\0"         "Supports tile comp. ops on 8-bit integers",    25, 1, 0),
+    DBGFREGSUBFIELD_RO("IBRS_IBPB\0"        "IA32_SPEC_CTRL.IBRS and IA32_PRED_CMD.IBPB",   26, 1, 0),
+    DBGFREGSUBFIELD_RO("STIBP\0"            "Supports IA32_SPEC_CTRL.STIBP",                27, 1, 0),
+    DBGFREGSUBFIELD_RO("FLUSH_CMD\0"        "Supports IA32_FLUSH_CMD",                      28, 1, 0),
+    DBGFREGSUBFIELD_RO("ARCHCAP\0"          "Supports IA32_ARCH_CAP",                       29, 1, 0),
+    DBGFREGSUBFIELD_RO("CORECAP\0"          "Supports IA32_CORE_CAP",                       30, 1, 0),
+    DBGFREGSUBFIELD_RO("SSBD\0"             "Supports IA32_SPEC_CTRL.SSBD",                 31, 1, 0),
     DBGFREGSUBFIELD_TERMINATOR()
 };
 
