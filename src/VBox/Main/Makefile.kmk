@@ -899,17 +899,24 @@ if !defined(VBOX_ONLY_SDK) && !defined(VBOX_ONLY_EXTPACKS) # Note this goes on f
 		$(VBOX_XIDL_FILE)
  endif
 
- ## @todo r=klaus unfortunately we don't have xmllint everywhere, would be
- # good to check the validity for every VirtualBox.xidl change.
- #$(VBOX_XIDL_FILE).validated.ts: $(VBOX_XIDL_FILE_SRC)
- #	xmllint --dtdvalid $(VBOX_PATH_MAIN_SRC)/idl/VirtualBox.dtd --noout $<
- #	$(QUIET)$(CP) --changed -fv $< $(VBOX_XIDL_FILE).validated.ts
- #
- #OTHERS += $(VBOX_XIDL_FILE).validated.ts
- #OTHER_CLEAN += $(VBOX_XIDL_FILE).validated.ts
 
- testvalidxidl: $(VBOX_XIDL_FILE_SRC)
+ #
+ # If we have xmllint available, automatically lint VirtualBox.xidl.
+ #
+ ifdef VBOX_HAVE_XMLLINT
+  $(VBOX_XIDL_FILE).validated.ts: $(VBOX_XIDL_FILE_SRC)
+	$(VBOX_XMLLINT) --dtdvalid $(VBOX_PATH_MAIN_SRC)/idl/VirtualBox.dtd --noout $<
+	$(QUIET)$(TOUCH) -- "$@"
+
+  OTHERS += $(VBOX_XIDL_FILE).validated.ts
+  OTHER_CLEAN += $(VBOX_XIDL_FILE).validated.ts
+
+  testvalidxidl: $(VBOX_XIDL_FILE_SRC)
+	$(VBOX_XMLLINT) --dtdvalid $(VBOX_PATH_MAIN_SRC)/idl/VirtualBox.dtd --noout $<
+ else
+  testvalidxidl: $(VBOX_XIDL_FILE_SRC)
 	xmllint --dtdvalid $(VBOX_PATH_MAIN_SRC)/idl/VirtualBox.dtd --noout $<
+ endif
 
 
  #
