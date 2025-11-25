@@ -45,8 +45,8 @@ class QLabel;
 class QSpinBox;
 class QWidget;
 class QIAdvancedSlider;
-class UIFilePathSelector;
 class UIFilmContainer;
+class UIRecordingFilePathEditor;
 
 /** UIEditor sub-class used as a recording settings editor. */
 class SHARED_LIBRARY_STUFF UIRecordingSettingsEditor : public UIEditor
@@ -209,10 +209,8 @@ private:
         QLabel             *m_pLabelMode;
         /** Holds the mode combo instance. */
         QComboBox          *m_pComboMode;
-        /** Holds the file path label instance. */
-        QLabel             *m_pLabelFilePath;
         /** Holds the file path editor instance. */
-        UIFilePathSelector *m_pEditorFilePath;
+        UIRecordingFilePathEditor *m_pEditorFilePath;
         /** Holds the frame size label instance. */
         QLabel             *m_pLabelFrameSize;
         /** Holds the frame size combo instance. */

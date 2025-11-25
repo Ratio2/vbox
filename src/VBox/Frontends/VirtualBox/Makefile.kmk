@@ -884,6 +884,7 @@ UICommon_QT_MOCHDRS = \
 	src/settings/editors/UIProcessorFeaturesEditor.h \
 	src/settings/editors/UIProxyFeaturesEditor.h \
 	src/settings/editors/UIRecordingSettingsEditor.h \
+	src/settings/editors/UIRecordingFilePathEditor.h \
 	src/settings/editors/UIScaleFactorEditor.h \
 	src/settings/editors/UISerialSettingsEditor.h \
 	src/settings/editors/UISharedClipboardEditor.h \
@@ -1469,6 +1470,7 @@ UICommon_SOURCES = \
 	src/settings/editors/UIProcessorFeaturesEditor.cpp \
 	src/settings/editors/UIProxyFeaturesEditor.cpp \
 	src/settings/editors/UIRecordingSettingsEditor.cpp \
+	src/settings/editors/UIRecordingFilePathEditor.cpp \
 	src/settings/editors/UIScaleFactorEditor.cpp \
 	src/settings/editors/UISerialSettingsEditor.cpp \
 	src/settings/editors/UISharedClipboardEditor.cpp \

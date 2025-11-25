@@ -27,6 +27,7 @@
 
 /* Qt includes: */
 #include <QCheckBox>
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QLabel>
@@ -37,10 +38,10 @@
 #include "QIAdvancedSlider.h"
 #include "UICommon.h"
 #include "UIConverter.h"
-#include "UIFilePathSelector.h"
 #include "UIFilmContainer.h"
 #include "UIGlobalSession.h"
 #include "UIRecordingSettingsEditor.h"
+#include "UIRecordingFilePathEditor.h"
 
 /* COM includes: */
 #include "CSystemProperties.h"
@@ -51,7 +52,7 @@
 
 
 UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
-    : UIEditor(pParent)
+    : UIEditor(pParent, true /* show in basic mode */)
     , m_fFeatureEnabled(false)
     , m_fOptionsAvailable(false)
     , m_enmMode(UISettingsDefs::RecordingMode_Max)
@@ -62,7 +63,6 @@ UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     , m_pCheckboxFeature(0)
     , m_pLabelMode(0)
     , m_pComboMode(0)
-    , m_pLabelFilePath(0)
     , m_pEditorFilePath(0)
     , m_pLabelFrameSize(0)
     , m_pComboFrameSize(0)
@@ -156,13 +156,13 @@ void UIRecordingSettingsEditor::setFolder(const QString &strFolder)
     {
         m_strFolder = strFolder;
         if (m_pEditorFilePath)
-            m_pEditorFilePath->setInitialPath(m_strFolder);
+            m_pEditorFilePath->setFolder(m_strFolder);
     }
 }
 
 QString UIRecordingSettingsEditor::folder() const
 {
-    return m_pEditorFilePath ? m_pEditorFilePath->initialPath() : m_strFolder;
+    return m_pEditorFilePath ? m_pEditorFilePath->folder() : m_strFolder;
 }
 
 void UIRecordingSettingsEditor::setFilePath(const QString &strFilePath)
@@ -173,13 +173,13 @@ void UIRecordingSettingsEditor::setFilePath(const QString &strFilePath)
     {
         m_strFilePath = strFilePath;
         if (m_pEditorFilePath)
-            m_pEditorFilePath->setPath(m_strFilePath);
+            m_pEditorFilePath->setFilePath(m_strFilePath);
     }
 }
 
 QString UIRecordingSettingsEditor::filePath() const
 {
-    return m_pEditorFilePath ? m_pEditorFilePath->path() : m_strFilePath;
+    return m_pEditorFilePath ? m_pEditorFilePath->filePath() : m_strFilePath;
 }
 
 void UIRecordingSettingsEditor::setFrameWidth(int iWidth)
@@ -325,9 +325,6 @@ void UIRecordingSettingsEditor::sltRetranslateUI()
         m_pComboMode->setItemText(iIndex, gpConverter->toString(enmType));
     }
     m_pComboMode->setToolTip(tr("Recording mode"));
-
-    m_pLabelFilePath->setText(tr("File &Path"));
-    m_pEditorFilePath->setToolTip(tr("The filename VirtualBox uses to save the recorded content"));
 
     m_pLabelFrameSize->setText(tr("Frame Si&ze"));
     m_pComboFrameSize->setItemText(0, tr("User Defined"));
@@ -505,6 +502,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
             QGridLayout *pLayoutSettings = new QGridLayout(pWidgetSettings);
             if (pLayoutSettings)
             {
+                int iLayoutSettingsRow = 0;
                 pLayoutSettings->setContentsMargins(0, 0, 0, 0);
 
                 /* Prepare recording mode label: */
@@ -512,7 +510,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                 if (m_pLabelMode)
                 {
                     m_pLabelMode->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-                    pLayoutSettings->addWidget(m_pLabelMode, 0, 0);
+                    pLayoutSettings->addWidget(m_pLabelMode, iLayoutSettingsRow, 0);
                 }
                 /* Prepare recording mode combo: */
                 m_pComboMode = new QComboBox(pWidgetSettings);
@@ -524,34 +522,22 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pComboMode->addItem(QString(), QVariant::fromValue(UISettingsDefs::RecordingMode_VideoOnly));
                     m_pComboMode->addItem(QString(), QVariant::fromValue(UISettingsDefs::RecordingMode_AudioOnly));
 
-                    pLayoutSettings->addWidget(m_pComboMode, 0, 1, 1, 3);
-                }
-
-                /* Prepare recording file path label: */
-                m_pLabelFilePath = new QLabel(pWidgetSettings);
-                if (m_pLabelFilePath)
-                {
-                    m_pLabelFilePath->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-                    pLayoutSettings->addWidget(m_pLabelFilePath, 1, 0);
+                    pLayoutSettings->addWidget(m_pComboMode, iLayoutSettingsRow, 1, 1, 3);
                 }
                 /* Prepare recording file path editor: */
-                m_pEditorFilePath = new UIFilePathSelector(pWidgetSettings);
+                m_pEditorFilePath = new UIRecordingFilePathEditor(pWidgetSettings, false);
                 if (m_pEditorFilePath)
                 {
-                    if (m_pLabelFilePath)
-                        m_pLabelFilePath->setBuddy(m_pEditorFilePath);
-                    m_pEditorFilePath->setEditable(false);
-                    m_pEditorFilePath->setMode(UIFilePathSelector::Mode_File_Save);
-
-                    pLayoutSettings->addWidget(m_pEditorFilePath, 1, 1, 1, 3);
+                    addEditor(m_pEditorFilePath);
+                    m_pEditorFilePath->setSizePolicy(QSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
+                    pLayoutSettings->addWidget(m_pEditorFilePath, ++iLayoutSettingsRow, 0, 1, 4);
                 }
-
                 /* Prepare recording frame size label: */
                 m_pLabelFrameSize = new QLabel(pWidgetSettings);
                 if (m_pLabelFrameSize)
                 {
                     m_pLabelFrameSize->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-                    pLayoutSettings->addWidget(m_pLabelFrameSize, 2, 0);
+                    pLayoutSettings->addWidget(m_pLabelFrameSize, ++iLayoutSettingsRow, 0);
                 }
                 /* Prepare recording frame size combo: */
                 m_pComboFrameSize = new QComboBox(pWidgetSettings);
@@ -583,7 +569,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pComboFrameSize->addItem("1920 x 1440 (4:3)",   QSize(1920, 1440));
                     m_pComboFrameSize->addItem("2880 x 1800 (16:10)", QSize(2880, 1800));
 
-                    pLayoutSettings->addWidget(m_pComboFrameSize, 2, 1);
+                    pLayoutSettings->addWidget(m_pComboFrameSize, iLayoutSettingsRow, 1);
                 }
                 /* Prepare recording frame width spinbox: */
                 m_pSpinboxFrameWidth = new QSpinBox(pWidgetSettings);
@@ -593,7 +579,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pSpinboxFrameWidth->setMinimum(16);
                     m_pSpinboxFrameWidth->setMaximum(2880);
 
-                    pLayoutSettings->addWidget(m_pSpinboxFrameWidth, 2, 2);
+                    pLayoutSettings->addWidget(m_pSpinboxFrameWidth, iLayoutSettingsRow, 2);
                 }
                 /* Prepare recording frame height spinbox: */
                 m_pSpinboxFrameHeight = new QSpinBox(pWidgetSettings);
@@ -603,7 +589,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pSpinboxFrameHeight->setMinimum(16);
                     m_pSpinboxFrameHeight->setMaximum(1800);
 
-                    pLayoutSettings->addWidget(m_pSpinboxFrameHeight, 2, 3);
+                    pLayoutSettings->addWidget(m_pSpinboxFrameHeight, iLayoutSettingsRow, 3);
                 }
 
                 /* Prepare recording frame rate label: */
@@ -611,7 +597,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                 if (m_pLabelFrameRate)
                 {
                     m_pLabelFrameRate->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-                    pLayoutSettings->addWidget(m_pLabelFrameRate, 3, 0);
+                    pLayoutSettings->addWidget(m_pLabelFrameRate, ++iLayoutSettingsRow, 0);
                 }
                 /* Prepare recording frame rate widget: */
                 m_pWidgetFrameRateSettings = new QWidget(pWidgetSettings);
@@ -659,7 +645,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                         }
                     }
 
-                    pLayoutSettings->addWidget(m_pWidgetFrameRateSettings, 3, 1, 2, 1);
+                    pLayoutSettings->addWidget(m_pWidgetFrameRateSettings, iLayoutSettingsRow, 1, 2, 1);
                 }
                 /* Prepare recording frame rate spinbox: */
                 m_pSpinboxFrameRate = new QSpinBox(pWidgetSettings);
@@ -671,7 +657,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pSpinboxFrameRate->setMinimum(1);
                     m_pSpinboxFrameRate->setMaximum(30);
 
-                    pLayoutSettings->addWidget(m_pSpinboxFrameRate, 3, 2, 1, 2);
+                    pLayoutSettings->addWidget(m_pSpinboxFrameRate, ++iLayoutSettingsRow, 2, 1, 2);
                 }
 
                 /* Prepare recording bit rate label: */
@@ -991,7 +977,6 @@ void UIRecordingSettingsEditor::updateWidgetAvailability()
 
     m_pLabelMode->setEnabled(fFeatureEnabled && m_fOptionsAvailable);
     m_pComboMode->setEnabled(fFeatureEnabled && m_fOptionsAvailable);
-    m_pLabelFilePath->setEnabled(fFeatureEnabled && m_fOptionsAvailable);
     m_pEditorFilePath->setEnabled(fFeatureEnabled && m_fOptionsAvailable);
 
     m_pLabelFrameSize->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
