@@ -165,7 +165,7 @@ DECLINLINE(void) iemTlbInvalidateLargePageWorkerInner(PVMCPUCC pVCpu, IEMTLB *pT
     AssertCompile(IEMTLB_CALC_TAG_NO_REV(pVCpu, (RTGCPTR)0x8731U << GUEST_PAGE_SHIFT) == 0x8731U);
     if (   !a_fDataTlb
         && GCPtrInstrBufPcTag - GCPtrTag < (a_f2MbLargePage ? 512U : 1024U))
-        pVCpu->iem.s.cbInstrBufTotal = 0;
+        ICORE(pVCpu).cbInstrBufTotal = 0;
 
     /*
      * Combine TAG values with the TLB revisions.
@@ -423,15 +423,15 @@ DECLINLINE(void) iemTlbInvalidatePageWorker(PVMCPUCC pVCpu, IEMTLB *pTlb, RTGCPT
     {
         IEMTLBTRACE_EVICT_SLOT(pVCpu, GCPtrTag, pTlb->aEntries[idxBase].GCPhys, idxBase, a_fDataTlb);
         pTlb->aEntries[idxBase].uTag = 0;
-        if (!a_fDataTlb && GCPtrTag == IEMTLB_CALC_TAG_NO_REV(pVCpu, pVCpu->iem.s.uInstrBufPc))
-            pVCpu->iem.s.cbInstrBufTotal = 0;
+        if (!a_fDataTlb && GCPtrTag == IEMTLB_CALC_TAG_NO_REV(pVCpu, ICORE(pVCpu).uInstrBufPc))
+            ICORE(pVCpu).cbInstrBufTotal = 0;
     }
     if (pTlb->aEntries[idxBase + 1].uTag == (GCPtrTag | pTlb->uTlbRevisionGlobal))
     {
         IEMTLBTRACE_EVICT_SLOT(pVCpu, GCPtrTag, pTlb->aEntries[idxBase + 1].GCPhys, idxBase + 1, a_fDataTlb);
         pTlb->aEntries[idxBase + 1].uTag = 0;
-        if (!a_fDataTlb && GCPtrTag == IEMTLB_CALC_TAG_NO_REV(pVCpu, pVCpu->iem.s.uInstrBufPc))
-            pVCpu->iem.s.cbInstrBufTotal = 0;
+        if (!a_fDataTlb && GCPtrTag == IEMTLB_CALC_TAG_NO_REV(pVCpu, ICORE(pVCpu).uInstrBufPc))
+            ICORE(pVCpu).cbInstrBufTotal = 0;
     }
 
     /*
@@ -445,7 +445,7 @@ DECLINLINE(void) iemTlbInvalidatePageWorker(PVMCPUCC pVCpu, IEMTLB *pTlb, RTGCPT
     if (pTlb->GlobalLargePageRange.uLastTag || pTlb->NonGlobalLargePageRange.uLastTag)
 # endif
     {
-        RTGCPTR const GCPtrInstrBufPcTag = a_fDataTlb ? 0 : IEMTLB_CALC_TAG_NO_REV(pVCpu, pVCpu->iem.s.uInstrBufPc);
+        RTGCPTR const GCPtrInstrBufPcTag = a_fDataTlb ? 0 : IEMTLB_CALC_TAG_NO_REV(pVCpu, ICORE(pVCpu).uInstrBufPc);
         if (pVCpu->cpum.GstCtx.cr4 & X86_CR4_PAE)
             iemTlbInvalidateLargePageWorker<a_fDataTlb, true>(pVCpu, pTlb, GCPtrTag, GCPtrInstrBufPcTag);
         else
