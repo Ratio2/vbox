@@ -86,7 +86,7 @@ BEGINPROC_HIDDEN iemNativeTbEntry
         mov     IEMNATIVE_REG_FIXED_PCPUMCTX_ASM, x1
 #ifdef VBOX_WITH_IEM_NATIVE_RECOMPILER_LONGJMP
         /* Save the frame pointer to pvTbFramePointerR3 */
-        str     x29, [IEMNATIVE_REG_FIXED_PVMCPU_ASM, #(VMCPU_OFF_iem + IEMCPU_OFF_pvTbFramePointerR3)]
+        str     x29, [IEMNATIVE_REG_FIXED_PVMCPU_ASM, #(VMCPU_OFF_iem + IEMCPU_OFF_Recomp + IEMCPURECOMP_OFF_pvTbFramePointerR3)]
 #endif
 
         /*

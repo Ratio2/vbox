@@ -45,3 +45,21 @@
     s/^    data [+]\(0x[[:xdigit:]][[:xdigit:]]*\) .* \([a-zA-Z_][a-zA-Z0-9_]*\)\[[0-9][0-9]*]$/\#define IEMCPU_OFF_\2 \1/p
 }
 
+
+#
+# The top-level IEMCPURECOMP members.
+#
+/^  struct IEMCPURECOMP .* {$/,/^  }$/ {
+    s/^    data [+]\(0x[[:xdigit:]][[:xdigit:]]*\) .* \([a-zA-Z_][a-zA-Z0-9_]*\)$/\#define IEMCPURECOMP_OFF_\2 \1/p
+    s/^    data [+]\(0x[[:xdigit:]][[:xdigit:]]*\) .* \([a-zA-Z_][a-zA-Z0-9_]*\)\[[0-9][0-9]*]$/\#define IEMCPURECOMP_OFF_\2 \1/p
+}
+
+
+#
+# The top-level IEMCPUCORE members.
+#
+/^  struct IEMCPUCORE .* {$/,/^  }$/ {
+    s/^    data [+]\(0x[[:xdigit:]][[:xdigit:]]*\) .* \([a-zA-Z_][a-zA-Z0-9_]*\)$/\#define IEMCPUCORE_OFF_\2 \1/p
+    s/^    data [+]\(0x[[:xdigit:]][[:xdigit:]]*\) .* \([a-zA-Z_][a-zA-Z0-9_]*\)\[[0-9][0-9]*]$/\#define IEMCPUCORE_OFF_\2 \1/p
+}
+

@@ -3584,7 +3584,7 @@ static IEM_DECL_MSC_GUARD_IGNORE VBOXSTRICTRC iemTbExec(PVMCPUCC pVCpu, PIEMTB p
 # endif
 
 # ifdef VBOX_WITH_IEM_NATIVE_RECOMPILER_LONGJMP
-        AssertCompileMemberOffset(VMCPUCC, iem.s.pvTbFramePointerR3, 0x7c8); /* This is assumed in iemNativeTbEntry */
+        AssertCompileMemberOffset(VMCPUCC, IEM_RECM_MEMBER.pvTbFramePointerR3, 0x7c8); /* This is assumed in iemNativeTbEntry */
 # endif
 # ifdef RT_ARCH_AMD64
         VBOXSTRICTRC const rcStrict = iemNativeTbEntry(pVCpu, (uintptr_t)pTb->Native.paInstructions);
@@ -3593,7 +3593,7 @@ static IEM_DECL_MSC_GUARD_IGNORE VBOXSTRICTRC iemTbExec(PVMCPUCC pVCpu, PIEMTB p
 # endif
 
 # ifdef VBOX_WITH_IEM_NATIVE_RECOMPILER_LONGJMP
-        pVCpu->iem.s.pvTbFramePointerR3 = NULL;
+        IRECM(pVCpu).pvTbFramePointerR3 = NULL;
 # endif
 # ifdef IEMNATIVE_WITH_SIMD_FP_NATIVE_EMITTERS
         /* Restore FPCR/MXCSR if the TB modified it. */
@@ -3935,7 +3935,7 @@ VMM_INT_DECL(VBOXSTRICTRC) IEMExecRecompiler(PVMCC pVM, PVMCPUCC pVCpu, bool fWa
             Assert(rcStrict != VINF_IEM_REEXEC_BREAK);
             pVCpu->iem.s.cLongJumps++;
 #ifdef VBOX_WITH_IEM_NATIVE_RECOMPILER_LONGJMP
-            pVCpu->iem.s.pvTbFramePointerR3 = NULL;
+            IRECM(pVCpu).pvTbFramePointerR3 = NULL;
 #endif
             if (ICORE(pVCpu).cActiveMappings > 0)
                 iemMemRollback(pVCpu);
