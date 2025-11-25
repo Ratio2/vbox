@@ -401,6 +401,8 @@ static void testTransferObjOpen(RTTEST hTest)
     /* Define the (valid) transfer root set. */
     RTCList<TESTTRANSFERROOTENTRY> lstRoots;
     lstRoots.append(TESTTRANSFERROOTENTRY("my-transfer-1/file1.txt"));
+    lstRoots.append(TESTTRANSFERROOTENTRY("my-transfer-1/file2..txt"));
+    lstRoots.append(TESTTRANSFERROOTENTRY("my-transfer-1/file2...txt"));
     lstRoots.append(TESTTRANSFERROOTENTRY("my-transfer-1/dir1/file1.txt"));
     lstRoots.append(TESTTRANSFERROOTENTRY("my-transfer-1/dir1/sub1/file1.txt"));
     lstRoots.append(TESTTRANSFERROOTENTRY("my-transfer-1/dir2/file1.txt"));
@@ -411,6 +413,7 @@ static void testTransferObjOpen(RTTEST hTest)
     testTransferObjOpenSingle(hTest, lstRoots, "file1.txt", VINF_SUCCESS);
     testTransferObjOpenSingle(hTest, lstRoots, "file2..txt", VINF_SUCCESS);
     testTransferObjOpenSingle(hTest, lstRoots, "file2...txt", VINF_SUCCESS);
+    testTransferObjOpenSingle(hTest, lstRoots, "dir2/sub1/file2...txt", VINF_SUCCESS);
     testTransferObjOpenSingle(hTest, lstRoots, "does-not-exist.txt", VERR_PATH_NOT_FOUND);
     testTransferObjOpenSingle(hTest, lstRoots, "dir1/does-not-exist.txt", VERR_PATH_NOT_FOUND);
     testTransferObjOpenSingle(hTest, lstRoots, "../must-not-access-this.txt", VERR_INVALID_PARAMETER);

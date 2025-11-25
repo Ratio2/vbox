@@ -3399,62 +3399,68 @@ int ShClTransferTransformPath(char *pszPath, size_t cbPath)
 /**
  * Validates whether a given path matches our set of rules or not.
  *
+ * Rules:
+ * - An empty path is allowed.
+ * - Dot components ("." or "..") are forbidden.
+ * - If \a fMustExist is \c true, the path either has to be a file or a directory and must exist.
+ * - Symbolic links are forbidden.
+ *
  * @returns VBox status code.
  * @param   pcszPath            Path to validate.
  * @param   fMustExist          Whether the path to validate also must exist.
  */
 int ShClTransferValidatePath(const char *pcszPath, bool fMustExist)
 {
+    AssertPtrReturn(pcszPath, VERR_INVALID_POINTER);
+
     int rc = VINF_SUCCESS;
 
-    if (*pcszPath != '\0')
-    {
-        if (RTStrIsValidEncoding(pcszPath))
-        {
-            union
-            {
-                RTPATHSPLIT     Split;
-                uint8_t         ab[RTPATH_MAX + sizeof(RTPATHSPLIT)];
-            } u;
+    if (*pcszPath == '\0')
+        return rc;
 
-            rc = RTPathSplit(pcszPath, &u.Split, sizeof(u), RTPATH_STR_F_STYLE_HOST);
-            if (RT_SUCCESS(rc))
+    if (RTStrIsValidEncoding(pcszPath))
+    {
+        union
+        {
+            RTPATHSPLIT     Split;
+            uint8_t         ab[RTPATH_MAX + sizeof(RTPATHSPLIT)];
+        } u;
+
+        rc = RTPathSplit(pcszPath, &u.Split, sizeof(u), RTPATH_STR_F_STYLE_HOST);
+        if (RT_SUCCESS(rc))
+        {
+            if (!(u.Split.fProps & RTPATH_PROP_DOTDOT_REFS))
             {
-                if (!(u.Split.fProps & RTPATH_PROP_DOTDOT_REFS))
+                if (fMustExist)
                 {
-                    if (fMustExist)
+                    RTFSOBJINFO objInfo;
+                    rc = RTPathQueryInfo(pcszPath, &objInfo, RTFSOBJATTRADD_NOTHING);
+                    if (RT_SUCCESS(rc))
                     {
-                        RTFSOBJINFO objInfo;
-                        rc = RTPathQueryInfo(pcszPath, &objInfo, RTFSOBJATTRADD_NOTHING);
-                        if (RT_SUCCESS(rc))
+                        if (RTFS_IS_DIRECTORY(objInfo.Attr.fMode))
                         {
-                            if (RTFS_IS_DIRECTORY(objInfo.Attr.fMode))
-                            {
-                                if (!RTDirExists(pcszPath)) /* Path must exist. */
-                                    rc = VERR_PATH_NOT_FOUND;
-                            }
-                            else if (RTFS_IS_FILE(objInfo.Attr.fMode))
-                            {
-                                if (!RTFileExists(pcszPath)) /* File must exist. */
-                                    rc = VERR_FILE_NOT_FOUND;
-                            }
-                            else /* Everything else (e.g. symbolic links) are not supported. */
-                            {
-                                LogRelMax(64, ("Shared Clipboard: Path '%s' contains a symbolic link or junction, which are not supported\n", pcszPath));
-                                rc = VERR_NOT_SUPPORTED;
-                            }
+                            if (!RTDirExists(pcszPath)) /* Path must exist. */
+                                rc = VERR_PATH_NOT_FOUND;
+                        }
+                        else if (RTFS_IS_FILE(objInfo.Attr.fMode))
+                        {
+                            if (!RTFileExists(pcszPath)) /* File must exist. */
+                                rc = VERR_FILE_NOT_FOUND;
+                        }
+                        else /* Everything else (e.g. symbolic links) are not supported. */
+                        {
+                            LogRelMax(64, ("Shared Clipboard: Path '%s' contains a symbolic link or junction, which are not supported\n", pcszPath));
+                            rc = VERR_NOT_SUPPORTED;
                         }
                     }
                 }
-                else
-                    rc = VERR_INVALID_PARAMETER;
             }
+            else
+                rc = VERR_INVALID_PARAMETER;
         }
-        else
-            rc = VERR_INVALID_UTF8_ENCODING;
     }
     else
-        rc = VERR_INVALID_PARAMETER;
+        rc = VERR_INVALID_UTF8_ENCODING;
 
     if (RT_FAILURE(rc))
         LogRelMax(64, ("Shared Clipboard: Validating path '%s' failed: %Rrc\n", pcszPath, rc));

@@ -97,53 +97,53 @@ int DnDPathSanitizeFileName(char *pszFileName, size_t cbFileName)
  */
 int DnDPathValidate(const char *pcszPath, bool fMustExist)
 {
+    AssertPtrReturn(pcszPath, VERR_INVALID_POINTER);
+
     int rc = VINF_SUCCESS;
 
-    if (*pcszPath != '\0')
-    {
-        if (RTStrIsValidEncoding(pcszPath))
-        {
-            union
-            {
-                RTPATHSPLIT     Split;
-                uint8_t         ab[RTPATH_MAX + sizeof(RTPATHSPLIT)];
-            } u;
+    if (*pcszPath == '\0')
+        return rc; /* fMustExist is ignored in this case. */
 
-            rc = RTPathSplit(pcszPath, &u.Split, sizeof(u), RTPATH_STR_F_STYLE_HOST);
-            if (RT_SUCCESS(rc))
+    if (RTStrIsValidEncoding(pcszPath))
+    {
+        union
+        {
+            RTPATHSPLIT     Split;
+            uint8_t         ab[RTPATH_MAX + sizeof(RTPATHSPLIT)];
+        } u;
+
+        rc = RTPathSplit(pcszPath, &u.Split, sizeof(u), RTPATH_STR_F_STYLE_HOST);
+        if (RT_SUCCESS(rc))
+        {
+            if (!(u.Split.fProps & RTPATH_PROP_DOTDOT_REFS))
             {
-                if (!(u.Split.fProps & RTPATH_PROP_DOTDOT_REFS))
+                if (fMustExist)
                 {
-                    if (fMustExist)
+                    RTFSOBJINFO objInfo;
+                    rc = RTPathQueryInfo(pcszPath, &objInfo, RTFSOBJATTRADD_NOTHING);
+                    if (RT_SUCCESS(rc))
                     {
-                        RTFSOBJINFO objInfo;
-                        rc = RTPathQueryInfo(pcszPath, &objInfo, RTFSOBJATTRADD_NOTHING);
-                        if (RT_SUCCESS(rc))
+                        if (RTFS_IS_DIRECTORY(objInfo.Attr.fMode))
                         {
-                            if (RTFS_IS_DIRECTORY(objInfo.Attr.fMode))
-                            {
-                                if (!RTDirExists(pcszPath)) /* Path must exist. */
-                                    rc = VERR_PATH_NOT_FOUND;
-                            }
-                            else if (RTFS_IS_FILE(objInfo.Attr.fMode))
-                            {
-                                if (!RTFileExists(pcszPath)) /* File must exist. */
-                                    rc = VERR_FILE_NOT_FOUND;
-                            }
-                            else /* Everything else (e.g. symbolic links) are not supported. */
-                                rc = VERR_NOT_SUPPORTED;
+                            if (!RTDirExists(pcszPath)) /* Path must exist. */
+                                rc = VERR_PATH_NOT_FOUND;
                         }
+                        else if (RTFS_IS_FILE(objInfo.Attr.fMode))
+                        {
+                            if (!RTFileExists(pcszPath)) /* File must exist. */
+                                rc = VERR_FILE_NOT_FOUND;
+                        }
+                        else /* Everything else (e.g. symbolic links) are not supported. */
+                            rc = VERR_NOT_SUPPORTED;
                     }
                 }
-                else
-                    rc = VERR_INVALID_PARAMETER;
             }
+            else
+                rc = VERR_INVALID_PARAMETER;
         }
-        else
-            rc = VERR_INVALID_UTF8_ENCODING;
     }
     else
-        rc = VERR_INVALID_PARAMETER;
+        rc = VERR_INVALID_UTF8_ENCODING;
 
     return rc;
 }

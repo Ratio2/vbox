@@ -116,8 +116,8 @@ int main()
     }
     DnDTransferListDestroy(&list);
 
-    char  *pszBuf;
-    size_t cbBuf;
+    char  *pszBuf = NULL;
+    size_t cbBuf  = 0;
 
     /* To URI data. */
     RTTEST_CHECK_RC(hTest, DnDTransferListInitEx(&list, szPathWellKnownURI, DNDTRANSFERLISTFMT_URI), VINF_SUCCESS);
