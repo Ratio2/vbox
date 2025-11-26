@@ -223,7 +223,7 @@ private:
         /** Holds the frame height spinbox instance. */
         QSpinBox           *m_pSpinboxFrameHeight;
         /** Holds the frame rate editor instance. */
-        UIRecordingVideoFrameRateEditor *m_pFrameRateEditor;
+        UIRecordingVideoFrameRateEditor *m_pEditorFrameRate;
         /** Holds the bit rate label instance. */
         QLabel             *m_pLabelBitRate;
         /** Holds the bit rate settings widget instance. */
