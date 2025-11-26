@@ -62,6 +62,7 @@ UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     , m_iFrameRate(0)
     , m_iBitRate(0)
     , m_pCheckboxFeature(0)
+    , m_pLayoutSettings(0)
     , m_pLabelMode(0)
     , m_pComboMode(0)
     , m_pEditorFilePath(0)
@@ -296,6 +297,11 @@ QVector<bool> UIRecordingSettingsEditor::screens() const
     return m_pScrollerScreens ? m_pScrollerScreens->value() : m_screens;
 }
 
+void UIRecordingSettingsEditor::handleFilterChange()
+{
+    updateMinimumLayoutHint();
+}
+
 void UIRecordingSettingsEditor::sltRetranslateUI()
 {
     m_pCheckboxFeature->setText(tr("&Enable Recording"));
@@ -343,6 +349,7 @@ void UIRecordingSettingsEditor::sltRetranslateUI()
     m_pLabelScreens->setText(tr("Scree&ns"));
 
     updateRecordingFileSizeHint();
+    updateMinimumLayoutHint();
 }
 
 void UIRecordingSettingsEditor::sltHandleFeatureToggled()
@@ -457,18 +464,18 @@ void UIRecordingSettingsEditor::prepareWidgets()
         if (pWidgetSettings)
         {
             /* Prepare recording settings widget layout: */
-            QGridLayout *pLayoutSettings = new QGridLayout(pWidgetSettings);
-            if (pLayoutSettings)
+            m_pLayoutSettings = new QGridLayout(pWidgetSettings);
+            if (m_pLayoutSettings)
             {
                 int iLayoutSettingsRow = 0;
-                pLayoutSettings->setContentsMargins(0, 0, 0, 0);
+                m_pLayoutSettings->setContentsMargins(0, 0, 0, 0);
 
                 /* Prepare recording mode label: */
                 m_pLabelMode = new QLabel(pWidgetSettings);
                 if (m_pLabelMode)
                 {
                     m_pLabelMode->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-                    pLayoutSettings->addWidget(m_pLabelMode, iLayoutSettingsRow, 0);
+                    m_pLayoutSettings->addWidget(m_pLabelMode, iLayoutSettingsRow, 0);
                 }
                 /* Prepare recording mode combo: */
                 m_pComboMode = new QComboBox(pWidgetSettings);
@@ -480,21 +487,21 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pComboMode->addItem(QString(), QVariant::fromValue(UISettingsDefs::RecordingMode_VideoOnly));
                     m_pComboMode->addItem(QString(), QVariant::fromValue(UISettingsDefs::RecordingMode_AudioOnly));
 
-                    pLayoutSettings->addWidget(m_pComboMode, iLayoutSettingsRow, 1, 1, 3);
+                    m_pLayoutSettings->addWidget(m_pComboMode, iLayoutSettingsRow, 1, 1, 3);
                 }
                 /* Prepare recording file path editor: */
                 m_pEditorFilePath = new UIRecordingFilePathEditor(pWidgetSettings);
                 if (m_pEditorFilePath)
                 {
                     addEditor(m_pEditorFilePath);
-                    pLayoutSettings->addWidget(m_pEditorFilePath, ++iLayoutSettingsRow, 0, 1, 4);
+                    m_pLayoutSettings->addWidget(m_pEditorFilePath, ++iLayoutSettingsRow, 0, 1, 4);
                 }
                 /* Prepare recording frame size label: */
                 m_pLabelFrameSize = new QLabel(pWidgetSettings);
                 if (m_pLabelFrameSize)
                 {
                     m_pLabelFrameSize->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-                    pLayoutSettings->addWidget(m_pLabelFrameSize, ++iLayoutSettingsRow, 0);
+                    m_pLayoutSettings->addWidget(m_pLabelFrameSize, ++iLayoutSettingsRow, 0);
                 }
                 /* Prepare recording frame size combo: */
                 m_pComboFrameSize = new QComboBox(pWidgetSettings);
@@ -526,7 +533,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pComboFrameSize->addItem("1920 x 1440 (4:3)",   QSize(1920, 1440));
                     m_pComboFrameSize->addItem("2880 x 1800 (16:10)", QSize(2880, 1800));
 
-                    pLayoutSettings->addWidget(m_pComboFrameSize, iLayoutSettingsRow, 1);
+                    m_pLayoutSettings->addWidget(m_pComboFrameSize, iLayoutSettingsRow, 1);
                 }
                 /* Prepare recording frame width spinbox: */
                 m_pSpinboxFrameWidth = new QSpinBox(pWidgetSettings);
@@ -536,7 +543,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pSpinboxFrameWidth->setMinimum(16);
                     m_pSpinboxFrameWidth->setMaximum(2880);
 
-                    pLayoutSettings->addWidget(m_pSpinboxFrameWidth, iLayoutSettingsRow, 2);
+                    m_pLayoutSettings->addWidget(m_pSpinboxFrameWidth, iLayoutSettingsRow, 2);
                 }
                 /* Prepare recording frame height spinbox: */
                 m_pSpinboxFrameHeight = new QSpinBox(pWidgetSettings);
@@ -546,7 +553,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pSpinboxFrameHeight->setMinimum(16);
                     m_pSpinboxFrameHeight->setMaximum(1800);
 
-                    pLayoutSettings->addWidget(m_pSpinboxFrameHeight, iLayoutSettingsRow, 3);
+                    m_pLayoutSettings->addWidget(m_pSpinboxFrameHeight, iLayoutSettingsRow, 3);
                 }
                 /* Prepare recording frame rate editor: */
                 m_pFrameRateEditor = new UIRecordingVideoFrameRateEditor(pWidgetSettings, false);
@@ -554,14 +561,14 @@ void UIRecordingSettingsEditor::prepareWidgets()
                 {
                     addEditor(m_pFrameRateEditor);
                     m_pFrameRateEditor->setSizePolicy(QSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
-                    pLayoutSettings->addWidget(m_pFrameRateEditor, ++iLayoutSettingsRow, 0, 1, 4);
+                    m_pLayoutSettings->addWidget(m_pFrameRateEditor, ++iLayoutSettingsRow, 0, 1, 4);
                 }
                 /* Prepare recording bit rate label: */
                 m_pLabelBitRate = new QLabel(pWidgetSettings);
                 if (m_pLabelBitRate)
                 {
                     m_pLabelBitRate->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-                    pLayoutSettings->addWidget(m_pLabelBitRate, 5, 0);
+                    m_pLayoutSettings->addWidget(m_pLabelBitRate, 5, 0);
                 }
                 /* Prepare recording bit rate widget: */
                 m_pWidgetBitRateSettings = new QWidget(pWidgetSettings);
@@ -615,7 +622,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                         }
                     }
 
-                    pLayoutSettings->addWidget(m_pWidgetBitRateSettings, 5, 1, 2, 1);
+                    m_pLayoutSettings->addWidget(m_pWidgetBitRateSettings, 5, 1, 2, 1);
                 }
                 /* Prepare recording bit rate spinbox: */
                 m_pSpinboxBitRate = new QSpinBox(pWidgetSettings);
@@ -627,7 +634,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pSpinboxBitRate->setMinimum(VIDEO_CAPTURE_BIT_RATE_MIN);
                     m_pSpinboxBitRate->setMaximum(VIDEO_CAPTURE_BIT_RATE_MAX);
 
-                    pLayoutSettings->addWidget(m_pSpinboxBitRate, 5, 2, 1, 2);
+                    m_pLayoutSettings->addWidget(m_pSpinboxBitRate, 5, 2, 1, 2);
                 }
 
                 /* Prepare recording video quality label: */
@@ -635,7 +642,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                 if (m_pLabelVideoQuality)
                 {
                     m_pLabelVideoQuality->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-                    pLayoutSettings->addWidget(m_pLabelVideoQuality, 7, 0);
+                    m_pLayoutSettings->addWidget(m_pLabelVideoQuality, 7, 0);
                 }
                 /* Prepare recording video quality widget: */
                 m_pWidgetVideoQualitySettings = new QWidget(pWidgetSettings);
@@ -692,7 +699,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                         }
                     }
 
-                    pLayoutSettings->addWidget(m_pWidgetVideoQualitySettings, 7, 1, 2, 1);
+                    m_pLayoutSettings->addWidget(m_pWidgetVideoQualitySettings, 7, 1, 2, 1);
                 }
 
                 /* Prepare recording audio profile label: */
@@ -700,7 +707,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                 if (m_pLabelAudioProfile)
                 {
                     m_pLabelAudioProfile->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-                    pLayoutSettings->addWidget(m_pLabelAudioProfile, 9, 0);
+                    m_pLayoutSettings->addWidget(m_pLabelAudioProfile, 9, 0);
                 }
                 /* Prepare recording audio profile widget: */
                 m_pWidgetAudioProfileSettings = new QWidget(pWidgetSettings);
@@ -755,20 +762,20 @@ void UIRecordingSettingsEditor::prepareWidgets()
                         }
                     }
 
-                    pLayoutSettings->addWidget(m_pWidgetAudioProfileSettings, 9, 1, 2, 1);
+                    m_pLayoutSettings->addWidget(m_pWidgetAudioProfileSettings, 9, 1, 2, 1);
                 }
 
                 /* Prepare recording size hint label: */
                 m_pLabelSizeHint = new QLabel(pWidgetSettings);
                 if (m_pLabelSizeHint)
-                    pLayoutSettings->addWidget(m_pLabelSizeHint, 11, 1);
+                    m_pLayoutSettings->addWidget(m_pLabelSizeHint, 11, 1);
 
                 /* Prepare recording screens label: */
                 m_pLabelScreens = new QLabel(pWidgetSettings);
                 if (m_pLabelScreens)
                 {
                     m_pLabelScreens->setAlignment(Qt::AlignRight | Qt::AlignTop);
-                    pLayoutSettings->addWidget(m_pLabelScreens, 12, 0);
+                    m_pLayoutSettings->addWidget(m_pLabelScreens, 12, 0);
                 }
                 /* Prepare recording screens scroller: */
                 m_pScrollerScreens = new UIFilmContainer(pWidgetSettings);
@@ -776,7 +783,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                 {
                     if (m_pLabelScreens)
                         m_pLabelScreens->setBuddy(m_pScrollerScreens);
-                    pLayoutSettings->addWidget(m_pScrollerScreens, 12, 1, 1, 3);
+                    m_pLayoutSettings->addWidget(m_pScrollerScreens, 12, 1, 1, 3);
                 }
             }
 
@@ -907,6 +914,36 @@ void UIRecordingSettingsEditor::lookForCorrespondingFrameSizePreset()
     lookForCorrespondingPreset(m_pComboFrameSize,
                                QSize(m_pSpinboxFrameWidth->value(),
                                      m_pSpinboxFrameHeight->value()));
+}
+
+void UIRecordingSettingsEditor::updateMinimumLayoutHint()
+{
+    /* Layout all the editors (local and external), this will work fine after all of them became UIEditors: */
+    int iMinimumLayoutHint = 0;
+    if (m_pLabelMode && !m_pLabelMode->isHidden())
+        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pLabelMode->minimumSizeHint().width());
+    // This editor have own label, but we want it to be properly layouted according to rest of stuff.
+    if (m_pEditorFilePath && !m_pEditorFilePath->isHidden())
+        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorFilePath->minimumLabelHorizontalHint());
+    if (m_pLabelFrameSize && !m_pLabelFrameSize->isHidden())
+        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pLabelFrameSize->minimumSizeHint().width());
+    // This editor have own label, but we want it to be properly layouted according to rest of stuff.
+//    if (m_pFrameRateEditor && !m_pFrameRateEditor->isHidden())
+//        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pFrameRateEditor->minimumLabelHorizontalHint());
+    if (m_pLabelBitRate && !m_pLabelBitRate->isHidden())
+        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pLabelBitRate->minimumSizeHint().width());
+    if (m_pLabelVideoQuality && !m_pLabelVideoQuality->isHidden())
+        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pLabelVideoQuality->minimumSizeHint().width());
+    if (m_pLabelAudioProfile && !m_pLabelAudioProfile->isHidden())
+        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pLabelAudioProfile->minimumSizeHint().width());
+    if (m_pLabelScreens && !m_pLabelScreens->isHidden())
+        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pLabelScreens->minimumSizeHint().width());
+    if (m_pEditorFilePath)
+        m_pEditorFilePath->setMinimumLayoutIndent(iMinimumLayoutHint);
+//    if (m_pFrameRateEditor)
+//        m_pFrameRateEditor->setMinimumLayoutIndent(iMinimumLayoutHint);
+    if (m_pLayoutSettings)
+        m_pLayoutSettings->setColumnMinimumWidth(0, iMinimumLayoutHint);
 }
 
 /* static */

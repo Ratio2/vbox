@@ -26,7 +26,7 @@
  */
 
 /* Qt includes: */
-#include <QHBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 
 /* GUI includes: */
@@ -75,6 +75,17 @@ QString UIRecordingFilePathEditor::filePath() const
     return m_pSelector ? m_pSelector->path() : m_strFilePath;
 }
 
+int UIRecordingFilePathEditor::minimumLabelHorizontalHint() const
+{
+    return m_pLabel ? m_pLabel->minimumSizeHint().width() : 0;
+}
+
+void UIRecordingFilePathEditor::setMinimumLayoutIndent(int iIndent)
+{
+    if (m_pLayout)
+        m_pLayout->setColumnMinimumWidth(0, iIndent);
+}
+
 void UIRecordingFilePathEditor::sltRetranslateUI()
 {
     m_pLabel->setText(tr("File &Path"));
@@ -93,17 +104,17 @@ void UIRecordingFilePathEditor::prepare()
 void UIRecordingFilePathEditor::prepareWidgets()
 {
     /* Prepare main layout: */
-    QHBoxLayout *pLayout = new QHBoxLayout(this);
-    if (pLayout)
+    m_pLayout = new QGridLayout(this);
+    if (m_pLayout)
     {
-        pLayout->setContentsMargins(0, 0, 0, 0);
+        m_pLayout->setContentsMargins(0, 0, 0, 0);
 
         /* Prepare recording label: */
         m_pLabel = new QLabel(this);
         if (m_pLabel)
         {
             m_pLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-            pLayout->addWidget(m_pLabel);
+            m_pLayout->addWidget(m_pLabel, 0, 0);
         }
 
         /* Prepare recording selector: */
@@ -115,7 +126,7 @@ void UIRecordingFilePathEditor::prepareWidgets()
             m_pSelector->setEditable(false);
             m_pSelector->setMode(UIFilePathSelector::Mode_File_Save);
             m_pSelector->setSizePolicy(QSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
-            pLayout->addWidget(m_pSelector);
+            m_pLayout->addWidget(m_pSelector, 0, 1);
         }
     }
 }

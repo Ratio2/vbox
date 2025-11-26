@@ -35,6 +35,7 @@
 #include "UIEditor.h"
 
 /* Forward declarations: */
+class QGridLayout;
 class QLabel;
 class UIFilePathSelector;
 
@@ -56,6 +57,11 @@ public:
     void setFilePath(const QString &strFilePath);
     /** Returns file path. */
     QString filePath() const;
+
+    /** Returns minimum layout hint. */
+    int minimumLabelHorizontalHint() const;
+    /** Defines minimum layout @a iIndent. */
+    void setMinimumLayoutIndent(int iIndent);
 
 private slots:
 
@@ -79,6 +85,8 @@ private:
 
     /** @name Widgets
      * @{ */
+        /** Holds the main layout instance. */
+        QGridLayout        *m_pLayout;
         /** Holds the label instance. */
         QLabel             *m_pLabel;
         /** Holds the selector instance. */

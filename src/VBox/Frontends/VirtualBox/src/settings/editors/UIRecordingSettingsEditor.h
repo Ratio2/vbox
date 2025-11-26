@@ -41,6 +41,7 @@
 /* Forward declarations: */
 class QCheckBox;
 class QComboBox;
+class QGridLayout;
 class QLabel;
 class QSpinBox;
 class QWidget;
@@ -116,6 +117,11 @@ public:
     /** Returns enabled screens. */
     QVector<bool> screens() const;
 
+protected:
+
+    /** Handles filter change. */
+    virtual void handleFilterChange() RT_OVERRIDE;
+
 private slots:
 
     /** Handles translation event. */
@@ -158,6 +164,9 @@ private:
     /** Searches for corresponding frame size preset. */
     void lookForCorrespondingFrameSizePreset();
 
+    /** Updates minimum layout hint. */
+    void updateMinimumLayoutHint();
+
     /** Searches for the @a data field in corresponding @a pComboBox. */
     static void lookForCorrespondingPreset(QComboBox *pComboBox, const QVariant &data);
     /** Calculates recording bit rate for passed @a iFrameWidth, @a iFrameHeight, @a iFrameRate and @a iQuality. */
@@ -199,6 +208,8 @@ private:
      * @{ */
         /** Holds the feature check-box instance. */
         QCheckBox          *m_pCheckboxFeature;
+        /** Holds the settings layout instance. */
+        QGridLayout        *m_pLayoutSettings;
         /** Holds the mode label instance. */
         QLabel             *m_pLabelMode;
         /** Holds the mode combo instance. */
