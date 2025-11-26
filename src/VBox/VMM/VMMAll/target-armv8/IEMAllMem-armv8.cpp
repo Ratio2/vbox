@@ -129,7 +129,7 @@ VBOXSTRICTRC iemMemPageTranslateAndCheckAccess(PVMCPUCC pVCpu, RTGCPTR GCPtrMem,
 }
 
 
-#ifdef IEM_WITH_DATA_TLB
+#ifdef IEM_WITH_DATA_TLB_IN_CUR_CTX
 /**
  * Converts PGM_PTATTRS_XXX to IEMTLBE_F_XXX.
  */
@@ -209,10 +209,10 @@ iemMemArmPtAttrsToTlbeFlags(uint64_t const fEff, uint64_t const fInfo, uint64_t 
 
     return fTlbe;
 }
-#endif /* IEM_WITH_DATA_TLB */
+#endif /* IEM_WITH_DATA_TLB_IN_CUR_CTX */
 
 
-#ifdef IEM_WITH_DATA_TLB
+#ifdef IEM_WITH_DATA_TLB_IN_CUR_CTX
 /**
  * Converts PGM_PTATTRS_XXX to IEMTLBE_GCPHYS_F_XXX.
  */
@@ -234,7 +234,7 @@ DECL_FORCE_INLINE(uint64_t) iemMemArmPtAttrsToGCPhysFlags(uint64_t const fEff)
 
     return fGCPhysFlags;
 }
-#endif /* IEM_WITH_DATA_TLB */
+#endif /* IEM_WITH_DATA_TLB_IN_CUR_CTX */
 
 
 /**
@@ -344,7 +344,7 @@ VBOXSTRICTRC iemMemMap(PVMCPUCC pVCpu, void **ppvMem, uint8_t *pbUnmapInfo, size
         }
     }
 
-#ifdef IEM_WITH_DATA_TLB
+#ifdef IEM_WITH_DATA_TLB_IN_CUR_CTX
     Assert(!(fAccess & IEM_ACCESS_TYPE_EXEC));
 
     /*
@@ -542,7 +542,7 @@ VBOXSTRICTRC iemMemMap(PVMCPUCC pVCpu, void **ppvMem, uint8_t *pbUnmapInfo, size
     if (fAccess & IEM_ACCESS_TYPE_READ)
         Log2(("IEM RD %RGv (%RGp) LB %#zx\n", GCPtrMem, pTlbe->GCPhys | (GCPtrMem & GUEST_MIN_PAGE_OFFSET_MASK), cbMem));
 
-#else  /* !IEM_WITH_DATA_TLB */
+#else  /* !IEM_WITH_DATA_TLB_IN_CUR_CTX */
 
     RTGCPHYS GCPhysFirst;
     VBOXSTRICTRC rcStrict = iemMemPageTranslateAndCheckAccess(pVCpu, GCPtrMem, (uint32_t)cbMem, fAccess, &GCPhysFirst);
@@ -559,7 +559,7 @@ VBOXSTRICTRC iemMemMap(PVMCPUCC pVCpu, void **ppvMem, uint8_t *pbUnmapInfo, size
     if (rcStrict != VINF_SUCCESS)
         return iemMemBounceBufferMapPhys(pVCpu, iMemMap, ppvMem, pbUnmapInfo, cbMem, GCPhysFirst, fAccess, rcStrict);
 
-#endif /* !IEM_WITH_DATA_TLB */
+#endif /* !IEM_WITH_DATA_TLB_IN_CUR_CTX */
 
     /*
      * Fill in the mapping table entry.
@@ -727,7 +727,7 @@ static void *iemMemMapJmp(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo, size_t cbMem, RT
         IEM_DO_LONGJMP(pVCpu, VBOXSTRICTRC_VAL(rcStrict));
     }
 
-#ifdef IEM_WITH_DATA_TLB
+#ifdef IEM_WITH_DATA_TLB_IN_CUR_CTX
     Assert(!(fAccess & IEM_ACCESS_TYPE_EXEC));
 
     /*
@@ -975,7 +975,7 @@ static void *iemMemMapJmp(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo, size_t cbMem, RT
     if (fAccess & IEM_ACCESS_TYPE_READ)
         Log2(("IEM RD %RGv (%RGp) LB %#zx\n", GCPtrMem, pTlbe->GCPhys | (GCPtrMem & GUEST_PAGE_OFFSET_MASK), cbMem));
 
-#else  /* !IEM_WITH_DATA_TLB */
+#else  /* !IEM_WITH_DATA_TLB_IN_CUR_CTX */
 
 
     RTGCPHYS GCPhysFirst;
@@ -1000,7 +1000,7 @@ static void *iemMemMapJmp(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo, size_t cbMem, RT
         IEM_DO_LONGJMP(pVCpu, VBOXSTRICTRC_VAL(rcStrict));
     }
 
-#endif /* !IEM_WITH_DATA_TLB */
+#endif /* !IEM_WITH_DATA_TLB_IN_CUR_CTX */
 
     /*
      * Fill in the mapping table entry.

@@ -75,7 +75,7 @@
  * Flushes the prefetch buffer, light version.
  * @todo The \#if conditions here must match the ones in iemOpcodeFlushLight().
  */
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
 # define IEM_FLUSH_PREFETCH_LIGHT(a_pVCpu, a_cbInstr) iemOpcodeFlushLight(a_pVCpu, a_cbInstr)
 #else
 # define IEM_FLUSH_PREFETCH_LIGHT(a_pVCpu, a_cbInstr) do { } while (0)
@@ -85,7 +85,7 @@
  * Flushes the prefetch buffer, heavy version.
  * @todo The \#if conditions here must match the ones in iemOpcodeFlushHeavy().
  */
-#if !defined(IEM_WITH_CODE_TLB) || 1
+#if !defined(IEM_WITH_CODE_TLB_IN_CUR_CTX) || 1
 # define IEM_FLUSH_PREFETCH_HEAVY(a_pVCpu, a_cbInstr) iemOpcodeFlushHeavy(a_pVCpu, a_cbInstr)
 #else
 # define IEM_FLUSH_PREFETCH_HEAVY(a_pVCpu, a_cbInstr) do { } while (0)
@@ -6690,7 +6690,7 @@ IEM_CIMPL_DEF_2(iemCImpl_mov_Dd_Rd, uint8_t, iDrReg, uint8_t, iGReg)
      * TLB entry can be correctly invalidated.
      */
     if (   iDrReg == 7
-#ifdef IEM_WITH_DATA_TLB
+#ifdef IEM_WITH_DATA_TLB_IN_CUR_CTX
         || (   iDrReg <= 3
             && (X86_DR7_L_G(iDrReg) & pVCpu->cpum.GstCtx.dr[7])
             && X86_DR7_IS_W_CFG(pVCpu->cpum.GstCtx.dr[7], iDrReg) )
@@ -7693,7 +7693,9 @@ IEM_CIMPL_DEF_0(iemCImpl_sti)
         /** @todo only set it the shadow flag if it was clear before? */
         CPUMSetInInterruptShadowSti(&pVCpu->cpum.GstCtx);
     }
+#ifndef IN_RING0 /* No recompiler in ring-0 */
     IRECM(pVCpu).fTbCurInstrIsSti = true;
+#endif
     Log2(("STI: %#x -> %#x\n", fEflOld, fEfl));
     return rcStrict;
 }

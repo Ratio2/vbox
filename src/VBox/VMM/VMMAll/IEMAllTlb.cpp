@@ -122,24 +122,24 @@ DECL_FORCE_INLINE(void) iemTlbInvalidateAll(PVMCPUCC pVCpu)
     Log10(("IEMTlbInvalidateAll\n"));
 
 # ifdef IEM_WITH_CODE_TLB
-    ICORE(pVCpu).cbInstrBufTotal = 0;
-    iemTlbInvalidateOne<a_fGlobal>(&ITLBS(pVCpu).Code);
+    ICORE_R3(pVCpu).cbInstrBufTotal = 0;
+    iemTlbInvalidateOne<a_fGlobal>(&ITLBS_R3(pVCpu).Code);
 #  ifdef VBOX_VMM_TARGET_X86
     if (a_fGlobal)
-        IEMTLBTRACE_FLUSH_GLOBAL(pVCpu, ITLBS(pVCpu).Code.uTlbRevision, ITLBS(pVCpu).Code.uTlbRevisionGlobal, false);
+        IEMTLBTRACE_FLUSH_GLOBAL(pVCpu, ITLBS_R3(pVCpu).Code.uTlbRevision, ITLBS_R3(pVCpu).Code.uTlbRevisionGlobal, false);
     else
 #  endif
-        IEMTLBTRACE_FLUSH(pVCpu, ITLBS(pVCpu).Code.uTlbRevision, false);
+        IEMTLBTRACE_FLUSH(pVCpu, ITLBS_R3(pVCpu).Code.uTlbRevision, false);
 # endif
 
 # ifdef IEM_WITH_DATA_TLB
-    iemTlbInvalidateOne<a_fGlobal>(&ITLBS(pVCpu).Data);
+    iemTlbInvalidateOne<a_fGlobal>(&ITLBS_R3(pVCpu).Data);
 #  ifdef VBOX_VMM_TARGET_X86
     if (a_fGlobal)
-        IEMTLBTRACE_FLUSH_GLOBAL(pVCpu, ITLBS(pVCpu).Data.uTlbRevision, ITLBS(pVCpu).Data.uTlbRevisionGlobal, true);
+        IEMTLBTRACE_FLUSH_GLOBAL(pVCpu, ITLBS_R3(pVCpu).Data.uTlbRevision, ITLBS_R3(pVCpu).Data.uTlbRevisionGlobal, true);
     else
 #  endif
-        IEMTLBTRACE_FLUSH(pVCpu, ITLBS(pVCpu).Data.uTlbRevision, true);
+        IEMTLBTRACE_FLUSH(pVCpu, ITLBS_R3(pVCpu).Data.uTlbRevision, true);
 # endif
 #else
     RT_NOREF(pVCpu);
@@ -193,10 +193,10 @@ VMM_INT_DECL(void) IEMTlbInvalidatePage(PVMCPUCC pVCpu, RTGCPTR GCPtr)
     uintptr_t const idx = IEMTLB_TAG_TO_INDEX(GCPtr);
 
 # ifdef IEM_WITH_CODE_TLB
-    iemTlbInvalidatePageWorker<false>(pVCpu, &ITLBS(pVCpu).Code, GCPtr, idx);
+    iemTlbInvalidatePageWorker<false>(pVCpu, &ITLBS_R3(pVCpu).Code, GCPtr, idx);
 # endif
 # ifdef IEM_WITH_DATA_TLB
-    iemTlbInvalidatePageWorker<true>(pVCpu, &ITLBS(pVCpu).Data, GCPtr, idx);
+    iemTlbInvalidatePageWorker<true>(pVCpu, &ITLBS_R3(pVCpu).Data, GCPtr, idx);
 # endif
 #else
     NOREF(pVCpu); NOREF(GCPtr);
@@ -218,41 +218,41 @@ void iemTlbInvalidateAllPhysicalSlow(PVMCPUCC pVCpu) RT_NOEXCEPT
 {
     Log10(("iemTlbInvalidateAllPhysicalSlow\n"));
 # ifdef VBOX_VMM_TARGET_ARMV8
-    uint64_t const uTlbPhysRevAndStuff0 = (ITLBS(pVCpu).Code.uTlbPhysRevAndStuff0 & IEMTLB_STUFF_BITS)
+    uint64_t const uTlbPhysRevAndStuff0 = (ITLBS_R3(pVCpu).Code.uTlbPhysRevAndStuff0 & IEMTLB_STUFF_BITS)
                                         | (IEMTLB_PHYS_REV_INCR * 2);
-    uint64_t const uTlbPhysRevAndStuff1 = (ITLBS(pVCpu).Code.uTlbPhysRevAndStuff1 & IEMTLB_STUFF_BITS)
+    uint64_t const uTlbPhysRevAndStuff1 = (ITLBS_R3(pVCpu).Code.uTlbPhysRevAndStuff1 & IEMTLB_STUFF_BITS)
                                         | (IEMTLB_PHYS_REV_INCR * 2);
-    ASMAtomicWriteU64(&ITLBS(pVCpu).Code.uTlbPhysRevAndStuff0, uTlbPhysRevAndStuff0);
-    ASMAtomicWriteU64(&ITLBS(pVCpu).Code.uTlbPhysRevAndStuff1, uTlbPhysRevAndStuff1);
-    ASMAtomicWriteU64(&ITLBS(pVCpu).Data.uTlbPhysRevAndStuff0, uTlbPhysRevAndStuff0);
-    ASMAtomicWriteU64(&ITLBS(pVCpu).Data.uTlbPhysRevAndStuff1, uTlbPhysRevAndStuff1);
+    ASMAtomicWriteU64(&ITLBS_R3(pVCpu).Code.uTlbPhysRevAndStuff0, uTlbPhysRevAndStuff0);
+    ASMAtomicWriteU64(&ITLBS_R3(pVCpu).Code.uTlbPhysRevAndStuff1, uTlbPhysRevAndStuff1);
+    ASMAtomicWriteU64(&ITLBS_R3(pVCpu).Data.uTlbPhysRevAndStuff0, uTlbPhysRevAndStuff0);
+    ASMAtomicWriteU64(&ITLBS_R3(pVCpu).Data.uTlbPhysRevAndStuff1, uTlbPhysRevAndStuff1);
 # else
-    ASMAtomicWriteU64(&ITLBS(pVCpu).Code.uTlbPhysRev, IEMTLB_PHYS_REV_INCR * 2);
-    ASMAtomicWriteU64(&ITLBS(pVCpu).Data.uTlbPhysRev, IEMTLB_PHYS_REV_INCR * 2);
+    ASMAtomicWriteU64(&ITLBS_R3(pVCpu).Code.uTlbPhysRev, IEMTLB_PHYS_REV_INCR * 2);
+    ASMAtomicWriteU64(&ITLBS_R3(pVCpu).Data.uTlbPhysRev, IEMTLB_PHYS_REV_INCR * 2);
 # endif
 
     unsigned i;
 # ifdef IEM_WITH_CODE_TLB
-    i = RT_ELEMENTS(ITLBS(pVCpu).Code.aEntries);
+    i = RT_ELEMENTS(ITLBS_R3(pVCpu).Code.aEntries);
     while (i-- > 0)
     {
-        ITLBS(pVCpu).Code.aEntries[i].pbMappingR3       = NULL;
-        ITLBS(pVCpu).Code.aEntries[i].fFlagsAndPhysRev &= ~(  IEMTLBE_F_PG_NO_WRITE   | IEMTLBE_F_PG_NO_READ
+        ITLBS_R3(pVCpu).Code.aEntries[i].pbMappingR3       = NULL;
+        ITLBS_R3(pVCpu).Code.aEntries[i].fFlagsAndPhysRev &= ~(  IEMTLBE_F_PG_NO_WRITE   | IEMTLBE_F_PG_NO_READ
                                                                | IEMTLBE_F_PG_UNASSIGNED | IEMTLBE_F_PHYS_REV);
     }
-    ITLBS(pVCpu).Code.cTlbPhysRevRollovers++;
-    ITLBS(pVCpu).Code.cTlbPhysRevFlushes++;
+    ITLBS_R3(pVCpu).Code.cTlbPhysRevRollovers++;
+    ITLBS_R3(pVCpu).Code.cTlbPhysRevFlushes++;
 # endif
 # ifdef IEM_WITH_DATA_TLB
-    i = RT_ELEMENTS(ITLBS(pVCpu).Data.aEntries);
+    i = RT_ELEMENTS(ITLBS_R3(pVCpu).Data.aEntries);
     while (i-- > 0)
     {
-        ITLBS(pVCpu).Data.aEntries[i].pbMappingR3       = NULL;
-        ITLBS(pVCpu).Data.aEntries[i].fFlagsAndPhysRev &= ~(  IEMTLBE_F_PG_NO_WRITE   | IEMTLBE_F_PG_NO_READ
+        ITLBS_R3(pVCpu).Data.aEntries[i].pbMappingR3       = NULL;
+        ITLBS_R3(pVCpu).Data.aEntries[i].fFlagsAndPhysRev &= ~(  IEMTLBE_F_PG_NO_WRITE   | IEMTLBE_F_PG_NO_READ
                                                                | IEMTLBE_F_PG_UNASSIGNED | IEMTLBE_F_PHYS_REV);
     }
-    ITLBS(pVCpu).Data.cTlbPhysRevRollovers++;
-    ITLBS(pVCpu).Data.cTlbPhysRevFlushes++;
+    ITLBS_R3(pVCpu).Data.cTlbPhysRevRollovers++;
+    ITLBS_R3(pVCpu).Data.cTlbPhysRevFlushes++;
 # endif
 
 }
@@ -275,27 +275,27 @@ VMM_INT_DECL(void) IEMTlbInvalidateAllPhysical(PVMCPUCC pVCpu)
     Log10(("IEMTlbInvalidateAllPhysical\n"));
 
 # ifdef IEM_WITH_CODE_TLB
-    ICORE(pVCpu).cbInstrBufTotal = 0;
+    ICORE_R3(pVCpu).cbInstrBufTotal = 0;
 # endif
 # ifdef VBOX_VMM_TARGET_ARMV8
-    uint64_t const uTlbPhysRev1 = ITLBS(pVCpu).Code.uTlbPhysRevAndStuff1 + IEMTLB_PHYS_REV_INCR;
-    uint64_t const uTlbPhysRev  = ITLBS(pVCpu).Code.uTlbPhysRevAndStuff0 + IEMTLB_PHYS_REV_INCR;
+    uint64_t const uTlbPhysRev1 = ITLBS_R3(pVCpu).Code.uTlbPhysRevAndStuff1 + IEMTLB_PHYS_REV_INCR;
+    uint64_t const uTlbPhysRev  = ITLBS_R3(pVCpu).Code.uTlbPhysRevAndStuff0 + IEMTLB_PHYS_REV_INCR;
 # else
-    uint64_t const uTlbPhysRev  = ITLBS(pVCpu).Code.uTlbPhysRev + IEMTLB_PHYS_REV_INCR;
+    uint64_t const uTlbPhysRev  = ITLBS_R3(pVCpu).Code.uTlbPhysRev + IEMTLB_PHYS_REV_INCR;
 # endif
     if (RT_LIKELY(uTlbPhysRev > IEMTLB_PHYS_REV_INCR * 2))
     {
 # ifdef VBOX_VMM_TARGET_ARMV8
-        ITLBS(pVCpu).Code.uTlbPhysRevAndStuff0 = uTlbPhysRev;
-        ITLBS(pVCpu).Code.uTlbPhysRevAndStuff1 = uTlbPhysRev1;
-        ITLBS(pVCpu).Data.uTlbPhysRevAndStuff0 = uTlbPhysRev;
-        ITLBS(pVCpu).Data.uTlbPhysRevAndStuff1 = uTlbPhysRev1;
+        ITLBS_R3(pVCpu).Code.uTlbPhysRevAndStuff0 = uTlbPhysRev;
+        ITLBS_R3(pVCpu).Code.uTlbPhysRevAndStuff1 = uTlbPhysRev1;
+        ITLBS_R3(pVCpu).Data.uTlbPhysRevAndStuff0 = uTlbPhysRev;
+        ITLBS_R3(pVCpu).Data.uTlbPhysRevAndStuff1 = uTlbPhysRev1;
 # else
-        ITLBS(pVCpu).Code.uTlbPhysRev = uTlbPhysRev;
-        ITLBS(pVCpu).Data.uTlbPhysRev = uTlbPhysRev;
+        ITLBS_R3(pVCpu).Code.uTlbPhysRev = uTlbPhysRev;
+        ITLBS_R3(pVCpu).Data.uTlbPhysRev = uTlbPhysRev;
 # endif
-        ITLBS(pVCpu).Code.cTlbPhysRevFlushes++;
-        ITLBS(pVCpu).Data.cTlbPhysRevFlushes++;
+        ITLBS_R3(pVCpu).Code.cTlbPhysRevFlushes++;
+        ITLBS_R3(pVCpu).Data.cTlbPhysRevFlushes++;
     }
     else
         iemTlbInvalidateAllPhysicalSlow(pVCpu);
@@ -330,16 +330,16 @@ VMM_INT_DECL(void) IEMTlbInvalidateAllPhysicalAllCpus(PVMCC pVM, VMCPUID idCpuCa
     {
 # ifdef IEM_WITH_CODE_TLB
         if (pVCpuCaller == pVCpu)
-            ICORE(pVCpu).cbInstrBufTotal = 0;
+            ICORE_R3(pVCpu).cbInstrBufTotal = 0;
 # endif
         /*
          * The TLBs have the same physical revision at all time (except when its
          * increased), so use the (first) one from Tlbs.Code and increase it.
          */
 # ifdef VBOX_VMM_TARGET_ARMV8
-        uint64_t const uTlbPhysRevPrev = ASMAtomicUoReadU64(&ITLBS(pVCpu).Code.uTlbPhysRevAndStuff0) & IEMTLBE_F_PHYS_REV;
+        uint64_t const uTlbPhysRevPrev = ASMAtomicUoReadU64(&ITLBS_R3(pVCpu).Code.uTlbPhysRevAndStuff0) & IEMTLBE_F_PHYS_REV;
 # else
-        uint64_t const uTlbPhysRevPrev = ASMAtomicUoReadU64(&ITLBS(pVCpu).Code.uTlbPhysRev);
+        uint64_t const uTlbPhysRevPrev = ASMAtomicUoReadU64(&ITLBS_R3(pVCpu).Code.uTlbPhysRev);
 # endif
         uint64_t       uTlbPhysRevNew  = uTlbPhysRevPrev + IEMTLB_PHYS_REV_INCR;
         if (RT_LIKELY(uTlbPhysRevNew > IEMTLB_PHYS_REV_INCR * 2))
@@ -362,10 +362,10 @@ VMM_INT_DECL(void) IEMTlbInvalidateAllPhysicalAllCpus(PVMCC pVM, VMCPUID idCpuCa
 # ifdef VBOX_VMM_TARGET_ARMV8
         uint64_t *apuTlbPhysRevAndStuff0[4] =
         {
-            &ITLBS(pVCpu).Code.uTlbPhysRevAndStuff0,
-            &ITLBS(pVCpu).Code.uTlbPhysRevAndStuff1,
-            &ITLBS(pVCpu).Data.uTlbPhysRevAndStuff0,
-            &ITLBS(pVCpu).Data.uTlbPhysRevAndStuff1,
+            &ITLBS_R3(pVCpu).Code.uTlbPhysRevAndStuff0,
+            &ITLBS_R3(pVCpu).Code.uTlbPhysRevAndStuff1,
+            &ITLBS_R3(pVCpu).Data.uTlbPhysRevAndStuff0,
+            &ITLBS_R3(pVCpu).Data.uTlbPhysRevAndStuff1,
         };
         for (unsigned i = 0; i < RT_ELEMENTS(apuTlbPhysRevAndStuff0); i++)
         {
@@ -379,16 +379,16 @@ VMM_INT_DECL(void) IEMTlbInvalidateAllPhysicalAllCpus(PVMCC pVM, VMCPUID idCpuCa
                 ASMNopPause();
             }
         }
-        ITLBS(pVCpu).Code.cTlbPhysRevFlushes++;
-        ITLBS(pVCpu).Data.cTlbPhysRevFlushes++;
+        ITLBS_R3(pVCpu).Code.cTlbPhysRevFlushes++;
+        ITLBS_R3(pVCpu).Data.cTlbPhysRevFlushes++;
 
 # else
-        if (ASMAtomicCmpXchgU64(&ITLBS(pVCpu).Code.uTlbPhysRev, uTlbPhysRevNew, uTlbPhysRevPrev))
-            ITLBS(pVCpu).Code.cTlbPhysRevFlushes++;
+        if (ASMAtomicCmpXchgU64(&ITLBS_R3(pVCpu).Code.uTlbPhysRev, uTlbPhysRevNew, uTlbPhysRevPrev))
+            ITLBS_R3(pVCpu).Code.cTlbPhysRevFlushes++;
         else
             AssertFailed();
 
-        if (ASMAtomicCmpXchgU64(&ITLBS(pVCpu).Data.uTlbPhysRev, uTlbPhysRevNew, uTlbPhysRevPrev))
+        if (ASMAtomicCmpXchgU64(&ITLBS_R3(pVCpu).Data.uTlbPhysRev, uTlbPhysRevNew, uTlbPhysRevPrev))
             ITLBS(pVCpu).Data.cTlbPhysRevFlushes++;
         else
             AssertFailed();

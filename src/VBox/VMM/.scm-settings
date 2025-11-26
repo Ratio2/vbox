@@ -31,7 +31,8 @@
 --filter-out-files /testcase/dev.tar.gz
 
 /include/PGMGstDefs-x86.h: --no-fix-header-guards
-/include/PGMSlatDefs.h: --no-fix-header-guards
+/include/PGMSlatDefs.h:    --no-fix-header-guards
+/include/IEMCpuCoreTmpl.h: --no-fix-header-guards
 /VMMR0/PGMR0Bth.h: --no-fix-header-guards
 /VMMR3/PGMR3PhysRWTmpl.h: --no-fix-header-guards
 /VMMAll/CPUMAllCpuIdArmV8.cpp.h: --dont-set-svn-keywords

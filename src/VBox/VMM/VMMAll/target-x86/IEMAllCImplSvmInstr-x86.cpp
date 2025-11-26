@@ -1005,7 +1005,7 @@ VBOXSTRICTRC iemHandleSvmEventIntercept(PVMCPUCC pVCpu, uint8_t cbInstr, uint8_t
             && !(uErr & X86_TRAP_PF_ID))
         {
             PSVMVMCBCTRL  pVmcbCtrl = &pVCpu->cpum.GstCtx.hwvirt.svm.Vmcb.ctrl;
-# ifdef IEM_WITH_CODE_TLB
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
             uint8_t const *pbInstrBuf = ICORE(pVCpu).pbInstrBuf;
             uint8_t const  cbInstrBuf = ICORE(pVCpu).cbInstrBuf;
             pVmcbCtrl->cbInstrFetched = RT_MIN(cbInstrBuf, SVM_CTRL_GUEST_INSTR_BYTES_MAX);

@@ -71,7 +71,7 @@ DECL_INLINE_THROW(uint32_t) iemOpcodeGetU32Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_
     /*
      * Fetch the first opcode byte.
      */
-# ifdef IEM_WITH_CODE_TLB
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     uint8_t const *pbBuf = ICORE(pVCpu).pbInstrBuf;
     if (RT_LIKELY(pbBuf != NULL))
     {
@@ -88,7 +88,7 @@ DECL_INLINE_THROW(uint32_t) iemOpcodeGetU32Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_
         }
     }
 
-# else /* !IEM_WITH_CODE_TLB */
+# else /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
     uintptr_t offOpcode = ICORE(pVCpu).offOpcode; /** @todo no offOpcode on arm, so this doesn't compile... */
     Assert(offOpcode & 3);
     if (RT_LIKELY(offOpcode + sizeof(uint32_t) <= (uintptr_t)ICORE(pVCpu).cbOpcode))

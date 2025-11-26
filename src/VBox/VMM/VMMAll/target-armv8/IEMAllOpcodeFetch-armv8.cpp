@@ -52,7 +52,7 @@
 #include "IEMAllTlbInline-armv8.h"
 
 
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
 
 /**
  * Tries to fetches a @a a_RetType, raise the appropriate exception on failure
@@ -396,7 +396,7 @@ DECL_INLINE_THROW(a_RetType) iemOpcodeFetchBytesJmp(PVMCPUCC pVCpu) IEM_NOEXCEPT
 # endif /* !IN_RING3 */
 }
 
-#else /* !IEM_WITH_CODE_TLB */
+#else /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
 
 /**
  * Try fetch at least @a cbMin bytes more opcodes, raise the appropriate
@@ -541,7 +541,7 @@ VBOXSTRICTRC iemOpcodeFetchMoreBytes(PVMCPUCC pVCpu, size_t cbMin) RT_NOEXCEPT
 # endif
 }
 
-#endif /* !IEM_WITH_CODE_TLB */
+#endif /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
 
 /**
  * Deals with the problematic cases that iemOpcodeGetNextU16Jmp doesn't like, longjmp on error
@@ -551,7 +551,7 @@ VBOXSTRICTRC iemOpcodeFetchMoreBytes(PVMCPUCC pVCpu, size_t cbMin) RT_NOEXCEPT
  */
 uint16_t iemOpcodeGetU16SlowJmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     return iemOpcodeFetchBytesJmp<uint16_t>(pVCpu);
 #else
     VBOXSTRICTRC rcStrict = iemOpcodeFetchMoreBytes(pVCpu, 2);
@@ -578,7 +578,7 @@ uint16_t iemOpcodeGetU16SlowJmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
  */
 uint32_t iemOpcodeGetU32SlowJmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     return iemOpcodeFetchBytesJmp<uint32_t>(pVCpu);
 #else
     VBOXSTRICTRC rcStrict = iemOpcodeFetchMoreBytes(pVCpu, 4);

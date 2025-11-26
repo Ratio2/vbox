@@ -77,7 +77,7 @@ VBOXSTRICTRC RT_CONCAT(iemMemFetchData,TMPL_MEM_FN_SUFF)(PVMCPUCC pVCpu, TMPL_ME
 void
 RT_CONCAT3(iemMemFetchData,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVCpu, TMPL_MEM_TYPE *pDst, uint8_t iSegReg, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeReadPath++;
 # endif
     uint8_t              bUnmapInfo;
@@ -91,7 +91,7 @@ RT_CONCAT3(iemMemFetchData,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVCpu, TMPL_MEM_TY
 TMPL_MEM_TYPE
 RT_CONCAT3(iemMemFetchData,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVCpu, uint8_t iSegReg, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeReadPath++;
 # endif
     uint8_t              bUnmapInfo;
@@ -157,7 +157,7 @@ void RT_CONCAT3(iemMemStoreData,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVCpu, uint8_
                                                           TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 #endif
 {
-#if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+#if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeWritePath++;
 #endif
 #ifdef TMPL_MEM_BY_REF
@@ -191,7 +191,7 @@ TMPL_MEM_TYPE *
 RT_CONCAT3(iemMemMapData,TMPL_MEM_FN_SUFF,AtSafeJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      uint8_t iSegReg, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+#if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeWritePath++;
 #endif
     Log8(("IEM AT/map " TMPL_MEM_FMT_DESC " %d|%RGv\n", iSegReg, GCPtrMem));
@@ -215,7 +215,7 @@ TMPL_MEM_TYPE *
 RT_CONCAT3(iemMemMapData,TMPL_MEM_FN_SUFF,RwSafeJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      uint8_t iSegReg, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+#if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeWritePath++;
 #endif
     Log8(("IEM RW/map " TMPL_MEM_FMT_DESC " %d|%RGv\n", iSegReg, GCPtrMem));
@@ -239,7 +239,7 @@ TMPL_MEM_TYPE *
 RT_CONCAT3(iemMemMapData,TMPL_MEM_FN_SUFF,WoSafeJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      uint8_t iSegReg, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+#if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeWritePath++;
 #endif
     Log8(("IEM WO/map " TMPL_MEM_FMT_DESC " %d|%RGv\n", iSegReg, GCPtrMem));
@@ -263,7 +263,7 @@ TMPL_MEM_TYPE const *
 RT_CONCAT3(iemMemMapData,TMPL_MEM_FN_SUFF,RoSafeJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      uint8_t iSegReg, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+#if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeWritePath++;
 #endif
     Log4(("IEM RO/map " TMPL_MEM_FMT_DESC " %d|%RGv\n", iSegReg, GCPtrMem));
@@ -478,7 +478,7 @@ RT_CONCAT3(iemMemStackPop,TMPL_MEM_FN_SUFF,Ex)(PVMCPUCC pVCpu, TMPL_MEM_TYPE *pu
 void RT_CONCAT3(iemMemStoreStack,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVCpu, RTGCPTR GCPtrMem,
                                                            TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeWritePath++;
 # endif
 
@@ -499,7 +499,7 @@ void RT_CONCAT3(iemMemStoreStack,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVCpu, RTGCP
 void RT_CONCAT3(iemMemStoreStack,TMPL_MEM_FN_SUFF,SRegSafeJmp)(PVMCPUCC pVCpu, RTGCPTR GCPtrMem,
                                                                TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeWritePath++;
 #  endif
 
@@ -553,7 +553,7 @@ void RT_CONCAT3(iemMemStoreStack,TMPL_MEM_FN_SUFF,SRegSafeJmp)(PVMCPUCC pVCpu, R
  */
 TMPL_MEM_TYPE RT_CONCAT3(iemMemFetchStack,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVCpu, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeReadPath++;
 # endif
 
@@ -575,7 +575,7 @@ TMPL_MEM_TYPE RT_CONCAT3(iemMemFetchStack,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVC
  */
 void RT_CONCAT3(iemMemStackPush,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVCpu, TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeWritePath++;
 # endif
 
@@ -602,7 +602,7 @@ void RT_CONCAT3(iemMemStackPush,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVCpu, TMPL_M
  */
 void RT_CONCAT3(iemMemStackPopGReg,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVCpu, uint8_t iGReg) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeReadPath++;
 # endif
 
@@ -633,7 +633,7 @@ void RT_CONCAT3(iemMemStackPopGReg,TMPL_MEM_FN_SUFF,SafeJmp)(PVMCPUCC pVCpu, uin
  */
 void RT_CONCAT3(iemMemStackPush,TMPL_MEM_FN_SUFF,SRegSafeJmp)(PVMCPUCC pVCpu, TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3)
     ITLBS(pVCpu).Data.cTlbSafeWritePath++;
 #  endif
 

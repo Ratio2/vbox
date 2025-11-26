@@ -2385,7 +2385,7 @@ IEM_DECL_IMPL_PROTO(uint32_t, iemAImpl_vcvtpd2dq_u128_u256_fallback,(uint32_t uM
 
 /** @def IEM_GET_INSTR_LEN
  * Gets the instruction length. */
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
 # define IEM_GET_INSTR_LEN(a_pVCpu)         (ICORE(a_pVCpu).offInstrNextByte - (uint32_t)(int32_t)ICORE(a_pVCpu).offCurInstrStart)
 #else
 # define IEM_GET_INSTR_LEN(a_pVCpu)         (ICORE(a_pVCpu).offOpcode)
@@ -2992,7 +2992,7 @@ VBOXSTRICTRC    iemMemMarkSelDescAccessed(PVMCPUCC pVCpu, uint16_t uSel) RT_NOEX
 
 void            iemOpcodeFlushLight(PVMCPUCC pVCpu, uint8_t cbInstr);
 void            iemOpcodeFlushHeavy(PVMCPUCC pVCpu, uint8_t cbInstr);
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
 void            iemOpcodeFetchBytesJmp(PVMCPUCC pVCpu, size_t cbDst, void *pvDst) IEM_NOEXCEPT_MAY_LONGJMP;
 #else
 VBOXSTRICTRC    iemOpcodeFetchMoreBytes(PVMCPUCC pVCpu, size_t cbMin) RT_NOEXCEPT;

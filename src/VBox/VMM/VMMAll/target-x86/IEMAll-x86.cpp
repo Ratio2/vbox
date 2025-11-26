@@ -72,7 +72,7 @@ uint32_t iemCalcExecDbgFlagsSlow(PVMCPUCC pVCpu)
      * This is to make sure any access to the page will always trigger a TLB
      * load for as long as the breakpoint is enabled.
      */
-#ifdef IEM_WITH_DATA_TLB
+#ifdef IEM_WITH_DATA_TLB_IN_CUR_CTX
 # define INVALID_TLB_ENTRY_FOR_BP(a_uValue) do { \
         RTGCPTR uTagNoRev = (a_uValue); \
         uTagNoRev = IEMTLB_CALC_TAG_NO_REV(pVCpu, uTagNoRev); \
@@ -114,7 +114,7 @@ uint32_t iemCalcExecDbgFlagsSlow(PVMCPUCC pVCpu)
     if (fGstDr7 & X86_DR7_ENABLED_MASK)
     {
 /** @todo extract more details here to simplify matching later. */
-#ifdef IEM_WITH_DATA_TLB
+#ifdef IEM_WITH_DATA_TLB_IN_CUR_CTX
         IEM_CTX_IMPORT_NORET(pVCpu, CPUMCTX_EXTRN_DR0_DR3);
 #endif
         PROCESS_ONE_BP(fGstDr7, 0, pVCpu->cpum.GstCtx.dr[0]);
@@ -200,7 +200,7 @@ VBOXSTRICTRC iemRegRipRelativeJumpS8AndFinishClearingRF(PVMCPUCC pVCpu, uint8_t 
         IEM_NOT_REACHED_DEFAULT_CASE_RET();
     }
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     /* Flush the prefetch buffer. */
     ICORE(pVCpu).cbOpcode = cbInstr;
 #endif
@@ -234,7 +234,7 @@ VBOXSTRICTRC iemRegRipRelativeJumpS16AndFinishClearingRF(PVMCPUCC pVCpu, uint8_t
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     /* Flush the prefetch buffer. */
     ICORE(pVCpu).cbOpcode = IEM_GET_INSTR_LEN(pVCpu);
 #endif
@@ -282,7 +282,7 @@ VBOXSTRICTRC iemRegRipRelativeJumpS32AndFinishClearingRF(PVMCPUCC pVCpu, uint8_t
             return iemRaiseGeneralProtectionFault0(pVCpu);
     }
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     /* Flush the prefetch buffer. */
     ICORE(pVCpu).cbOpcode = IEM_GET_INSTR_LEN(pVCpu);
 #endif

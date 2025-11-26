@@ -95,11 +95,11 @@
  * Narrow down configs here to avoid wasting time on unused configs here.
  */
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
 # error The code TLB must be enabled for the recompiler.
 #endif
 
-#ifndef IEM_WITH_DATA_TLB
+#ifndef IEM_WITH_DATA_TLB_IN_CUR_CTX
 # error The data TLB must be enabled for the recompiler.
 #endif
 

@@ -93,7 +93,7 @@ DECLINLINE(void) iemInitExecTargetStrict(PVMCPUCC pVCpu) RT_NOEXCEPT
 {
     iemInitDecoderStrictTarget(pVCpu);
 
-#  ifdef IEM_WITH_CODE_TLB
+#  ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     ICORE(pVCpu).offInstrNextByte   = UINT16_MAX;
     ICORE(pVCpu).pbInstrBuf         = NULL;
     ICORE(pVCpu).cbInstrBufTotal    = UINT16_MAX;

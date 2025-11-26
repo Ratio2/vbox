@@ -219,7 +219,7 @@ DECLINLINE(void) iemInitDecoder(PVMCPUCC pVCpu, uint32_t fExecOpts)
     ICORE(pVCpu).iEffSeg            = X86_SREG_DS;
     ICORE(pVCpu).offModRm           = 0;
 #endif /* VBOX_VMM_TARGET_X86 */
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     ICORE(pVCpu).pbInstrBuf         = NULL;
     ICORE(pVCpu).offInstrNextByte   = 0;
 # ifdef VBOX_VMM_TARGET_X86
@@ -236,10 +236,10 @@ DECLINLINE(void) iemInitDecoder(PVMCPUCC pVCpu, uint32_t fExecOpts)
     ICORE(pVCpu).cbInstrBufTotal    = UINT16_MAX;
     ICORE(pVCpu).uInstrBufPc        = UINT64_C(0xc0ffc0ffcff0c0ff);
 # endif
-#else  /* !IEM_WITH_CODE_TLB */
+#else  /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
     ICORE(pVCpu).offOpcode          = 0;
     ICORE(pVCpu).cbOpcode           = 0;
-#endif /* !IEM_WITH_CODE_TLB */
+#endif /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
     ICORE(pVCpu).cActiveMappings    = 0;
     ICORE(pVCpu).iNextMapping       = 0;
     ICORE(pVCpu).rcPassUp           = VINF_SUCCESS;
@@ -293,7 +293,7 @@ DECLINLINE(void) iemReInitDecoder(PVMCPUCC pVCpu)
     ICORE(pVCpu).iEffSeg            = X86_SREG_DS;
     ICORE(pVCpu).offModRm           = 0;
 #endif
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     if (ICORE(pVCpu).pbInstrBuf)
     {
 # ifdef VBOX_VMM_TARGET_X86
@@ -343,10 +343,10 @@ DECLINLINE(void) iemReInitDecoder(PVMCPUCC pVCpu)
 # ifdef IEM_WITH_CODE_TLB_AND_OPCODE_BUF
     ICORE(pVCpu).offOpcode          = 0;
 # endif
-#else  /* !IEM_WITH_CODE_TLB */
+#else  /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
     ICORE(pVCpu).cbOpcode           = 0;
     ICORE(pVCpu).offOpcode          = 0;
-#endif /* !IEM_WITH_CODE_TLB */
+#endif /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
     Assert(ICORE(pVCpu).cActiveMappings == 0);
     ICORE(pVCpu).iNextMapping       = 0;
     Assert(ICORE(pVCpu).rcPassUp   == VINF_SUCCESS);
@@ -372,7 +372,7 @@ DECLINLINE(VBOXSTRICTRC) iemInitDecoderAndPrefetchOpcodes(PVMCPUCC pVCpu, uint32
 {
     iemInitDecoder(pVCpu, fExecOpts);
 
-#if !defined(IEM_WITH_CODE_TLB) && defined(VBOX_VMM_TARGET_X86)
+#if !defined(IEM_WITH_CODE_TLB_IN_CUR_CTX) && defined(VBOX_VMM_TARGET_X86)
     return iemOpcodeFetchPrefetch(pVCpu);
 #else
     return VINF_SUCCESS;
@@ -795,7 +795,7 @@ VMM_INT_DECL(VBOXSTRICTRC) IEMExecOneWithPrefetchedByPC(PVMCPUCC pVCpu, uint64_t
         && iemRegGetPC(pVCpu) == OpcodeBytesPC)
     {
         iemInitDecoder(pVCpu, 0 /*fExecOpts*/);
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
         ICORE(pVCpu).uInstrBufPc      = OpcodeBytesPC;
         ICORE(pVCpu).pbInstrBuf       = (uint8_t const *)pvOpcodeBytes;
         ICORE(pVCpu).cbInstrBufTotal  = (uint16_t)RT_MIN(X86_PAGE_SIZE, cbOpcodeBytes);
@@ -841,7 +841,7 @@ VMM_INT_DECL(VBOXSTRICTRC) IEMExecOneBypassWithPrefetchedByPC(PVMCPUCC pVCpu, ui
         && iemRegGetPC(pVCpu) == OpcodeBytesPC)
     {
         iemInitDecoder(pVCpu, IEM_F_BYPASS_HANDLERS);
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
         ICORE(pVCpu).uInstrBufPc      = OpcodeBytesPC;
         ICORE(pVCpu).pbInstrBuf       = (uint8_t const *)pvOpcodeBytes;
         ICORE(pVCpu).cbInstrBufTotal  = (uint16_t)RT_MIN(X86_PAGE_SIZE, cbOpcodeBytes);

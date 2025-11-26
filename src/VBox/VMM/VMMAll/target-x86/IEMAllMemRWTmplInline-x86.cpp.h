@@ -95,7 +95,7 @@ RT_CONCAT3(iemMemFetchData,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, uint8_t iSegReg
 #endif
 {
     AssertCompile(sizeof(TMPL_MEM_TYPE) == TMPL_MEM_TYPE_SIZE);
-#if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Convert from segmented to flat address and check that it doesn't cross a page boundrary.
      */
@@ -170,7 +170,7 @@ RT_CONCAT3(iemMemFlatFetchData,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR GCP
     AssertMsg(   (ICORE(pVCpu).fExec & IEM_F_MODE_MASK) == IEM_F_MODE_X86_64BIT
               || (ICORE(pVCpu).fExec & IEM_F_MODE_MASK) == IEM_F_MODE_X86_32BIT_PROT_FLAT
               || (ICORE(pVCpu).fExec & IEM_F_MODE_MASK) == IEM_F_MODE_X86_32BIT_FLAT, ("%#x\n", ICORE(pVCpu).fExec));
-#if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that it doesn't cross a page boundrary.
      */
@@ -247,7 +247,7 @@ RT_CONCAT3(iemMemStoreData,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, uint8_t iSegReg
                                                  TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 # endif
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Convert from segmented to flat address and check that it doesn't cross a page boundrary.
      */
@@ -322,7 +322,7 @@ RT_CONCAT3(iemMemFlatStoreData,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR GCP
     AssertMsg(   (ICORE(pVCpu).fExec & IEM_F_MODE_MASK) == IEM_F_MODE_X86_64BIT
               || (ICORE(pVCpu).fExec & IEM_F_MODE_MASK) == IEM_F_MODE_X86_32BIT_PROT_FLAT
               || (ICORE(pVCpu).fExec & IEM_F_MODE_MASK) == IEM_F_MODE_X86_32BIT_FLAT, ("%#x\n", ICORE(pVCpu).fExec));
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that it doesn't cross a page boundrary.
      */
@@ -397,7 +397,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE *)
 RT_CONCAT3(iemMemMapData,TMPL_MEM_FN_SUFF,RwJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                  uint8_t iSegReg, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Convert from segmented to flat address and check that it doesn't cross a page boundrary.
      */
@@ -458,7 +458,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE *)
 RT_CONCAT3(iemMemFlatMapData,TMPL_MEM_FN_SUFF,RwJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that the address doesn't cross a page boundrary.
      */
@@ -519,7 +519,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE *)
 RT_CONCAT3(iemMemMapData,TMPL_MEM_FN_SUFF,AtJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                  uint8_t iSegReg, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Convert from segmented to flat address and check that it doesn't cross a page boundrary.
      */
@@ -580,7 +580,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE *)
 RT_CONCAT3(iemMemFlatMapData,TMPL_MEM_FN_SUFF,AtJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that the address doesn't cross a page boundrary.
      */
@@ -639,7 +639,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE *)
 RT_CONCAT3(iemMemMapData,TMPL_MEM_FN_SUFF,WoJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                  uint8_t iSegReg, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Convert from segmented to flat address and check that it doesn't cross a page boundrary.
      */
@@ -698,7 +698,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE *)
 RT_CONCAT3(iemMemFlatMapData,TMPL_MEM_FN_SUFF,WoJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that the address doesn't cross a page boundrary.
      */
@@ -756,7 +756,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE const *)
 RT_CONCAT3(iemMemMapData,TMPL_MEM_FN_SUFF,RoJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                  uint8_t iSegReg, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Convert from segmented to flat address and check that it doesn't cross a page boundrary.
      */
@@ -814,7 +814,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE const *)
 RT_CONCAT3(iemMemFlatMapData,TMPL_MEM_FN_SUFF,RoJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that the address doesn't cross a page boundrary.
      */
@@ -883,7 +883,7 @@ RT_CONCAT3(iemMemFlatMapData,TMPL_MEM_FN_SUFF,RoJmp)(PVMCPUCC pVCpu, uint8_t *pb
 DECL_INLINE_THROW(void)
 RT_CONCAT3(iemMemStoreStack,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR GCPtrMem, TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Apply segmentation and check that the item doesn't cross a page boundrary.
      */
@@ -945,7 +945,7 @@ DECL_INLINE_THROW(void)
 RT_CONCAT3(iemMemStoreStack,TMPL_MEM_FN_SUFF,SRegJmp)(PVMCPUCC pVCpu, RTGCPTR GCPtrMem,
                                                       TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Apply segmentation to the address and check that the item doesn't cross
      * a page boundrary.
@@ -1012,7 +1012,7 @@ RT_CONCAT3(iemMemFlatStoreStack,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR GC
                 && pVCpu->cpum.GstCtx.ss.u32Limit == UINT32_MAX
                 && pVCpu->cpum.GstCtx.ss.u64Base == 0));
 
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that the item doesn't cross a page boundrary.
      */
@@ -1073,7 +1073,7 @@ DECL_INLINE_THROW(void)
 RT_CONCAT3(iemMemFlatStoreStack,TMPL_MEM_FN_SUFF,SRegJmp)(PVMCPUCC pVCpu, RTGCPTR GCPtrMem,
                                                           TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that the item doesn't cross a page boundrary.
      */
@@ -1130,7 +1130,7 @@ RT_CONCAT3(iemMemFlatStoreStack,TMPL_MEM_FN_SUFF,SRegJmp)(PVMCPUCC pVCpu, RTGCPT
 DECL_INLINE_THROW(TMPL_MEM_TYPE)
 RT_CONCAT3(iemMemFetchStack,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Apply segmentation to the address and check that the item doesn't cross
      * a page boundrary.
@@ -1187,7 +1187,7 @@ RT_CONCAT3(iemMemFetchStack,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR GCPtrM
 DECL_INLINE_THROW(TMPL_MEM_TYPE)
 RT_CONCAT3(iemMemFlatFetchStack,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that the item doesn't cross a page boundrary.
      */
@@ -1242,7 +1242,7 @@ RT_CONCAT3(iemMemFlatFetchStack,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR GC
 DECL_INLINE_THROW(void)
 RT_CONCAT3(iemMemStackPush,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Decrement the stack pointer (prep), apply segmentation and check that
      * the item doesn't cross a page boundrary.
@@ -1306,7 +1306,7 @@ RT_CONCAT3(iemMemStackPopGReg,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, uint8_t iGRe
 {
     Assert(iGReg < 16);
 
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Increment the stack pointer (prep), apply segmentation and check that
      * the item doesn't cross a page boundrary.
@@ -1377,7 +1377,7 @@ RT_CONCAT3(iemMemStackPopGReg,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, uint8_t iGRe
 DECL_INLINE_THROW(void)
 RT_CONCAT3(iemMemStackPush,TMPL_MEM_FN_SUFF,SRegJmp)(PVMCPUCC pVCpu, TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /* See fallback for details on this weirdness: */
     bool const    fIsIntel = IEM_IS_GUEST_CPU_INTEL(pVCpu);
     uint8_t const cbAccess = fIsIntel && !IEM_IS_REAL_MODE(pVCpu) ? sizeof(uint16_t) : sizeof(TMPL_MEM_TYPE);
@@ -1470,7 +1470,7 @@ RT_CONCAT3(iemMemFlat32StackPush,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, TMPL_MEM_
            && pVCpu->cpum.GstCtx.ss.Attr.n.u4Type == X86_SEL_TYPE_RW_ACC
            && pVCpu->cpum.GstCtx.ss.u32Limit == UINT32_MAX
            && pVCpu->cpum.GstCtx.ss.u64Base == 0);
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Calculate the new stack pointer and check that the item doesn't cross a page boundrary.
      */
@@ -1530,7 +1530,7 @@ DECL_INLINE_THROW(void)
 RT_CONCAT3(iemMemFlat32StackPopGReg,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, uint8_t iGReg) IEM_NOEXCEPT_MAY_LONGJMP
 {
     Assert(iGReg < 16);
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Calculate the new stack pointer and check that the item doesn't cross a page boundrary.
      */
@@ -1600,7 +1600,7 @@ RT_CONCAT3(iemMemFlat32StackPopGReg,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, uint8_
 DECL_INLINE_THROW(void)
 RT_CONCAT3(iemMemFlat32StackPush,TMPL_MEM_FN_SUFF,SRegJmp)(PVMCPUCC pVCpu, TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /* See fallback for details on this weirdness: */
     bool const    fIsIntel = IEM_IS_GUEST_CPU_INTEL(pVCpu);
     uint8_t const cbAccess = fIsIntel && !IEM_IS_REAL_MODE(pVCpu) ? sizeof(uint16_t) : sizeof(TMPL_MEM_TYPE);
@@ -1684,7 +1684,7 @@ RT_CONCAT3(iemMemFlat32StackPush,TMPL_MEM_FN_SUFF,SRegJmp)(PVMCPUCC pVCpu, TMPL_
 DECL_INLINE_THROW(void)
 RT_CONCAT3(iemMemFlat64StackPush,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Calculate the new stack pointer and check that the item doesn't cross a page boundrary.
      */
@@ -1744,7 +1744,7 @@ DECL_INLINE_THROW(void)
 RT_CONCAT3(iemMemFlat64StackPopGReg,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, uint8_t iGReg) IEM_NOEXCEPT_MAY_LONGJMP
 {
     Assert(iGReg < 16);
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Calculate the new stack pointer and check that the item doesn't cross a page boundrary.
      */

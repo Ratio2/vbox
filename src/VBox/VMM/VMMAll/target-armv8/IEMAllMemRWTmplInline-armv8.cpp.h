@@ -102,7 +102,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE)
 RT_CONCAT3(iemMemFlatFetchData,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 #endif
 {
-#if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that it doesn't cross a page boundrary and do a TLB lookup.
      */
@@ -158,7 +158,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE)
 RT_CONCAT3(iemMemFlatFetchDataPair,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR GCPtrMem, TMPL_MEM_TYPE *pValue2) IEM_NOEXCEPT_MAY_LONGJMP
 # endif
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that it doesn't cross a page boundrary and do a TLB lookup.
      */
@@ -220,7 +220,7 @@ RT_CONCAT3(iemMemFlatStoreData,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR GCP
                                                     TMPL_MEM_TYPE uValue) IEM_NOEXCEPT_MAY_LONGJMP
 #endif
 {
-#if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that it doesn't cross a page boundrary and do a TLB lookup.
      */
@@ -276,7 +276,7 @@ RT_CONCAT3(iemMemFlatStoreDataPair,TMPL_MEM_FN_SUFF,Jmp)(PVMCPUCC pVCpu, RTGCPTR
                                                          TMPL_MEM_TYPE uValue1, TMPL_MEM_TYPE uValue2) IEM_NOEXCEPT_MAY_LONGJMP
 # endif
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that it doesn't cross a page boundrary and do a TLB lookup.
      */
@@ -337,7 +337,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE *)
 RT_CONCAT3(iemMemFlatMapData,TMPL_MEM_FN_SUFF,RwJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that the address doesn't cross a page boundrary.
      */
@@ -398,7 +398,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE *)
 RT_CONCAT3(iemMemFlatMapData,TMPL_MEM_FN_SUFF,AtJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#  if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+#  if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that the address doesn't cross a page boundrary.
      */
@@ -457,7 +457,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE *)
 RT_CONCAT3(iemMemFlatMapData,TMPL_MEM_FN_SUFF,WoJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that the address doesn't cross a page boundrary.
      */
@@ -515,7 +515,7 @@ DECL_INLINE_THROW(TMPL_MEM_TYPE const *)
 RT_CONCAT3(iemMemFlatMapData,TMPL_MEM_FN_SUFF,RoJmp)(PVMCPUCC pVCpu, uint8_t *pbUnmapInfo,
                                                      RTGCPTR GCPtrMem) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# if defined(IEM_WITH_DATA_TLB) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
+# if defined(IEM_WITH_DATA_TLB_IN_CUR_CTX) && defined(IN_RING3) && !defined(TMPL_MEM_NO_INLINE)
     /*
      * Check that the address doesn't cross a page boundrary.
      */

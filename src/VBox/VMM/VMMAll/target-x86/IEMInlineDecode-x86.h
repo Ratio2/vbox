@@ -69,7 +69,7 @@ DECL_INLINE_THROW(uint8_t) iemOpcodeGetFirstU8Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_M
     /*
      * Fetch the first opcode byte.
      */
-# ifdef IEM_WITH_CODE_TLB
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     uint8_t         bRet;
     uintptr_t       offBuf = ICORE(pVCpu).offInstrNextByte;
     uint8_t const  *pbBuf  = ICORE(pVCpu).pbInstrBuf;
@@ -87,7 +87,7 @@ DECL_INLINE_THROW(uint8_t) iemOpcodeGetFirstU8Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_M
 #  endif
     return bRet;
 
-# else /* !IEM_WITH_CODE_TLB */
+# else /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
     uintptr_t offOpcode = ICORE(pVCpu).offOpcode;
     if (RT_LIKELY((uint8_t)offOpcode < ICORE(pVCpu).cbOpcode))
     {
@@ -115,7 +115,7 @@ DECL_INLINE_THROW(uint8_t) iemOpcodeGetFirstU8Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_M
  */
 DECL_INLINE_THROW(uint8_t) iemOpcodeGetNextU8Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# ifdef IEM_WITH_CODE_TLB
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     uint8_t         bRet;
     uintptr_t       offBuf = ICORE(pVCpu).offInstrNextByte;
     uint8_t const  *pbBuf  = ICORE(pVCpu).pbInstrBuf;
@@ -133,7 +133,7 @@ DECL_INLINE_THROW(uint8_t) iemOpcodeGetNextU8Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MA
 #  endif
     return bRet;
 
-# else /* !IEM_WITH_CODE_TLB */
+# else /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
     uintptr_t offOpcode = ICORE(pVCpu).offOpcode;
     if (RT_LIKELY((uint8_t)offOpcode < ICORE(pVCpu).cbOpcode))
     {
@@ -197,7 +197,7 @@ DECL_INLINE_THROW(uint8_t) iemOpcodeGetNextU8Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MA
  */
 DECL_INLINE_THROW(uint16_t) iemOpcodeGetNextU16Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# ifdef IEM_WITH_CODE_TLB
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     uint16_t        u16Ret;
     uintptr_t       offBuf = ICORE(pVCpu).offInstrNextByte;
     uint8_t const  *pbBuf  = ICORE(pVCpu).pbInstrBuf;
@@ -228,7 +228,7 @@ DECL_INLINE_THROW(uint16_t) iemOpcodeGetNextU16Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_
 
     return u16Ret;
 
-# else /* !IEM_WITH_CODE_TLB */
+# else /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
     uintptr_t const offOpcode = ICORE(pVCpu).offOpcode;
     if (RT_LIKELY((uint8_t)offOpcode + 2 <= ICORE(pVCpu).cbOpcode))
     {
@@ -240,7 +240,7 @@ DECL_INLINE_THROW(uint16_t) iemOpcodeGetNextU16Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_
 #  endif
     }
     return iemOpcodeGetNextU16SlowJmp(pVCpu);
-# endif /* !IEM_WITH_CODE_TLB */
+# endif /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
 }
 
 /**
@@ -287,7 +287,7 @@ DECL_INLINE_THROW(uint16_t) iemOpcodeGetNextU16Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_
  */
 DECL_INLINE_THROW(uint32_t) iemOpcodeGetNextU32Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# ifdef IEM_WITH_CODE_TLB
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     uint32_t u32Ret;
     uintptr_t       offBuf = ICORE(pVCpu).offInstrNextByte;
     uint8_t const  *pbBuf  = ICORE(pVCpu).pbInstrBuf;
@@ -323,7 +323,7 @@ DECL_INLINE_THROW(uint32_t) iemOpcodeGetNextU32Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_
 
     return u32Ret;
 
-# else  /* !IEM_WITH_CODE_TLB */
+# else  /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
     uintptr_t const offOpcode = ICORE(pVCpu).offOpcode;
     if (RT_LIKELY((uint8_t)offOpcode + 4 <= ICORE(pVCpu).cbOpcode))
     {
@@ -385,7 +385,7 @@ DECL_INLINE_THROW(uint32_t) iemOpcodeGetNextU32Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_
  */
 DECL_INLINE_THROW(uint64_t) iemOpcodeGetNextU64Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
 {
-# ifdef IEM_WITH_CODE_TLB
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     uint64_t        u64Ret;
     uintptr_t       offBuf = ICORE(pVCpu).offInstrNextByte;
     uint8_t const  *pbBuf  = ICORE(pVCpu).pbInstrBuf;
@@ -429,7 +429,7 @@ DECL_INLINE_THROW(uint64_t) iemOpcodeGetNextU64Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_
 
     return u64Ret;
 
-# else /* !IEM_WITH_CODE_TLB */
+# else /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
     uintptr_t const offOpcode = ICORE(pVCpu).offOpcode;
     if (RT_LIKELY((uint8_t)offOpcode + 8 <= ICORE(pVCpu).cbOpcode))
     {
@@ -448,7 +448,7 @@ DECL_INLINE_THROW(uint64_t) iemOpcodeGetNextU64Jmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_
 #  endif
     }
     return iemOpcodeGetNextU64SlowJmp(pVCpu);
-# endif /* !IEM_WITH_CODE_TLB */
+# endif /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
 }
 
 /**

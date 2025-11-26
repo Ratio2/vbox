@@ -71,7 +71,7 @@
  * Gets the ModR/M, SIB and displacement byte(s) from decoded opcodes given their
  * relative offsets.
  */
-# ifdef IEM_WITH_CODE_TLB /** @todo IEM TLB */
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX /** @todo IEM TLB */
 #  define IEM_MODRM_GET_U8(a_pVCpu, a_bModRm, a_offModRm)         do { a_bModRm  = 0; RT_NOREF(a_offModRm); } while (0)
 #  define IEM_SIB_GET_U8(a_pVCpu, a_bSib, a_offSib)               do { a_bSib    = 0; RT_NOREF(a_offSib);  } while (0)
 #  define IEM_DISP_GET_U16(a_pVCpu, a_u16Disp, a_offDisp)         do { a_u16Disp = 0; RT_NOREF(a_offDisp); } while (0)
@@ -83,7 +83,7 @@
 #  if 0
 #   error "Implement me: Getting ModR/M, SIB, displacement needs to work even when instruction crosses a page boundary."
 #  endif
-# else  /* !IEM_WITH_CODE_TLB */
+# else  /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
 #  define IEM_MODRM_GET_U8(a_pVCpu, a_bModRm, a_offModRm) \
     do \
     { \
@@ -144,7 +144,7 @@
         uint8_t const bTmp3 = ICORE(a_pVCpu).abOpcode[(a_offDisp) + 3]; \
         (a_u64Disp) = (int32_t)RT_MAKE_U32_FROM_U8(bTmp0, bTmp1, bTmp2, bTmp3); \
     } while (0)
-# endif /* !IEM_WITH_CODE_TLB */
+# endif /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
 
 /** Check for VMX instructions requiring to be in VMX operation.
  * @note Any changes here, check if IEMOP_HLP_IN_VMX_OPERATION needs updating. */

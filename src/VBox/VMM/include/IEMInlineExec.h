@@ -113,7 +113,7 @@ DECLINLINE(void) iemReInitExec(PVMCPUCC pVCpu, uint8_t cbInstr) RT_NOEXCEPT
     ICORE(pVCpu).fExec = iemCalcExecFlags(pVCpu) | (ICORE(pVCpu).fExec & IEM_F_USER_OPTS);
 #   ifdef VBOX_VMM_TARGET_X86
     iemOpcodeFlushHeavy(pVCpu, cbInstr);
-#   elif !defined(IEM_WITH_CODE_TLB)
+#   elif !defined(IEM_WITH_CODE_TLB_IN_CUR_CTX)
     ICORE(pVCpu).cbOpcode = cbInstr;
 #   else
     ICORE(pVCpu).cbInstrBufTotal = 0;
@@ -134,7 +134,7 @@ DECLINLINE(void) iemUninitExec(PVMCPUCC pVCpu) RT_NOEXCEPT
 {
     /* Note! do not touch fInPatchCode here! (see iemUninitExecAndFiddleStatusAndMaybeReenter) */
 # ifdef VBOX_STRICT
-#  ifdef IEM_WITH_CODE_TLB
+#  ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     NOREF(pVCpu);
 #  else
     ICORE(pVCpu).cbOpcode = 0;

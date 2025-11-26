@@ -158,6 +158,7 @@ DECLINLINE(void) iemTlbInvalidateLargePageWorkerInner(PVMCPUCC pVCpu, IEMTLB *pT
                                  : ~(RTGCPTR)(  (RT_BIT_32(a_f2MbLargePage ? 9 : 10) - 1U)
                                               & ~(uint32_t)(RT_BIT_32(IEMTLB_ENTRY_COUNT_AS_POWER_OF_TWO) - 1U));
 
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     /*
      * Set cbInstrBufTotal to zero if GCPtrInstrBufPcTag is within any of the tag ranges.
      * We make ASSUMPTIONS about IEMTLB_CALC_TAG_NO_REV here.
@@ -166,6 +167,9 @@ DECLINLINE(void) iemTlbInvalidateLargePageWorkerInner(PVMCPUCC pVCpu, IEMTLB *pT
     if (   !a_fDataTlb
         && GCPtrInstrBufPcTag - GCPtrTag < (a_f2MbLargePage ? 512U : 1024U))
         ICORE(pVCpu).cbInstrBufTotal = 0;
+# else
+    RT_NOREF(pVCpu, GCPtrInstrBufPcTag);
+# endif
 
     /*
      * Combine TAG values with the TLB revisions.
@@ -423,15 +427,19 @@ DECLINLINE(void) iemTlbInvalidatePageWorker(PVMCPUCC pVCpu, IEMTLB *pTlb, RTGCPT
     {
         IEMTLBTRACE_EVICT_SLOT(pVCpu, GCPtrTag, pTlb->aEntries[idxBase].GCPhys, idxBase, a_fDataTlb);
         pTlb->aEntries[idxBase].uTag = 0;
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
         if (!a_fDataTlb && GCPtrTag == IEMTLB_CALC_TAG_NO_REV(pVCpu, ICORE(pVCpu).uInstrBufPc))
             ICORE(pVCpu).cbInstrBufTotal = 0;
+# endif
     }
     if (pTlb->aEntries[idxBase + 1].uTag == (GCPtrTag | pTlb->uTlbRevisionGlobal))
     {
         IEMTLBTRACE_EVICT_SLOT(pVCpu, GCPtrTag, pTlb->aEntries[idxBase + 1].GCPhys, idxBase + 1, a_fDataTlb);
         pTlb->aEntries[idxBase + 1].uTag = 0;
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
         if (!a_fDataTlb && GCPtrTag == IEMTLB_CALC_TAG_NO_REV(pVCpu, ICORE(pVCpu).uInstrBufPc))
             ICORE(pVCpu).cbInstrBufTotal = 0;
+# endif
     }
 
     /*
@@ -445,7 +453,11 @@ DECLINLINE(void) iemTlbInvalidatePageWorker(PVMCPUCC pVCpu, IEMTLB *pTlb, RTGCPT
     if (pTlb->GlobalLargePageRange.uLastTag || pTlb->NonGlobalLargePageRange.uLastTag)
 # endif
     {
+# ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
         RTGCPTR const GCPtrInstrBufPcTag = a_fDataTlb ? 0 : IEMTLB_CALC_TAG_NO_REV(pVCpu, ICORE(pVCpu).uInstrBufPc);
+# else
+        RTGCPTR const GCPtrInstrBufPcTag = NIL_RTGCPHYS;
+# endif
         if (pVCpu->cpum.GstCtx.cr4 & X86_CR4_PAE)
             iemTlbInvalidateLargePageWorker<a_fDataTlb, true>(pVCpu, pTlb, GCPtrTag, GCPtrInstrBufPcTag);
         else

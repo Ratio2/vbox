@@ -52,7 +52,7 @@
 #include "IEMAllTlbInline-x86.h"
 
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
 /**
  * Prefetch opcodes the first time when starting executing.
  *
@@ -193,7 +193,7 @@ VBOXSTRICTRC iemOpcodeFetchPrefetch(PVMCPUCC pVCpu) RT_NOEXCEPT
     ICORE(pVCpu).cbOpcode = cbToTryRead;
     return VINF_SUCCESS;
 }
-#endif /* !IEM_WITH_CODE_TLB */
+#endif /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
 
 
 /**
@@ -201,7 +201,7 @@ VBOXSTRICTRC iemOpcodeFetchPrefetch(PVMCPUCC pVCpu) RT_NOEXCEPT
  */
 void iemOpcodeFlushLight(PVMCPUCC pVCpu, uint8_t cbInstr)
 {
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     ICORE(pVCpu).cbOpcode = cbInstr;
 #else
     RT_NOREF(pVCpu, cbInstr);
@@ -214,7 +214,7 @@ void iemOpcodeFlushLight(PVMCPUCC pVCpu, uint8_t cbInstr)
  */
 void iemOpcodeFlushHeavy(PVMCPUCC pVCpu, uint8_t cbInstr)
 {
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     ICORE(pVCpu).cbOpcode = cbInstr; /* Note! SVM and VT-x may set this to zero on exit, rather than the instruction length. */
 #elif 1
     ICORE(pVCpu).cbInstrBufTotal = 0;
@@ -226,7 +226,7 @@ void iemOpcodeFlushHeavy(PVMCPUCC pVCpu, uint8_t cbInstr)
 
 
 
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
 
 /**
  * Tries to fetches @a cbDst opcode bytes, raise the appropriate exception on
@@ -594,7 +594,7 @@ void iemOpcodeFetchBytesJmp(PVMCPUCC pVCpu, size_t cbDst, void *pvDst) IEM_NOEXC
 # endif /* !IN_RING3 */
 }
 
-#else /* !IEM_WITH_CODE_TLB */
+#else /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
 
 /**
  * Try fetch at least @a cbMin bytes more opcodes, raise the appropriate
@@ -734,7 +734,7 @@ VBOXSTRICTRC iemOpcodeFetchMoreBytes(PVMCPUCC pVCpu, size_t cbMin) RT_NOEXCEPT
     return VINF_SUCCESS;
 }
 
-#endif /* !IEM_WITH_CODE_TLB */
+#endif /* !IEM_WITH_CODE_TLB_IN_CUR_CTX */
 
 /**
  * Deals with the problematic cases that iemOpcodeGetNextU8Jmp doesn't like, longjmp on error.
@@ -744,7 +744,7 @@ VBOXSTRICTRC iemOpcodeFetchMoreBytes(PVMCPUCC pVCpu, size_t cbMin) RT_NOEXCEPT
  */
 uint8_t iemOpcodeGetNextU8SlowJmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     uint8_t u8;
     iemOpcodeFetchBytesJmp(pVCpu, sizeof(u8), &u8);
     return u8;
@@ -765,7 +765,7 @@ uint8_t iemOpcodeGetNextU8SlowJmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
  */
 uint16_t iemOpcodeGetNextU16SlowJmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     uint16_t u16;
     iemOpcodeFetchBytesJmp(pVCpu, sizeof(u16), &u16);
     return u16;
@@ -794,7 +794,7 @@ uint16_t iemOpcodeGetNextU16SlowJmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
  */
 uint32_t iemOpcodeGetNextU32SlowJmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     uint32_t u32;
     iemOpcodeFetchBytesJmp(pVCpu, sizeof(u32), &u32);
     return u32;
@@ -826,7 +826,7 @@ uint32_t iemOpcodeGetNextU32SlowJmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
  */
 uint64_t iemOpcodeGetNextU64SlowJmp(PVMCPUCC pVCpu) IEM_NOEXCEPT_MAY_LONGJMP
 {
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     uint64_t u64;
     iemOpcodeFetchBytesJmp(pVCpu, sizeof(u64), &u64);
     return u64;

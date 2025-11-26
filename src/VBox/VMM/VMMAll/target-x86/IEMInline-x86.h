@@ -1039,7 +1039,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegRip64RelativeJumpS8AndFinishClearingRF(PVM
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1076,7 +1076,7 @@ iemRegRip64RelativeJumpS8IntraPgAndFinishClearingRF(PVMCPUCC pVCpu, uint8_t cbIn
     Assert((pVCpu->cpum.GstCtx.rip >> GUEST_PAGE_SHIFT) == (uNewRip >> GUEST_PAGE_SHIFT));
     pVCpu->cpum.GstCtx.rip = uNewRip;
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1116,7 +1116,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegEip32RelativeJumpS8AndFinishClearingRF(PVM
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1154,7 +1154,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC)
         uNewEip &= UINT16_MAX;
     pVCpu->cpum.GstCtx.rip = uNewEip;
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1189,7 +1189,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegIp16RelativeJumpS8AndFinishClearingRF(PVMC
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1230,7 +1230,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegRip64RelativeJumpS8AndFinishNoFlags(PVMCPU
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1263,7 +1263,7 @@ iemRegRip64RelativeJumpS8IntraPgAndFinishNoFlags(PVMCPUCC pVCpu, uint8_t cbInstr
     Assert((pVCpu->cpum.GstCtx.rip >> GUEST_PAGE_SHIFT) == (uNewRip >> GUEST_PAGE_SHIFT));
     pVCpu->cpum.GstCtx.rip = uNewRip;
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1299,7 +1299,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegEip32RelativeJumpS8AndFinishNoFlags(PVMCPU
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1333,7 +1333,7 @@ iemRegEip32RelativeJumpS8FlatAndFinishNoFlags(PVMCPUCC pVCpu, uint8_t cbInstr, i
         uNewEip &= UINT16_MAX;
     pVCpu->cpum.GstCtx.rip = uNewEip;
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1365,7 +1365,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegIp16RelativeJumpS8AndFinishNoFlags(PVMCPUC
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1390,7 +1390,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegRip64RelativeJumpS16AndFinishClearingRF(PV
 
     pVCpu->cpum.GstCtx.rip = (uint16_t)(pVCpu->cpum.GstCtx.ip + cbInstr + offNextInstr);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1429,7 +1429,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegEip32RelativeJumpS16AndFinishClearingRF(PV
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1465,7 +1465,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegEip32RelativeJumpS16FlatAndFinishClearingR
     uint16_t const uNewIp = pVCpu->cpum.GstCtx.ip + cbInstr + offNextInstr;
     pVCpu->cpum.GstCtx.rip = uNewIp;
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1495,7 +1495,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegRip64RelativeJumpS16AndFinishNoFlags(PVMCP
 
     pVCpu->cpum.GstCtx.rip = (uint16_t)(pVCpu->cpum.GstCtx.ip + cbInstr + offNextInstr);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1531,7 +1531,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegEip32RelativeJumpS16AndFinishNoFlags(PVMCP
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1564,7 +1564,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegEip32RelativeJumpS16FlatAndFinishNoFlags(P
     uint16_t const uNewIp = pVCpu->cpum.GstCtx.ip + cbInstr + offNextInstr;
     pVCpu->cpum.GstCtx.rip = uNewIp;
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1600,7 +1600,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegRip64RelativeJumpS32AndFinishClearingRF(PV
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1640,7 +1640,7 @@ iemRegRip64RelativeJumpS32IntraPgAndFinishClearingRF(PVMCPUCC pVCpu, uint8_t cbI
     Assert((pVCpu->cpum.GstCtx.rip >> GUEST_PAGE_SHIFT) == (uNewRip >> GUEST_PAGE_SHIFT));
     pVCpu->cpum.GstCtx.rip = uNewRip;
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1681,7 +1681,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegEip32RelativeJumpS32AndFinishClearingRF(PV
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1719,7 +1719,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegEip32RelativeJumpS32FlatAndFinishClearingR
     uint32_t const uNewEip = pVCpu->cpum.GstCtx.eip + cbInstr + offNextInstr;
     pVCpu->cpum.GstCtx.rip = uNewEip;
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
 
@@ -1761,7 +1761,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegRip64RelativeJumpS32AndFinishNoFlags(PVMCP
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1796,7 +1796,7 @@ iemRegRip64RelativeJumpS32IntraPgAndFinishNoFlags(PVMCPUCC pVCpu, uint8_t cbInst
     Assert((pVCpu->cpum.GstCtx.rip >> GUEST_PAGE_SHIFT) == (uNewRip >> GUEST_PAGE_SHIFT));
     pVCpu->cpum.GstCtx.rip = uNewRip;
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1834,7 +1834,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegEip32RelativeJumpS32AndFinishNoFlags(PVMCP
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1869,7 +1869,7 @@ DECL_FORCE_INLINE(VBOXSTRICTRC) iemRegEip32RelativeJumpS32FlatAndFinishNoFlags(P
     uint32_t const uNewEip = pVCpu->cpum.GstCtx.eip + cbInstr + offNextInstr;
     pVCpu->cpum.GstCtx.rip = uNewEip;
 
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, rcNormal);
@@ -1942,7 +1942,7 @@ DECLINLINE(VBOXSTRICTRC) iemRegUpdateRipAndFinishClearingRF(PVMCPUCC pVCpu) RT_N
 #endif
 
 
-#ifdef IEM_WITH_CODE_TLB
+#ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
 
 /**
  * Performs a near jump to the specified address, no checking or clearing of
@@ -2005,7 +2005,7 @@ DECLINLINE(VBOXSTRICTRC) iemRegRipJumpU64AndFinishNoFlags(PVMCPUCC pVCpu, uint64
     return iemRegFinishNoFlags(pVCpu, VINF_SUCCESS);
 }
 
-#endif /* IEM_WITH_CODE_TLB */
+#endif /* IEM_WITH_CODE_TLB_IN_CUR_CTX */
 
 /**
  * Performs a near jump to the specified address.
@@ -2023,7 +2023,7 @@ DECLINLINE(VBOXSTRICTRC) iemRegRipJumpU16AndFinishClearingRF(PVMCPUCC pVCpu, uin
         pVCpu->cpum.GstCtx.rip = uNewIp;
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #else
     RT_NOREF_PV(cbInstr);
@@ -2049,7 +2049,7 @@ DECLINLINE(VBOXSTRICTRC) iemRegRipJumpU32AndFinishClearingRF(PVMCPUCC pVCpu, uin
         pVCpu->cpum.GstCtx.rip = uNewEip;
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #else
     RT_NOREF_PV(cbInstr);
@@ -2075,7 +2075,7 @@ DECLINLINE(VBOXSTRICTRC) iemRegRipJumpU64AndFinishClearingRF(PVMCPUCC pVCpu, uin
         pVCpu->cpum.GstCtx.rip = uNewRip;
     else
         return iemRaiseGeneralProtectionFault0(pVCpu);
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #else
     RT_NOREF_PV(cbInstr);
@@ -2110,7 +2110,7 @@ iemRegRipRelativeCallS16AndFinishNoFlags(PVMCPUCC pVCpu, uint8_t cbInstr, int16_
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewIp;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, VINF_SUCCESS);
@@ -2142,7 +2142,7 @@ iemRegRipRelativeCallS16AndFinishClearingRF(PVMCPUCC pVCpu, uint8_t cbInstr, int
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewIp;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishClearingRF(pVCpu, VINF_SUCCESS);
@@ -2175,7 +2175,7 @@ iemRegEip32RelativeCallS32AndFinishNoFlags(PVMCPUCC pVCpu, uint8_t cbInstr, int3
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, VINF_SUCCESS);
@@ -2208,7 +2208,7 @@ iemRegEip32RelativeCallS32AndFinishClearingRF(PVMCPUCC pVCpu, uint8_t cbInstr, i
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishClearingRF(pVCpu, VINF_SUCCESS);
@@ -2239,7 +2239,7 @@ iemRegRip64RelativeCallS64AndFinishNoFlags(PVMCPUCC pVCpu, uint8_t cbInstr, int6
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, VINF_SUCCESS);
@@ -2270,7 +2270,7 @@ iemRegRip64RelativeCallS64AndFinishClearingRF(PVMCPUCC pVCpu, uint8_t cbInstr, i
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishClearingRF(pVCpu, VINF_SUCCESS);
@@ -2301,7 +2301,7 @@ iemRegIp16IndirectCallU16AndFinishNoFlags(PVMCPUCC pVCpu, uint8_t cbInstr, uint1
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, VINF_SUCCESS);
@@ -2332,7 +2332,7 @@ iemRegEip32IndirectCallU16AndFinishNoFlags(PVMCPUCC pVCpu, uint8_t cbInstr, uint
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, VINF_SUCCESS);
@@ -2362,7 +2362,7 @@ iemRegIp16IndirectCallU16AndFinishClearingRF(PVMCPUCC pVCpu, uint8_t cbInstr, ui
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishClearingRF(pVCpu, VINF_SUCCESS);
@@ -2392,7 +2392,7 @@ iemRegEip32IndirectCallU16AndFinishClearingRF(PVMCPUCC pVCpu, uint8_t cbInstr, u
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishClearingRF(pVCpu, VINF_SUCCESS);
@@ -2423,7 +2423,7 @@ iemRegEip32IndirectCallU32AndFinishNoFlags(PVMCPUCC pVCpu, uint8_t cbInstr, uint
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, VINF_SUCCESS);
@@ -2453,7 +2453,7 @@ iemRegEip32IndirectCallU32AndFinishClearingRF(PVMCPUCC pVCpu, uint8_t cbInstr, u
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishClearingRF(pVCpu, VINF_SUCCESS);
@@ -2484,7 +2484,7 @@ iemRegRip64IndirectCallU64AndFinishNoFlags(PVMCPUCC pVCpu, uint8_t cbInstr, uint
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishNoFlags(pVCpu, VINF_SUCCESS);
@@ -2514,7 +2514,7 @@ iemRegRip64IndirectCallU64AndFinishClearingRF(PVMCPUCC pVCpu, uint8_t cbInstr, u
         return rcStrict;
 
     pVCpu->cpum.GstCtx.rip = uNewRip;
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     return iemRegFinishClearingRF(pVCpu, VINF_SUCCESS);
@@ -2771,7 +2771,7 @@ iemRegRipNearReturnCommon(PVMCPUCC pVCpu, uint8_t cbInstr, uint16_t cbPop, IEMMO
     pVCpu->cpum.GstCtx.rsp = NewRsp.u;
 
     /* Flush the prefetch buffer. */
-#ifndef IEM_WITH_CODE_TLB
+#ifndef IEM_WITH_CODE_TLB_IN_CUR_CTX
     iemOpcodeFlushLight(pVCpu, cbInstr);
 #endif
     RT_NOREF(cbInstr);

@@ -108,7 +108,7 @@ DECLINLINE(void) iemInitExecTargetStrict(PVMCPUCC pVCpu) RT_NOEXCEPT
     ICORE(pVCpu).uVexLength         = 127;
     ICORE(pVCpu).fEvexStuff         = 127;
     ICORE(pVCpu).uFpuOpcode         = UINT16_MAX;
-#  ifdef IEM_WITH_CODE_TLB
+#  ifdef IEM_WITH_CODE_TLB_IN_CUR_CTX
     ICORE(pVCpu).offInstrNextByte   = UINT16_MAX;
     ICORE(pVCpu).pbInstrBuf         = NULL;
     ICORE(pVCpu).cbInstrBuf         = UINT16_MAX;
