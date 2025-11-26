@@ -34,9 +34,6 @@
 /* GUI includes: */
 #include "UIEditor.h"
 
-/* COM includes: */
-
-
 /* Forward declarations: */
 class QLabel;
 class UIFilePathSelector;
@@ -74,15 +71,6 @@ private:
     void prepareWidgets();
     /** Prepares connections. */
     void prepareConnections();
-
-
-    /** @name Values
-     * @{ */
-        /** Holds the folder. */
-        QString  m_strFolder;
-        /** Holds the file path. */
-        QString  m_strFilePath;
-    /** @} */
 
     /** @name Widgets
      * @{ */
