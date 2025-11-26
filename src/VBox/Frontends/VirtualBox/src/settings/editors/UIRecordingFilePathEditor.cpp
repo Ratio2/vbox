@@ -33,49 +33,58 @@
 #include "UIFilePathSelector.h"
 #include "UIRecordingFilePathEditor.h"
 
-UIRecordingFilePathEditor::UIRecordingFilePathEditor(QWidget *pParent /* = 0 */, bool fShowInBasicMode /* = false */)
-    : UIEditor(pParent, fShowInBasicMode /* show in basic mode */)
-    , m_pLabelFilePath(0)
-    , m_pEditorFilePath(0)
+UIRecordingFilePathEditor::UIRecordingFilePathEditor(QWidget *pParent /* = 0 */)
+    : UIEditor(pParent)
+    , m_pLabel(0)
+    , m_pSelector(0)
 {
     prepare();
 }
 
 void UIRecordingFilePathEditor::setFolder(const QString &strFolder)
 {
-    if (!m_pEditorFilePath || m_pEditorFilePath->initialPath() == strFolder)
-        return;
-    m_pEditorFilePath->setInitialPath(strFolder);
+    /* Update cached value and
+     * file editor if value has changed: */
+    if (m_strFolder != strFolder)
+    {
+        m_strFolder = strFolder;
+        if (m_pSelector)
+            m_pSelector->setInitialPath(m_strFolder);
+    }
 }
 
 QString UIRecordingFilePathEditor::folder() const
 {
-    return m_pEditorFilePath ? m_pEditorFilePath->initialPath() : QString();
+    return m_pSelector ? m_pSelector->initialPath() : m_strFolder;
 }
 
 void UIRecordingFilePathEditor::setFilePath(const QString &strFilePath)
 {
-    if (!m_pEditorFilePath || m_pEditorFilePath->path() == strFilePath)
-        return;
-    m_pEditorFilePath->setPath(strFilePath);
+    /* Update cached value and
+     * file editor if value has changed: */
+    if (m_strFilePath != strFilePath)
+    {
+        m_strFilePath = strFilePath;
+        if (m_pSelector)
+            m_pSelector->setPath(m_strFilePath);
+    }
 }
 
 QString UIRecordingFilePathEditor::filePath() const
 {
-    return m_pEditorFilePath ? m_pEditorFilePath->path() : QString();
+    return m_pSelector ? m_pSelector->path() : m_strFilePath;
 }
 
 void UIRecordingFilePathEditor::sltRetranslateUI()
 {
-    m_pLabelFilePath->setText(tr("File &Path"));
-    m_pEditorFilePath->setToolTip(tr("The filename VirtualBox uses to save the recorded content"));
+    m_pLabel->setText(tr("File &Path"));
+    m_pSelector->setToolTip(tr("The filename VirtualBox uses to save the recorded content"));
 }
 
 void UIRecordingFilePathEditor::prepare()
 {
     /* Prepare everything: */
     prepareWidgets();
-    prepareConnections();
 
     /* Apply language settings: */
     sltRetranslateUI();
@@ -89,36 +98,24 @@ void UIRecordingFilePathEditor::prepareWidgets()
     {
         pLayout->setContentsMargins(0, 0, 0, 0);
 
-
-        /* Prepare recording file path label: */
-        m_pLabelFilePath = new QLabel(this);
-        if (m_pLabelFilePath)
+        /* Prepare recording label: */
+        m_pLabel = new QLabel(this);
+        if (m_pLabel)
         {
-            m_pLabelFilePath->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-            pLayout->addWidget(m_pLabelFilePath);
-            pLayout->setAlignment(m_pLabelFilePath, Qt::AlignLeft);
+            m_pLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            pLayout->addWidget(m_pLabel);
         }
 
-        /* Prepare recording file path editor: */
-        m_pEditorFilePath = new UIFilePathSelector(this);
-        if (m_pEditorFilePath)
+        /* Prepare recording selector: */
+        m_pSelector = new UIFilePathSelector(this);
+        if (m_pSelector)
         {
-            if (m_pLabelFilePath)
-                m_pLabelFilePath->setBuddy(m_pEditorFilePath);
-            m_pEditorFilePath->setEditable(false);
-            m_pEditorFilePath->setMode(UIFilePathSelector::Mode_File_Save);
-            m_pEditorFilePath->setSizePolicy(QSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
-            pLayout->addWidget(m_pEditorFilePath);
+            if (m_pLabel)
+                m_pLabel->setBuddy(m_pSelector);
+            m_pSelector->setEditable(false);
+            m_pSelector->setMode(UIFilePathSelector::Mode_File_Save);
+            m_pSelector->setSizePolicy(QSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
+            pLayout->addWidget(m_pSelector);
         }
-
     }
-}
-
-void UIRecordingFilePathEditor::prepareConnections()
-{
-}
-
-void UIRecordingFilePathEditor::filterOut(bool fExpertMode, const QString &strFilter, const QMap<QString, QVariant> &flags)
-{
-    UIEditor::filterOut(fExpertMode, strFilter, flags);
 }

@@ -38,7 +38,7 @@
 class QLabel;
 class UIFilePathSelector;
 
-/** UIEditor sub-class used as a recording settings editor. */
+/** UIEditor sub-class used as a recording file-path editor. */
 class SHARED_LIBRARY_STUFF UIRecordingFilePathEditor : public UIEditor
 {
     Q_OBJECT;
@@ -46,7 +46,7 @@ class SHARED_LIBRARY_STUFF UIRecordingFilePathEditor : public UIEditor
 public:
 
     /** Constructs editor passing @a pParent to the base-class. */
-    UIRecordingFilePathEditor(QWidget *pParent = 0, bool fShowInBasicMode = false);
+    UIRecordingFilePathEditor(QWidget *pParent = 0);
 
     /** Defines @a strFolder. */
     void setFolder(const QString &strFolder);
@@ -57,7 +57,6 @@ public:
     /** Returns file path. */
     QString filePath() const;
 
-    void filterOut(bool fExpertMode, const QString &strFilter, const QMap<QString, QVariant> &flags) RT_OVERRIDE;
 private slots:
 
     /** Handles translation event. */
@@ -69,15 +68,21 @@ private:
     void prepare();
     /** Prepares widgets. */
     void prepareWidgets();
-    /** Prepares connections. */
-    void prepareConnections();
+
+    /** @name Values
+     * @{ */
+        /** Holds the folder. */
+        QString  m_strFolder;
+        /** Holds the file path. */
+        QString  m_strFilePath;
+    /** @} */
 
     /** @name Widgets
      * @{ */
-        /** Holds the file path label instance. */
-        QLabel             *m_pLabelFilePath;
-        /** Holds the file path editor instance. */
-        UIFilePathSelector *m_pEditorFilePath;
+        /** Holds the label instance. */
+        QLabel             *m_pLabel;
+        /** Holds the selector instance. */
+        UIFilePathSelector *m_pSelector;
     /** @} */
 };
 

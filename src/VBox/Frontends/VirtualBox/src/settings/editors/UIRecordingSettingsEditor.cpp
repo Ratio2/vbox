@@ -146,36 +146,24 @@ UISettingsDefs::RecordingMode UIRecordingSettingsEditor::mode() const
 
 void UIRecordingSettingsEditor::setFolder(const QString &strFolder)
 {
-    /* Update cached value and
-     * file editor if value has changed: */
-    if (m_strFolder != strFolder)
-    {
-        m_strFolder = strFolder;
-        if (m_pEditorFilePath)
-            m_pEditorFilePath->setFolder(m_strFolder);
-    }
+    if (m_pEditorFilePath)
+        m_pEditorFilePath->setFolder(strFolder);
 }
 
 QString UIRecordingSettingsEditor::folder() const
 {
-    return m_pEditorFilePath ? m_pEditorFilePath->folder() : m_strFolder;
+    return m_pEditorFilePath ? m_pEditorFilePath->folder() : QString();
 }
 
 void UIRecordingSettingsEditor::setFilePath(const QString &strFilePath)
 {
-    /* Update cached value and
-     * file editor if value has changed: */
-    if (m_strFilePath != strFilePath)
-    {
-        m_strFilePath = strFilePath;
-        if (m_pEditorFilePath)
-            m_pEditorFilePath->setFilePath(m_strFilePath);
-    }
+    if (m_pEditorFilePath)
+        m_pEditorFilePath->setFilePath(strFilePath);
 }
 
 QString UIRecordingSettingsEditor::filePath() const
 {
-    return m_pEditorFilePath ? m_pEditorFilePath->filePath() : m_strFilePath;
+    return m_pEditorFilePath ? m_pEditorFilePath->filePath() : QString();
 }
 
 void UIRecordingSettingsEditor::setFrameWidth(int iWidth)
@@ -495,11 +483,10 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     pLayoutSettings->addWidget(m_pComboMode, iLayoutSettingsRow, 1, 1, 3);
                 }
                 /* Prepare recording file path editor: */
-                m_pEditorFilePath = new UIRecordingFilePathEditor(pWidgetSettings, false);
+                m_pEditorFilePath = new UIRecordingFilePathEditor(pWidgetSettings);
                 if (m_pEditorFilePath)
                 {
                     addEditor(m_pEditorFilePath);
-                    m_pEditorFilePath->setSizePolicy(QSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
                     pLayoutSettings->addWidget(m_pEditorFilePath, ++iLayoutSettingsRow, 0, 1, 4);
                 }
                 /* Prepare recording frame size label: */
