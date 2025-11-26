@@ -476,7 +476,9 @@ VBOXSTRICTRC iemMemBounceBufferMapCrossPage(PVMCPUCC pVCpu, int iMemMap, void **
     if (cbMem < sizeof(ICORE(pVCpu).aBounceBuffers[iMemMap].ab))
         memset(pbBuf + cbMem, 0xaa, sizeof(ICORE(pVCpu).aBounceBuffers[iMemMap].ab) - cbMem);
 #endif
+#if !defined(IN_RING0) || !defined(__GNUC__) /** @todo fix the macro... -Winvalid-offsetof issue. */
     AssertCompileMemberAlignment(VMCPUCC, IEM_CORE_MEMBER.aBounceBuffers, 64);
+#endif
 
     /*
      * Commit the bounce buffer entry.
