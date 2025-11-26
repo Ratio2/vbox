@@ -40,19 +40,20 @@ class QSpinBox;
 class QWidget;
 class QIAdvancedSlider;
 
-/** UIEditor sub-class used as a recording settings editor. */
+/** UIEditor sub-class used as a recording video frame-rate editor. */
 class SHARED_LIBRARY_STUFF UIRecordingVideoFrameRateEditor : public UIEditor
 {
     Q_OBJECT;
 
 signals:
 
+    /** Notifies listeners about frame-rate changes. */
     void sigFrameRateChanged(int iFrameRate);
 
 public:
 
     /** Constructs editor passing @a pParent to the base-class. */
-    UIRecordingVideoFrameRateEditor(QWidget *pParent = 0, bool fShowInBasicMode = false);
+    UIRecordingVideoFrameRateEditor(QWidget *pParent = 0);
 
     /** Defines frame @a iRate. */
     void setFrameRate(int iRate);
@@ -77,21 +78,24 @@ private:
     /** Prepares connections. */
     void prepareConnections();
 
+    /** @name Values
+     * @{ */
+        /** Holds the frame rate. */
+        int  m_iFrameRate;
+    /** @} */
 
     /** @name Widgets
      * @{ */
-        /** Holds the frame rate label instance. */
-        QLabel             *m_pLabelFrameRate;
-        /** Holds the frame rate settings widget instance. */
-        QWidget            *m_pWidgetFrameRateSettings;
-        /** Holds the frame rate slider instance. */
-        QIAdvancedSlider   *m_pSliderFrameRate;
-        /** Holds the frame rate spinbox instance. */
-        QSpinBox           *m_pSpinboxFrameRate;
-        /** Holds the frame rate min label instance. */
-        QLabel             *m_pLabelFrameRateMin;
-        /** Holds the frame rate max label instance. */
-        QLabel             *m_pLabelFrameRateMax;
+        /** Holds the label instance. */
+        QLabel           *m_pLabel;
+        /** Holds the instance. */
+        QIAdvancedSlider *m_pSlider;
+        /** Holds the instance. */
+        QSpinBox         *m_pSpinbox;
+        /** Holds the min label instance. */
+        QLabel           *m_pLabelMin;
+        /** Holds the max label instance. */
+        QLabel           *m_pLabelMax;
     /** @} */
 };
 

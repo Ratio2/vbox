@@ -191,8 +191,6 @@ private:
         int                      m_iFrameWidth;
         /** Holds the frame height. */
         int                      m_iFrameHeight;
-        /** Holds the frame rate. */
-        int                      m_iFrameRate;
         /** Holds the bit rate. */
         int                      m_iBitRate;
         /** Holds the video quality. */

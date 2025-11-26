@@ -59,7 +59,6 @@ UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     , m_enmMode(UISettingsDefs::RecordingMode_Max)
     , m_iFrameWidth(0)
     , m_iFrameHeight(0)
-    , m_iFrameRate(0)
     , m_iBitRate(0)
     , m_pCheckboxFeature(0)
     , m_pLayoutSettings(0)
@@ -203,19 +202,13 @@ int UIRecordingSettingsEditor::frameHeight() const
 
 void UIRecordingSettingsEditor::setFrameRate(int iRate)
 {
-    /* Update cached value and
-     * spin-box if value has changed: */
-    if (m_iFrameRate != iRate)
-    {
-        m_iFrameRate = iRate;
-        if (m_pFrameRateEditor)
-            m_pFrameRateEditor->setFrameRate(m_iFrameRate);
-    }
+    if (m_pFrameRateEditor)
+        m_pFrameRateEditor->setFrameRate(iRate);
 }
 
 int UIRecordingSettingsEditor::frameRate() const
 {
-    return m_pFrameRateEditor ? m_pFrameRateEditor->frameRate() : m_iFrameRate;
+    return m_pFrameRateEditor ? m_pFrameRateEditor->frameRate() : 0;
 }
 
 void UIRecordingSettingsEditor::setBitRate(int iRate)
@@ -556,11 +549,10 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pLayoutSettings->addWidget(m_pSpinboxFrameHeight, iLayoutSettingsRow, 3);
                 }
                 /* Prepare recording frame rate editor: */
-                m_pFrameRateEditor = new UIRecordingVideoFrameRateEditor(pWidgetSettings, false);
+                m_pFrameRateEditor = new UIRecordingVideoFrameRateEditor(pWidgetSettings);
                 if (m_pFrameRateEditor)
                 {
                     addEditor(m_pFrameRateEditor);
-                    m_pFrameRateEditor->setSizePolicy(QSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
                     m_pLayoutSettings->addWidget(m_pFrameRateEditor, ++iLayoutSettingsRow, 0, 1, 4);
                 }
                 /* Prepare recording bit rate label: */
