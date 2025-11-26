@@ -3517,7 +3517,7 @@ uint32_t        iemVmxVirtApicReadRaw32(PVMCPUCC pVCpu, uint16_t offReg) RT_NOEX
 void            iemVmxVirtApicWriteRaw32(PVMCPUCC pVCpu, uint16_t offReg, uint32_t uReg) RT_NOEXCEPT;
 VBOXSTRICTRC    iemVmxInvvpid(PVMCPUCC pVCpu, uint8_t cbInstr, uint8_t iEffSeg, RTGCPTR GCPtrInvvpidDesc,
                               uint64_t u64InvvpidType, PCVMXVEXITINFO pExitInfo) RT_NOEXCEPT;
-bool            iemVmxIsRdmsrWrmsrInterceptSet(PCVMCPU pVCpu, uint32_t uExitReason, uint32_t idMsr) RT_NOEXCEPT;
+bool            iemVmxIsRdmsrWrmsrInterceptSet(PCVMCPUCC pVCpu, uint32_t uExitReason, uint32_t idMsr) RT_NOEXCEPT;
 IEM_CIMPL_PROTO_0(iemCImpl_vmxoff);
 IEM_CIMPL_PROTO_2(iemCImpl_vmxon, uint8_t, iEffSeg, RTGCPTR, GCPtrVmxon);
 IEM_CIMPL_PROTO_0(iemCImpl_vmlaunch);

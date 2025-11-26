@@ -1242,7 +1242,7 @@ IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMinInstructions, u
                     Assert(ICORE(pVCpu).cActiveMappings == 0);
                 }
                 else if (ICORE(pVCpu).cActiveMappings > 0)
-                        iemMemRollback(pVCpu);
+                    iemMemRollback(pVCpu);
                 rcStrict = iemExecStatusCodeFiddling(pVCpu, rcStrict);
                 break;
             }
