@@ -292,6 +292,29 @@ HRESULT MachineDebugger::setExecuteAllInIEM(BOOL aExecuteAllInIEM)
 }
 
 /**
+ * Returns the current recompiled-IEM-execution setting.
+ *
+ * @returns COM status code
+ * @param   aRecompiledIEMExecution Address of result variable.
+ */
+HRESULT MachineDebugger::getRecompiledIEMExecution(BOOL *aRecompiledIEMExecution)
+{
+    return i_getEmExecPolicyProperty(EMEXECPOLICY_IEM_RECOMPILED, aRecompiledIEMExecution);
+}
+
+/**
+ * Changes the recompiled-IEM-execution setting.
+ *
+ * @returns COM status code
+ * @param   aRecompiledIEMExecution New setting.
+ */
+HRESULT MachineDebugger::setRecompiledIEMExecution(BOOL aRecompiledIEMExecution)
+{
+    LogFlowThisFunc(("enable=%d\n", aRecompiledIEMExecution));
+    return i_setEmExecPolicyProperty(EMEXECPOLICY_IEM_RECOMPILED, aRecompiledIEMExecution);
+}
+
+/**
  * Returns the log enabled / disabled status.
  *
  * @returns COM status code

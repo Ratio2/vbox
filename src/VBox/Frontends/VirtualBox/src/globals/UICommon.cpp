@@ -167,6 +167,7 @@ UICommon::UICommon(UIType enmType)
     , m_fNoKeyboardGrabbing(false)
     , m_fRestoreCurrentSnapshot(false)
     , m_fExecuteAllInIem(false)
+    , m_fExecuteAllInRem(false)
     , m_uWarpPct(100)
 #ifdef VBOX_WITH_DEBUGGER_GUI
     , m_fDbgEnabled(0)
@@ -479,6 +480,11 @@ void UICommon::prepare()
         {
             enmOptType = OptType_VMRunner;
             m_fExecuteAllInIem = true;
+        }
+        else if (!::strcmp(arg, "--execute-all-in-rem") || !::strcmp(arg, "--execute-all-in-recompiler"))
+        {
+            enmOptType = OptType_VMRunner;
+            m_fExecuteAllInRem = true;
         }
         else if (!::strcmp(arg, "--driverless"))
             enmOptType = OptType_VMRunner;

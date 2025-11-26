@@ -23031,7 +23031,7 @@ Snapshot 1 (B.vdi)            Snapshot 1 (B.vdi)
     uuid="fa43579a-2272-47c4-a443-9713f19a902f"
     wsmap="managed"
     rest="managed"
-    reservedMethods="16" reservedAttributes="16"
+    reservedMethods="16" reservedAttributes="14"
     >
     <method name="dumpGuestCore">
       <desc>
@@ -23464,9 +23464,17 @@ Snapshot 1 (B.vdi)            Snapshot 1 (B.vdi)
 
     <attribute name="executeAllInIEM" type="boolean">
       <desc>
-        Whether to execute all the code in the instruction interpreter. This
-        is mainly for testing the interpreter and not an execution mode
-        intended for general consumption.
+        Whether to execute all the code in the instruction interpreter.
+
+        When @c true the VM execution engine changes to
+        <link to="VMExecutionEngine::Interpreter"/> (or
+        <link to="VMExecutionEngine::Recompiler"/> when
+        <link to="IMachineDebugger::recompiledIEMExecution"/> is set to @c true).
+
+        This is mainly for temporarily testing the interpreter and its recompiler.
+
+        See also <link to="IMachine::VMExecutionEngine"/> for how to permanently
+        configure a VM to run in <link to="VMExecutionEngine::Interpreter"/> mode.
       </desc>
     </attribute>
 
@@ -23558,6 +23566,25 @@ Snapshot 1 (B.vdi)            Snapshot 1 (B.vdi)
     <attribute name="uptime" type="long long" readonly="yes">
       <desc>VM uptime in milliseconds, i.e. time in which it could have been
         executing guest code. Excludes the time when the VM was paused.</desc>
+    </attribute>
+
+    <attribute name="recompiledIEMExecution" type="boolean">
+      <desc>
+        Whether to use the recompiler when executing in the interpreter.
+
+        This is used together with <link to="IMachineDebugger::executeAllInIEM"/>
+        to temporarily change the main VM execution engine to
+        <link to="VMExecutionEngine::Recompiler"/>.
+
+        If the VM is configured to run in <link to="VMExecutionEngine::Interpreter"/>
+        via <link to="IMachine::VMExecutionEngine"/>, setting this to @c true temporarily
+        changes it to <link to="VMExecutionEngine::Recompiler"/>.
+
+        This mainly for testing the instruction interpreter in recompiler mode.
+
+        See also <link to="IMachine::VMExecutionEngine"/> for how to permanently
+        configure a VM to run in <link to="VMExecutionEngine::Recompiler"/> mode.
+      </desc>
     </attribute>
 
   </interface>

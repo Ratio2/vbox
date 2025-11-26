@@ -167,8 +167,10 @@ bool UISession::initialize()
     /* Apply debug settings from the command line. */
     if (!debugger().isNull() && debugger().isOk())
     {
-        if (uiCommon().areWeToExecuteAllInIem())
+        if (uiCommon().areWeToExecuteAllInIem() || uiCommon().areWeToExecuteAllInRecompiler())
             debugger().SetExecuteAllInIEM(true);
+        if (uiCommon().areWeToExecuteAllInRecompiler())
+            debugger().SetRecompiledIEMExecution(true);
         if (!uiCommon().isDefaultWarpPct())
             debugger().SetVirtualTimeRate(uiCommon().getWarpPct());
     }
