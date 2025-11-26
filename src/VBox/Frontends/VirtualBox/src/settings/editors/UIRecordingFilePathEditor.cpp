@@ -83,7 +83,7 @@ int UIRecordingFilePathEditor::minimumLabelHorizontalHint() const
 void UIRecordingFilePathEditor::setMinimumLayoutIndent(int iIndent)
 {
     if (m_pLayout)
-        m_pLayout->setColumnMinimumWidth(0, iIndent);
+        m_pLayout->setColumnMinimumWidth(0, iIndent + m_pLayout->spacing());
 }
 
 void UIRecordingFilePathEditor::sltRetranslateUI()
