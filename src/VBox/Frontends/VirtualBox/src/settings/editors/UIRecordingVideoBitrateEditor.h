@@ -69,6 +69,11 @@ public:
     /** Return the value of the quality slider. */
     int quality() const;
 
+    /** Returns minimum layout hint. */
+    int minimumLabelHorizontalHint() const;
+    /** Defines minimum layout @a iIndent. */
+    void setMinimumLayoutIndent(int iIndent);
+
 private slots:
 
     /** Handles translation event. */
@@ -93,19 +98,21 @@ private:
     /** @name Widgets
      * @{ */
         /** Holds the bit rate label instance. */
-        QLabel             *m_pLabelBitRate;
+        QLabel             *m_pLabel;
         /** Holds the bit rate settings widget instance. */
         QWidget            *m_pWidgetBitRateSettings;
         /** Holds the bit rate slider instance. */
         QIAdvancedSlider   *m_pSliderQuality;
         /** Holds the bit rate spinbox instance. */
-        QSpinBox           *m_pSpinboxBitRate;
+        QSpinBox           *m_pSpinbox;
         /** Holds the bit rate min label instance. */
-        QLabel             *m_pLabelBitRateMin;
+        QLabel             *m_pLabelMin;
         /** Holds the bit rate med label instance. */
-        QLabel             *m_pLabelBitRateMed;
+        QLabel             *m_pLabelMed;
         /** Holds the bit rate max label instance. */
-        QLabel             *m_pLabelBitRateMax;
+        QLabel             *m_pLabelMax;
+        /** Holds the main layout instance. */
+        QGridLayout        *m_pLayout;
     /** @} */
 };
 
