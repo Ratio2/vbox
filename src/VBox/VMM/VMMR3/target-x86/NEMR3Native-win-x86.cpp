@@ -3596,6 +3596,7 @@ nemR3WinHandleExitMemory(PVMCC pVM, PVMCPUCC pVCpu, WHV_RUN_VP_EXIT_CONTEXT cons
     {
         //if (pMsg->InstructionByteCount > 0)
         //    Log4(("InstructionByteCount=%#x %.16Rhxs\n", pMsg->InstructionByteCount, pMsg->InstructionBytes));
+        IEMTlbInvalidateAll(pVCpu);
         if (pExit->MemoryAccess.InstructionByteCount > 0)
             rcStrict = IEMExecOneWithPrefetchedByPC(pVCpu, pExit->VpContext.Rip, pExit->MemoryAccess.InstructionBytes, pExit->MemoryAccess.InstructionByteCount);
         else
@@ -3724,6 +3725,7 @@ static VBOXSTRICTRC nemR3WinHandleExitIoPort(PVMCC pVM, PVMCPUCC pVCpu, WHV_RUN_
                   pExit->IoPortAccess.AccessInfo.RepPrefix ? "REP " : "",
                   pExit->IoPortAccess.AccessInfo.IsWrite ? "OUTS" : "INS",
                   pExit->IoPortAccess.PortNumber, pExit->IoPortAccess.AccessInfo.AccessSize ));
+            IEMTlbInvalidateAll(pVCpu);
             rcStrict = IEMExecOne(pVCpu);
         }
         if (IOM_SUCCESS(rcStrict))
@@ -4222,6 +4224,7 @@ static VBOXSTRICTRC nemR3WinHandleExitException(PVMCC pVM, PVMCPUCC pVCpu, WHV_R
             if (nemHcWinIsInterestingUndefinedOpcode(pExit->VpException.InstructionByteCount, pExit->VpException.InstructionBytes,
                                                      pExit->VpContext.ExecutionState.EferLma && pExit->VpContext.Cs.Long ))
             {
+                IEMTlbInvalidateAll(pVCpu);
                 rcStrict = IEMExecOneWithPrefetchedByPC(pVCpu, pExit->VpContext.Rip,
                                                         pExit->VpException.InstructionBytes,
                                                         pExit->VpException.InstructionByteCount);
@@ -4251,6 +4254,7 @@ static VBOXSTRICTRC nemR3WinHandleExitException(PVMCC pVM, PVMCPUCC pVCpu, WHV_R
                                         pExit->VpException.InstructionByteCount))
             {
 #if 1 /** @todo Need to emulate instruction or we get a triple fault when trying to inject the \#GP... */
+                IEMTlbInvalidateAll(pVCpu);
                 rcStrict = IEMExecOneWithPrefetchedByPC(pVCpu, pExit->VpContext.Rip,
                                                         pExit->VpException.InstructionBytes,
                                                         pExit->VpException.InstructionByteCount);
@@ -4335,6 +4339,7 @@ static VBOXSTRICTRC nemR3WinHandleExitUnrecoverableException(PVMCC pVM, PVMCPUCC
     VBOXSTRICTRC rcStrict = nemHCWinImportStateIfNeededStrict(pVCpu, NEM_WIN_CPUMCTX_EXTRN_MASK_FOR_IEM | CPUMCTX_EXTRN_ALL, "TripleExit");
     if (rcStrict == VINF_SUCCESS)
     {
+        IEMTlbInvalidateAll(pVCpu);
         rcStrict = IEMExecOne(pVCpu);
         if (rcStrict == VINF_SUCCESS)
         {

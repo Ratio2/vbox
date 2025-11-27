@@ -237,6 +237,7 @@ static int emR3NemExecuteInstructionWorker(PVM pVM, PVMCPU pVCpu, int rcRC)
     if (idxContinueExitRec >= RT_ELEMENTS(pVCpu->em.s.aExitRecords))
     {
         CPUM_IMPORT_EXTRN_RET(pVCpu, IEM_CPUMCTX_EXTRN_MUST_MASK);
+        IEMTlbInvalidateAll(pVCpu);
         rcStrict = IEMExecOne(pVCpu);
     }
     else
@@ -295,6 +296,7 @@ static int emR3NemExecuteIOInstruction(PVM pVM, PVMCPU pVCpu)
     RT_UNTRUSTED_NONVOLATILE_COPY_FENCE();
     if (idxContinueExitRec >= RT_ELEMENTS(pVCpu->em.s.aExitRecords))
     {
+        IEMTlbInvalidateAll(pVCpu);
         rcStrict = IEMExecOne(pVCpu);
         LogFlow(("emR3NemExecuteIOInstruction: %Rrc (IEMExecOne)\n", VBOXSTRICTRC_VAL(rcStrict)));
         STAM_COUNTER_INC(&pVCpu->em.s.StatIoIem);

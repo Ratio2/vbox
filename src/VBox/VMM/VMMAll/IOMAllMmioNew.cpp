@@ -686,6 +686,10 @@ DECLINLINE(VBOXSTRICTRC) iomMmioCommonPfHandlerNew(PVMCC pVM, PVMCPUCC pVCpu, ui
             /*
              * Let IEM call us back via iomMmioHandler.
              */
+#ifndef IN_RING0 /* No ring-0 IEM TLB. */
+            if (!VM_IS_EXEC_ENGINE_IEM(pVM))
+                IEMTlbInvalidateAll(pVCpu);
+#endif
             rcStrict = IEMExecOne(pVCpu);
 
 #ifndef IN_RING3

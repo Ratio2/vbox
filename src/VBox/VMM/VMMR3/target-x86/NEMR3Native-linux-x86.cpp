@@ -1250,7 +1250,10 @@ static VBOXSTRICTRC nemR3LnxHandleInternalError(PVMCPU pVCpu, struct kvm_run *pR
                                                  | CPUMCTX_EXTRN_INHIBIT_NMI,
                                                 &pVCpu->cpum.GstCtx, pRun);
     if (RT_SUCCESS(rcStrict))
+    {
+        IEMTlbInvalidateAll(pVCpu);
         rcStrict = IEMExecOne(pVCpu);
+    }
     return rcStrict;
 }
 
