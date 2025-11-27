@@ -54,7 +54,7 @@ signals:
 public:
 
     /** Constructs editor passing @a pParent to the base-class. */
-    UIRecordingVideoFrameRateEditor(QWidget *pParent = 0);
+    UIRecordingVideoFrameRateEditor(QWidget *pParent = 0, bool fShowInBasicMode = false);
 
     /** Defines frame @a iRate. */
     void setFrameRate(int iRate);
@@ -83,12 +83,6 @@ private:
     void prepareWidgets();
     /** Prepares connections. */
     void prepareConnections();
-
-    /** @name Values
-     * @{ */
-        /** Holds the frame rate. */
-        int  m_iFrameRate;
-    /** @} */
 
     /** @name Widgets
      * @{ */
