@@ -68,7 +68,7 @@
 
 /* Internals */
 namespace Phy {
-#if defined(LOG_ENABLED) || defined(PHY_UNIT_TEST)
+#if defined(LOG_ENABLED) || defined(PHY_UNIT_TEST) || defined(IN_RING3)
     /** Retrieves state name by id */
     static const char * getStateName(uint16_t u16State);
 #endif
@@ -569,7 +569,7 @@ static uint16_t Phy::regReadGSTATUS(PPHY pPhy, uint32_t index, PPDMDEVINS pDevIn
     return 0x3C00;
 }
 
-//#if defined(LOG_ENABLED) || defined(PHY_UNIT_TEST)
+#if defined(LOG_ENABLED) || defined(PHY_UNIT_TEST) || defined(IN_RING3)
 static const char * Phy::getStateName(uint16_t u16State)
 {
     static const char *pcszState[] =
@@ -585,7 +585,7 @@ static const char * Phy::getStateName(uint16_t u16State)
 
     return (u16State < RT_ELEMENTS(pcszState)) ? pcszState[u16State] : "<invalid>";
 }
-//#endif
+#endif
 
 bool Phy::readMDIO(PPHY pPhy)
 {
