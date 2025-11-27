@@ -120,7 +120,7 @@ void UIRecordingVideoFrameRateEditor::prepareWidgets()
     if (m_pLayout)
     {
         m_pLayout->setContentsMargins(0, 0, 0, 0);
-        m_pLayout->setColumnStretch(2, 1); // strech between min and max labels
+        m_pLayout->setColumnStretch(2, 1); // stretch between min and max labels
 
         /* Prepare label: */
         m_pLabel = new QLabel(this);
