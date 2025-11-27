@@ -340,8 +340,10 @@ int UIMessageCenter::messageWithOption(QWidget *pParent, MessageType enmType,
 
     /* Create message-box: */
     QWidget *pBoxParent = windowManager().realParentWindow(pParent ? pParent : windowManager().mainWindowShown());
+    const QString strHackValue = gEDataManager->extraDataString("GUI/Hack/MakeMessageBoxParentless");
     QPointer<QIMessageBox> pBox = new QIMessageBox(strTitle, strMessage, icon,
-                                                   iButton1, iButton2, iButton3, pBoxParent);
+                                                   iButton1, iButton2, iButton3,
+                                                   strHackValue == "true" ? 0 : pBoxParent);
     windowManager().registerNewParent(pBox, pBoxParent);
 
     /* Load option: */
@@ -2245,9 +2247,11 @@ int UIMessageCenter::showMessageBox(QWidget *pParent, MessageType enmType,
 
     /* Create message-box: */
     QWidget *pMessageBoxParent = windowManager().realParentWindow(pParent ? pParent : windowManager().mainWindowShown());
+    const QString strHackValue = gEDataManager->extraDataString("GUI/Hack/MakeMessageBoxParentless");
     QPointer<QIMessageBox> pMessageBox = new QIMessageBox(title, strMessage, icon,
                                                           iButton1, iButton2, iButton3,
-                                                          pMessageBoxParent, strHelpKeyword);
+                                                          strHackValue == "true" ? 0 : pMessageBoxParent,
+                                                          strHelpKeyword);
     windowManager().registerNewParent(pMessageBox, pMessageBoxParent);
 
     /* Prepare auto-confirmation check-box: */
