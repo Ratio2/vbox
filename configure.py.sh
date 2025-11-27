@@ -1,7 +1,8 @@
 #!/bin/sh
-
-# $Id$
+## @file
 # Thin shell wrapper to call configure.py with passed arguments.
+# $Id$
+
 #
 # Copyright (C) 2025 Oracle and/or its affiliates.
 #
