@@ -161,6 +161,7 @@ int emR3NemHandleRC(PVM pVM, PVMCPU pVCpu, int rc)
 
         case VINF_EM_RAW_INJECT_TRPM_EVENT:
             CPUM_IMPORT_EXTRN_RET(pVCpu, IEM_CPUMCTX_EXTRN_XCPT_MASK);
+            IEMTlbInvalidateAll(pVCpu);
             rc = VBOXSTRICTRC_VAL(IEMInjectTrpmEvent(pVCpu));
             /* The following condition should be removed when IEM_IMPLEMENTS_TASKSWITCH becomes true. */
             if (rc == VERR_IEM_ASPECT_NOT_IMPLEMENTED)

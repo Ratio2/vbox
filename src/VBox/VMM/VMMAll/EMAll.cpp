@@ -418,6 +418,7 @@ VMM_INT_DECL(VBOXSTRICTRC) EMHistoryExec(PVMCPUCC pVCpu, PCEMEXITREC pExitRec, u
         {
             STAM_REL_PROFILE_START(&pVCpu->em.s.StatHistoryExec, a);
             LogFlow(("EMHistoryExec/EXEC_WITH_MAX: %RX64, max %u\n", pExitRec->uFlatPC, pExitRec->cMaxInstructionsWithoutExit));
+            IEMTlbInvalidateAll(pVCpu);
             VBOXSTRICTRC rcStrict = IEMExecForExits(pVCpu, fWillExit,
                                                     pExitRec->cMaxInstructionsWithoutExit /* cMinInstructions*/,
                                                     pVCpu->em.s.cHistoryExecMaxInstructions,
@@ -450,6 +451,7 @@ VMM_INT_DECL(VBOXSTRICTRC) EMHistoryExec(PVMCPUCC pVCpu, PCEMEXITREC pExitRec, u
             STAM_REL_PROFILE_START(&pVCpu->em.s.StatHistoryProbe, b);
             LogFlow(("EMHistoryExec/EXEC_PROBE: %RX64\n", pExitRec->uFlatPC));
             PEMEXITREC   pExitRecUnconst = (PEMEXITREC)pExitRec;
+            IEMTlbInvalidateAll(pVCpu);
             VBOXSTRICTRC rcStrict = IEMExecForExits(pVCpu, fWillExit,
                                                     pVCpu->em.s.cHistoryProbeMinInstructions,
                                                     pVCpu->em.s.cHistoryExecMaxInstructions,
