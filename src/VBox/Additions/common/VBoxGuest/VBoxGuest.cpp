@@ -2343,7 +2343,7 @@ static int vgdrvCheckIfVmmReqIsAllowed(PVBOXGUESTDEVEXT pDevExt, PVBOXGUESTSESSI
 #ifdef VBOX_WITH_HGCM
         case VMMDevReq_HGCMConnect:
         case VMMDevReq_HGCMDisconnect:
-# ifdef VBOX_WITH_64_BITS_GUESTS
+# if defined(RT_ARCH_AMD64) || defined(RT_ARCH_ARM64)
         case VMMDevReq_HGCMCall64:
 # endif
         case VMMDevReq_HGCMCall32:
