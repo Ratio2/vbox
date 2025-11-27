@@ -168,6 +168,9 @@ DECLINLINE(VBOXSTRICTRC) iemSvmWorldSwitch(PVMCPUCC pVCpu, uint8_t cbInstr)
  */
 VBOXSTRICTRC iemSvmVmexit(PVMCPUCC pVCpu, uint64_t uExitCode, uint64_t uExitInfo1, uint64_t uExitInfo2) RT_NOEXCEPT
 {
+    /* Just count this as an exit and be done with that. */
+    ICORE(pVCpu).cPotentialExits++;
+
     VBOXSTRICTRC rcStrict;
     if (   CPUMIsGuestInSvmNestedHwVirtMode(IEM_GET_CTX(pVCpu))
         || uExitCode == SVM_EXIT_INVALID)
