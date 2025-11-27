@@ -39,16 +39,10 @@
 #include "KRecordingCodecDeadline.h"
 
 /* Forward declarations: */
-class QCheckBox;
-class QComboBox;
 class QGridLayout;
 class QLabel;
 class QSpinBox;
-class QWidget;
 class QIAdvancedSlider;
-class UIFilmContainer;
-class UIRecordingFilePathEditor;
-class UIRecordingVideoFrameRateEditor;
 
 
 /** UIEditor sub-class used as a recording settings editor. */

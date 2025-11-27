@@ -26,26 +26,15 @@
  */
 
 /* Qt includes: */
-#include <QCheckBox>
-#include <QComboBox>
 #include <QHBoxLayout>
 #include <QGridLayout>
 #include <QLabel>
 #include <QSpinBox>
-#include <QVBoxLayout>
 
 /* GUI includes: */
 #include "QIAdvancedSlider.h"
 #include "UICommon.h"
-#include "UIConverter.h"
-#include "UIFilmContainer.h"
-#include "UIGlobalSession.h"
 #include "UIRecordingVideoBitrateEditor.h"
-#include "UIRecordingFilePathEditor.h"
-#include "UIRecordingVideoFrameRateEditor.h"
-
-/* COM includes: */
-#include "CSystemProperties.h"
 
 /* Defines: */
 #define VIDEO_CAPTURE_BIT_RATE_MIN 32
@@ -219,10 +208,7 @@ void UIRecordingVideoBitrateEditor::prepareWidgets()
 
             pLayout->addWidget(m_pSpinboxBitRate);
         }
-
-
     }
-
 }
 
 void UIRecordingVideoBitrateEditor::prepareConnections()
