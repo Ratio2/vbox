@@ -47,7 +47,11 @@ AssertCompileSize(uint16_t, 2);
 AssertCompileSize(uint32_t, 4);
 AssertCompileSize(uint64_t, 8);
 AssertCompileSize(RTRCPTR,  4);
+#ifdef VBOX_WITH_64_BITS_GUESTS
 AssertCompileSize(RTGCPTR,  8);
+#else
+AssertCompileSize(RTGCPTR,  4);
+#endif
 AssertCompileSize(RTGCPHYS, 8);
 AssertCompileSize(RTHCPHYS, 8);
 

@@ -728,6 +728,9 @@ PCPUMMSRRANGE       cpumLookupMsrRange(PVM pVM, uint32_t idMsr);
 #  if defined(VBOX_VMM_TARGET_X86) /** @todo temporary: */ || defined(VBOX_VMM_TARGET_AGNOSTIC)
 DECLASM(int)        cpumR0SaveHostRestoreGuestFPUState(PCPUMCPU pCPUM);
 DECLASM(void)       cpumR0SaveGuestRestoreHostFPUState(PCPUMCPU pCPUM);
+#   if ARCH_BITS == 32 && defined(VBOX_WITH_64_BITS_GUESTS)
+DECLASM(void)       cpumR0RestoreHostFPUState(PCPUMCPU pCPUM);
+#   endif
 #  endif
 # endif
 

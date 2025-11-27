@@ -134,13 +134,15 @@ static bool pgmHandlePageZeroingCode(PVMCPUCC pVCpu, PCPUMCTX pCtx);
 # undef PGM_GST_TYPE
 # undef PGM_GST_NAME
 
+# ifdef VBOX_WITH_64_BITS_GUESTS
 /* Guest - AMD64 mode */
-# define PGM_GST_TYPE              PGM_TYPE_AMD64
-# define PGM_GST_NAME(name)        PGM_GST_NAME_AMD64(name)
-# include "PGMGstDefs-x86.h"
-# include "PGMAllGst-x86.cpp.h"
-# undef PGM_GST_TYPE
-# undef PGM_GST_NAME
+#  define PGM_GST_TYPE              PGM_TYPE_AMD64
+#  define PGM_GST_NAME(name)        PGM_GST_NAME_AMD64(name)
+#  include "PGMGstDefs-x86.h"
+#  include "PGMAllGst-x86.cpp.h"
+#  undef PGM_GST_TYPE
+#  undef PGM_GST_NAME
+# endif /* VBOX_WITH_64_BITS_GUESTS */
 
 # undef PGM_SHW_TYPE
 
@@ -239,21 +241,23 @@ static bool pgmHandlePageZeroingCode(PVMCPUCC pVCpu, PCPUMCTX pCtx);
 # undef PGM_GST_TYPE
 # undef PGM_GST_NAME
 
+# ifdef VBOX_WITH_64_BITS_GUESTS
 /* Guest - AMD64 mode */
-# define PGM_GST_TYPE              PGM_TYPE_AMD64
-# define PGM_GST_NAME(name)        PGM_GST_NAME_AMD64(name)
-# define PGM_BTH_NAME(name)        PGM_BTH_NAME_AMD64_AMD64(name)
-# define BTH_PGMPOOLKIND_PT_FOR_PT PGMPOOLKIND_PAE_PT_FOR_PAE_PT
-# define BTH_PGMPOOLKIND_PT_FOR_BIG PGMPOOLKIND_PAE_PT_FOR_PAE_2MB
-# define BTH_PGMPOOLKIND_ROOT      PGMPOOLKIND_64BIT_PML4
-# include "PGMGstDefs-x86.h"
-# include "PGMAllBth-x86.cpp.h"
-# undef BTH_PGMPOOLKIND_PT_FOR_BIG
-# undef BTH_PGMPOOLKIND_PT_FOR_PT
-# undef BTH_PGMPOOLKIND_ROOT
-# undef PGM_BTH_NAME
-# undef PGM_GST_TYPE
-# undef PGM_GST_NAME
+#  define PGM_GST_TYPE              PGM_TYPE_AMD64
+#  define PGM_GST_NAME(name)        PGM_GST_NAME_AMD64(name)
+#  define PGM_BTH_NAME(name)        PGM_BTH_NAME_AMD64_AMD64(name)
+#  define BTH_PGMPOOLKIND_PT_FOR_PT PGMPOOLKIND_PAE_PT_FOR_PAE_PT
+#  define BTH_PGMPOOLKIND_PT_FOR_BIG PGMPOOLKIND_PAE_PT_FOR_PAE_2MB
+#  define BTH_PGMPOOLKIND_ROOT      PGMPOOLKIND_64BIT_PML4
+#  include "PGMGstDefs-x86.h"
+#  include "PGMAllBth-x86.cpp.h"
+#  undef BTH_PGMPOOLKIND_PT_FOR_BIG
+#  undef BTH_PGMPOOLKIND_PT_FOR_PT
+#  undef BTH_PGMPOOLKIND_ROOT
+#  undef PGM_BTH_NAME
+#  undef PGM_GST_TYPE
+#  undef PGM_GST_NAME
+# endif /* VBOX_WITH_64_BITS_GUESTS */
 
 # undef PGM_SHW_TYPE
 # undef PGM_SHW_NAME
@@ -306,15 +310,17 @@ static bool pgmHandlePageZeroingCode(PVMCPUCC pVCpu, PCPUMCTX pCtx);
 # undef PGM_GST_TYPE
 # undef PGM_GST_NAME
 
+# ifdef VBOX_WITH_64_BITS_GUESTS
 /* Guest - AMD64 mode */
-# define PGM_GST_TYPE               PGM_TYPE_AMD64
-# define PGM_GST_NAME(name)         PGM_GST_NAME_AMD64(name)
-# define PGM_BTH_NAME(name)         PGM_BTH_NAME_NESTED_AMD64_AMD64(name)
-# include "PGMGstDefs-x86.h"
-# include "PGMAllBth-x86.cpp.h"
-# undef PGM_BTH_NAME
-# undef PGM_GST_TYPE
-# undef PGM_GST_NAME
+#  define PGM_GST_TYPE               PGM_TYPE_AMD64
+#  define PGM_GST_NAME(name)         PGM_GST_NAME_AMD64(name)
+#  define PGM_BTH_NAME(name)         PGM_BTH_NAME_NESTED_AMD64_AMD64(name)
+#  include "PGMGstDefs-x86.h"
+#  include "PGMAllBth-x86.cpp.h"
+#  undef PGM_BTH_NAME
+#  undef PGM_GST_TYPE
+#  undef PGM_GST_NAME
+# endif /* VBOX_WITH_64_BITS_GUESTS */
 
 # undef PGM_SHW_TYPE
 # undef PGM_SHW_NAME
@@ -375,17 +381,19 @@ static bool pgmHandlePageZeroingCode(PVMCPUCC pVCpu, PCPUMCTX pCtx);
 # undef PGM_GST_TYPE
 # undef PGM_GST_NAME
 
+# ifdef VBOX_WITH_64_BITS_GUESTS
 /* Guest - AMD64 mode */
-# define PGM_GST_TYPE               PGM_TYPE_AMD64
-# define PGM_GST_NAME(name)         PGM_GST_NAME_AMD64(name)
-# define PGM_BTH_NAME(name)         PGM_BTH_NAME_EPT_AMD64(name)
-# define BTH_PGMPOOLKIND_PT_FOR_PT  PGMPOOLKIND_EPT_PT_FOR_PHYS
-# include "PGMGstDefs-x86.h"
-# include "PGMAllBth-x86.cpp.h"
-# undef BTH_PGMPOOLKIND_PT_FOR_PT
-# undef PGM_BTH_NAME
-# undef PGM_GST_TYPE
-# undef PGM_GST_NAME
+#  define PGM_GST_TYPE               PGM_TYPE_AMD64
+#  define PGM_GST_NAME(name)         PGM_GST_NAME_AMD64(name)
+#  define PGM_BTH_NAME(name)         PGM_BTH_NAME_EPT_AMD64(name)
+#  define BTH_PGMPOOLKIND_PT_FOR_PT  PGMPOOLKIND_EPT_PT_FOR_PHYS
+#  include "PGMGstDefs-x86.h"
+#  include "PGMAllBth-x86.cpp.h"
+#  undef BTH_PGMPOOLKIND_PT_FOR_PT
+#  undef PGM_BTH_NAME
+#  undef PGM_GST_TYPE
+#  undef PGM_GST_NAME
+# endif /* VBOX_WITH_64_BITS_GUESTS */
 
 # undef PGM_SHW_TYPE
 # undef PGM_SHW_NAME
@@ -438,15 +446,17 @@ static bool pgmHandlePageZeroingCode(PVMCPUCC pVCpu, PCPUMCTX pCtx);
 # undef PGM_GST_TYPE
 # undef PGM_GST_NAME
 
+# ifdef VBOX_WITH_64_BITS_GUESTS
 /* Guest - AMD64 mode */
-# define PGM_GST_TYPE               PGM_TYPE_AMD64
-# define PGM_GST_NAME(name)         PGM_GST_NAME_AMD64(name)
-# define PGM_BTH_NAME(name)         PGM_BTH_NAME_NONE_AMD64(name)
-# include "PGMGstDefs-x86.h"
-# include "PGMAllBth-x86.cpp.h"
-# undef PGM_BTH_NAME
-# undef PGM_GST_TYPE
-# undef PGM_GST_NAME
+#  define PGM_GST_TYPE               PGM_TYPE_AMD64
+#  define PGM_GST_NAME(name)         PGM_GST_NAME_AMD64(name)
+#  define PGM_BTH_NAME(name)         PGM_BTH_NAME_NONE_AMD64(name)
+#  include "PGMGstDefs-x86.h"
+#  include "PGMAllBth-x86.cpp.h"
+#  undef PGM_BTH_NAME
+#  undef PGM_GST_TYPE
+#  undef PGM_GST_NAME
+# endif /* VBOX_WITH_64_BITS_GUESTS */
 
 # undef PGM_SHW_TYPE
 # undef PGM_SHW_NAME
@@ -503,6 +513,7 @@ PGMMODEDATAGST const g_aPgmGuestModeData[PGM_GUEST_MODE_DATA_ARRAY_SIZE] =
         PGM_GST_NAME_PAE(Relocate),
 # endif
     },
+# ifdef VBOX_WITH_64_BITS_GUESTS
     {
         PGM_TYPE_AMD64,
         PGM_GST_NAME_AMD64(GetPage),
@@ -510,10 +521,11 @@ PGMMODEDATAGST const g_aPgmGuestModeData[PGM_GUEST_MODE_DATA_ARRAY_SIZE] =
         PGM_GST_NAME_AMD64(ModifyPage),
         PGM_GST_NAME_AMD64(Enter),
         PGM_GST_NAME_AMD64(Exit),
-# ifdef IN_RING3
+#  ifdef IN_RING3
         PGM_GST_NAME_AMD64(Relocate),
-# endif
+#  endif
     },
+# endif
 };
 
 
@@ -642,7 +654,11 @@ PGMMODEDATABTH const g_aPgmBothModeData[PGM_BOTH_MODE_DATA_ARRAY_SIZE] =
     PGMMODEDATABTH_NULL_ENTRY(), //PGMMODEDATABTH_ENTRY(PGM_TYPE_AMD64, PGM_TYPE_PROT,  PGM_BTH_NAME_AMD64_PROT),
     PGMMODEDATABTH_NULL_ENTRY(), //PGMMODEDATABTH_ENTRY(PGM_TYPE_AMD64, PGM_TYPE_32BIT, PGM_BTH_NAME_AMD64_32BIT),
     PGMMODEDATABTH_NULL_ENTRY(), //PGMMODEDATABTH_ENTRY(PGM_TYPE_AMD64, PGM_TYPE_PAE,   PGM_BTH_NAME_AMD64_PAE),
+# ifdef VBOX_WITH_64_BITS_GUESTS
     PGMMODEDATABTH_ENTRY(PGM_TYPE_AMD64, PGM_TYPE_AMD64, PGM_BTH_NAME_AMD64_AMD64),
+# else
+    PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_AMD64, PGM_TYPE_AMD64        - illegal */
+# endif
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_AMD64, PGM_TYPE_NESTED_32BIT - illegal */
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_AMD64, PGM_TYPE_NESTED_PAE   - illegal */
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_AMD64, PGM_TYPE_NESTED_AMD64 - illegal */
@@ -681,7 +697,11 @@ PGMMODEDATABTH const g_aPgmBothModeData[PGM_BOTH_MODE_DATA_ARRAY_SIZE] =
     PGMMODEDATABTH_ENTRY(PGM_TYPE_NESTED_AMD64, PGM_TYPE_PROT,  PGM_BTH_NAME_NESTED_AMD64_PROT),
     PGMMODEDATABTH_ENTRY(PGM_TYPE_NESTED_AMD64, PGM_TYPE_32BIT, PGM_BTH_NAME_NESTED_AMD64_32BIT),
     PGMMODEDATABTH_ENTRY(PGM_TYPE_NESTED_AMD64, PGM_TYPE_PAE,   PGM_BTH_NAME_NESTED_AMD64_PAE),
+# ifdef VBOX_WITH_64_BITS_GUESTS
     PGMMODEDATABTH_ENTRY(PGM_TYPE_NESTED_AMD64, PGM_TYPE_AMD64, PGM_BTH_NAME_NESTED_AMD64_AMD64),
+# else
+    PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_NESTED_AMD64, PGM_TYPE_AMD64        - illegal */
+# endif
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_NESTED_AMD64, PGM_TYPE_NESTED_32BIT - illegal */
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_NESTED_AMD64, PGM_TYPE_NESTED_PAE   - illegal */
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_NESTED_AMD64, PGM_TYPE_NESTED_AMD64 - illegal */
@@ -694,7 +714,11 @@ PGMMODEDATABTH const g_aPgmBothModeData[PGM_BOTH_MODE_DATA_ARRAY_SIZE] =
     PGMMODEDATABTH_ENTRY(PGM_TYPE_EPT, PGM_TYPE_PROT,  PGM_BTH_NAME_EPT_PROT),
     PGMMODEDATABTH_ENTRY(PGM_TYPE_EPT, PGM_TYPE_32BIT, PGM_BTH_NAME_EPT_32BIT),
     PGMMODEDATABTH_ENTRY(PGM_TYPE_EPT, PGM_TYPE_PAE,   PGM_BTH_NAME_EPT_PAE),
+# ifdef VBOX_WITH_64_BITS_GUESTS
     PGMMODEDATABTH_ENTRY(PGM_TYPE_EPT, PGM_TYPE_AMD64, PGM_BTH_NAME_EPT_AMD64),
+# else
+    PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_EPT, PGM_TYPE_AMD64        - illegal */
+# endif
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_EPT, PGM_TYPE_NESTED_32BIT - illegal */
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_EPT, PGM_TYPE_NESTED_PAE   - illegal */
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_EPT, PGM_TYPE_NESTED_AMD64 - illegal */
@@ -707,7 +731,11 @@ PGMMODEDATABTH const g_aPgmBothModeData[PGM_BOTH_MODE_DATA_ARRAY_SIZE] =
     PGMMODEDATABTH_ENTRY(PGM_TYPE_NONE, PGM_TYPE_PROT,  PGM_BTH_NAME_EPT_PROT),
     PGMMODEDATABTH_ENTRY(PGM_TYPE_NONE, PGM_TYPE_32BIT, PGM_BTH_NAME_EPT_32BIT),
     PGMMODEDATABTH_ENTRY(PGM_TYPE_NONE, PGM_TYPE_PAE,   PGM_BTH_NAME_EPT_PAE),
+# ifdef VBOX_WITH_64_BITS_GUESTS
     PGMMODEDATABTH_ENTRY(PGM_TYPE_NONE, PGM_TYPE_AMD64, PGM_BTH_NAME_EPT_AMD64),
+# else
+    PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_NONE, PGM_TYPE_AMD64        - illegal */
+# endif
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_NONE, PGM_TYPE_NESTED_32BIT - illegal */
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_NONE, PGM_TYPE_NESTED_PAE   - illegal */
     PGMMODEDATABTH_NULL_ENTRY(), /* PGM_TYPE_NONE, PGM_TYPE_NESTED_AMD64 - illegal */
@@ -3545,10 +3573,12 @@ VMM_INT_DECL(int) PGMHCChangeMode(PVMCC pVM, PVMCPUCC pVCpu, PGMMODE enmGuestMod
             GCPhysCR3 = CPUMGetGuestCR3(pVCpu) & X86_CR3_PAE_PAGE_MASK;
             break;
 
+# ifdef VBOX_WITH_64_BITS_GUESTS
         case PGMMODE_AMD64_NX:
         case PGMMODE_AMD64:
             GCPhysCR3 = CPUMGetGuestCR3(pVCpu) & X86_CR3_AMD64_PAGE_MASK;
             break;
+# endif
         default:
             AssertLogRelMsgFailedReturn(("enmGuestMode=%d\n", enmGuestMode), VERR_PGM_MODE_IPE);
     }

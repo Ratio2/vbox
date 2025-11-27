@@ -512,6 +512,8 @@ else
 endif
 # Enable safe STR (store task register) emulation for raw-mode.
 VBOX_WITH_SAFE_STR = 1
+# Enable support for 64-bit guests.
+VBOX_WITH_64_BITS_GUESTS = 1
 # Enable multi-core VCPUs.
 VBOX_WITH_MULTI_CORE = 1
 # Activate this to force the VM to pre-allocate the guest RAM before startup
@@ -2067,6 +2069,9 @@ endif
 ifdef VBOX_OSE
  DEFS += VBOX_OSE
 endif
+ifdef VBOX_WITH_64_BITS_GUESTS
+ DEFS += VBOX_WITH_64_BITS_GUESTS
+endif
 ifdef VBOX_WITH_REM
  DEFS += VBOX_WITH_REM
 endif
@@ -2218,7 +2223,11 @@ else
  $(error VBox: KBUILD_TARGET_ARCH=$(KBUILD_TARGET_ARCH))
 endif
 
-VBOX_GC_ARCH_BITS_DEFS := GC_ARCH_BITS=64
+ifdef VBOX_WITH_64_BITS_GUESTS
+ VBOX_GC_ARCH_BITS_DEFS := GC_ARCH_BITS=64
+else
+ VBOX_GC_ARCH_BITS_DEFS := GC_ARCH_BITS=32
+endif
 ARCH_BITS_DEFS += $(VBOX_GC_ARCH_BITS_DEFS)
 
 #
