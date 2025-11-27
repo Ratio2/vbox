@@ -299,6 +299,8 @@ namespace dxvk {
     struct DxvkVideoDecodeCapabilities {
       /* Whether vkCmdDecodeVideo output image can be not from DPB. */
       bool                              distinctOutputImage = false;
+      /* Whether DPB images are separate image resources or are array elements of one image resource. */
+      bool                              separateReferenceImages = true;
     };
     DxvkVideoDecodeCapabilities         m_caps;
 
