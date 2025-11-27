@@ -49,7 +49,7 @@
 typedef BOOL (WINAPI *PFNISWOW64PROCESS2)(HANDLE, USHORT *, USHORT *);
 
 
-static uint32_t rtSystemMachineToArchVal(USHORT uMachine)
+static uint32_t rtSystemNativeToArchVal(USHORT uMachine)
 {
     switch (uMachine)
     {
@@ -60,21 +60,6 @@ static uint32_t rtSystemMachineToArchVal(USHORT uMachine)
         case IMAGE_FILE_MACHINE_TARGET_HOST: return RT_ARCH_VAL;
         default:
             AssertMsgFailed(("Unknown value: uMachine=%#x\n", uMachine));
-            return 0;
-    }
-}
-
-
-static uint32_t rtSystemProcessorToArchVal(USHORT uProcessor)
-{
-    switch (uProcessor)
-    {
-        case PROCESSOR_ARCHITECTURE_INTEL:   return RT_ARCH_VAL_X86;
-        case PROCESSOR_ARCHITECTURE_ARM:     return RT_ARCH_VAL_ARM32;
-        case PROCESSOR_ARCHITECTURE_ARM64:   return RT_ARCH_VAL_ARM64;
-        case PROCESSOR_ARCHITECTURE_AMD64:   return RT_ARCH_VAL_AMD64;
-        default:
-            AssertMsgFailed(("Unknown value: uProcessor=%#x\n", uProcessor));
             return 0;
     }
 }
@@ -96,7 +81,7 @@ RTDECL(uint32_t) RTSystemGetNativeArch(void)
         USHORT uProcess = 0;
         USHORT uNative  = 0;
         if (pfnIsWow64Process2(GetCurrentProcess(), &uProcess, &uNative))
-            return rtSystemMachineToArchVal(uNative);
+            return rtSystemNativeToArchVal(uNative);
         AssertFailed();
     }
 
@@ -107,7 +92,7 @@ RTDECL(uint32_t) RTSystemGetNativeArch(void)
     if (g_enmWinVer >= kRTWinOSType_NT4)
     {
         KUSER_SHARED_DATA volatile *pUserSharedData = (KUSER_SHARED_DATA volatile *)MM_SHARED_USER_DATA_VA;
-        return rtSystemProcessorToArchVal(pUserSharedData->NativeProcessorArchitecture);
+        return rtSystemNativeToArchVal(pUserSharedData->NativeProcessorArchitecture);
     }
     return RT_ARCH_VAL;
 }
