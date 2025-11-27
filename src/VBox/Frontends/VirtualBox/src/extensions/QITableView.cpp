@@ -38,7 +38,8 @@
 
 
 /** QAccessibleObject extension used as an accessibility interface for QITableViewCell. */
-class QIAccessibilityInterfaceForQITableViewCell : public QAccessibleObject
+class QIAccessibilityInterfaceForQITableViewCell
+    : public QAccessibleObject
 {
 public:
 
@@ -58,6 +59,13 @@ public:
         : QAccessibleObject(pObject)
     {}
 
+    /** Returns the role. */
+    virtual QAccessible::Role role() const RT_OVERRIDE
+    {
+        /* Cell by default: */
+        return QAccessible::Cell;
+    }
+
     /** Returns the parent. */
     virtual QAccessibleInterface *parent() const RT_OVERRIDE
     {
@@ -66,24 +74,6 @@ public:
 
         /* Return the parent: */
         return QAccessible::queryAccessibleInterface(cell()->row());
-    }
-
-    /** Returns the number of children. */
-    virtual int childCount() const RT_OVERRIDE
-    {
-        return 0;
-    }
-
-    /** Returns the child with the passed @a iIndex. */
-    virtual QAccessibleInterface *child(int /* iIndex */) const RT_OVERRIDE
-    {
-        return 0;
-    }
-
-    /** Returns the index of the passed @a pChild. */
-    virtual int indexOfChild(const QAccessibleInterface * /* pChild */) const RT_OVERRIDE
-    {
-        return -1;
     }
 
     /** Returns the rect. */
@@ -109,6 +99,34 @@ public:
         return QRect(itemPosInScreen, QSize(iWidth, iHeight));
     }
 
+    /** Returns the number of children. */
+    virtual int childCount() const RT_OVERRIDE
+    {
+        return 0;
+    }
+
+    /** Returns the child with the passed @a iIndex. */
+    virtual QAccessibleInterface *child(int /* iIndex */) const RT_OVERRIDE
+    {
+        return 0;
+    }
+
+    /** Returns the index of the passed @a pChild. */
+    virtual int indexOfChild(const QAccessibleInterface * /* pChild */) const RT_OVERRIDE
+    {
+        return -1;
+    }
+
+    /** Returns the state. */
+    virtual QAccessible::State state() const RT_OVERRIDE
+    {
+        /* Make sure cell still alive: */
+        AssertPtrReturn(cell(), QAccessible::State());
+
+        /* Empty state by default: */
+        return QAccessible::State();
+    }
+
     /** Returns a text for the passed @a enmTextRole. */
     virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE
     {
@@ -126,23 +144,6 @@ public:
         return QString();
     }
 
-    /** Returns the role. */
-    virtual QAccessible::Role role() const RT_OVERRIDE
-    {
-        /* Cell by default: */
-        return QAccessible::Cell;
-    }
-
-    /** Returns the state. */
-    virtual QAccessible::State state() const RT_OVERRIDE
-    {
-        /* Make sure cell still alive: */
-        AssertPtrReturn(cell(), QAccessible::State());
-
-        /* Empty state by default: */
-        return QAccessible::State();
-    }
-
 private:
 
     /** Returns corresponding QITableViewCell. */
@@ -151,7 +152,8 @@ private:
 
 
 /** QAccessibleObject extension used as an accessibility interface for QITableViewRow. */
-class QIAccessibilityInterfaceForQITableViewRow : public QAccessibleObject
+class QIAccessibilityInterfaceForQITableViewRow
+    : public QAccessibleObject
 {
 public:
 
@@ -171,6 +173,13 @@ public:
         : QAccessibleObject(pObject)
     {}
 
+    /** Returns the role. */
+    virtual QAccessible::Role role() const RT_OVERRIDE
+    {
+        /* Row by default: */
+        return QAccessible::Row;
+    }
+
     /** Returns the parent. */
     virtual QAccessibleInterface *parent() const RT_OVERRIDE
     {
@@ -179,6 +188,30 @@ public:
 
         /* Return the parent: */
         return QAccessible::queryAccessibleInterface(row()->table());
+    }
+
+    /** Returns the rect. */
+    virtual QRect rect() const RT_OVERRIDE
+    {
+        /* Make sure row still alive: */
+        AssertPtrReturn(row(), QRect());
+        AssertPtrReturn(row()->table(), QRect());
+
+        /* Calculate local item coordinates: */
+        const int iIndexInParent = parent()->indexOfChild(this);
+        const int iX = row()->table()->columnViewportPosition(0);
+        const int iY = row()->table()->rowViewportPosition(iIndexInParent);
+        int iWidth = 0;
+        int iHeight = 0;
+        for (int i = 0; i < childCount(); ++i)
+            iWidth += row()->table()->columnWidth(i);
+        iHeight += row()->table()->rowHeight(iIndexInParent);
+
+        /* Map local item coordinates to global: */
+        const QPoint itemPosInScreen = row()->table()->viewport()->mapToGlobal(QPoint(iX, iY));
+
+        /* Return item rectangle: */
+        return QRect(itemPosInScreen, QSize(iWidth, iHeight));
     }
 
     /** Returns the number of children. */
@@ -215,28 +248,14 @@ public:
         return -1;
     }
 
-    /** Returns the rect. */
-    virtual QRect rect() const RT_OVERRIDE
+    /** Returns the state. */
+    virtual QAccessible::State state() const RT_OVERRIDE
     {
         /* Make sure row still alive: */
-        AssertPtrReturn(row(), QRect());
-        AssertPtrReturn(row()->table(), QRect());
+        AssertPtrReturn(row(), QAccessible::State());
 
-        /* Calculate local item coordinates: */
-        const int iIndexInParent = parent()->indexOfChild(this);
-        const int iX = row()->table()->columnViewportPosition(0);
-        const int iY = row()->table()->rowViewportPosition(iIndexInParent);
-        int iWidth = 0;
-        int iHeight = 0;
-        for (int i = 0; i < childCount(); ++i)
-            iWidth += row()->table()->columnWidth(i);
-        iHeight += row()->table()->rowHeight(iIndexInParent);
-
-        /* Map local item coordinates to global: */
-        const QPoint itemPosInScreen = row()->table()->viewport()->mapToGlobal(QPoint(iX, iY));
-
-        /* Return item rectangle: */
-        return QRect(itemPosInScreen, QSize(iWidth, iHeight));
+        /* Empty state by default: */
+        return QAccessible::State();
     }
 
     /** Returns a text for the passed @a enmTextRole. */
@@ -256,23 +275,6 @@ public:
         return QString();
     }
 
-    /** Returns the role. */
-    virtual QAccessible::Role role() const RT_OVERRIDE
-    {
-        /* Row by default: */
-        return QAccessible::Row;
-    }
-
-    /** Returns the state. */
-    virtual QAccessible::State state() const RT_OVERRIDE
-    {
-        /* Make sure row still alive: */
-        AssertPtrReturn(row(), QAccessible::State());
-
-        /* Empty state by default: */
-        return QAccessible::State();
-    }
-
 private:
 
     /** Returns corresponding QITableViewRow. */
@@ -281,7 +283,8 @@ private:
 
 
 /** QAccessibleWidget extension used as an accessibility interface for QITableView. */
-class QIAccessibilityInterfaceForQITableView : public QAccessibleWidget
+class QIAccessibilityInterfaceForQITableView
+    : public QAccessibleWidget
 {
 public:
 
