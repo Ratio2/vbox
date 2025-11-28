@@ -32,6 +32,7 @@
 /* GUI includes: */
 #include "QIStyledItemDelegate.h"
 #include "QITableView.h"
+#include "UIAccessible.h"
 
 /* Other VBox includes: */
 #include "iprt/assert.h"
@@ -338,6 +339,7 @@ class QIAccessibilityInterfaceForQITableView
 #ifndef VBOX_WS_MAC
     , public QAccessibleSelectionInterface
 #endif
+    , public UIAccessibleAdvancedInterface
 {
 public:
 
@@ -354,7 +356,7 @@ public:
 
     /** Constructs an accessibility interface passing @a pWidget to the base-class. */
     QIAccessibilityInterfaceForQITableView(QWidget *pWidget)
-        : QAccessibleWidget(pWidget, QAccessible::List)
+        : QAccessibleWidget(pWidget, QAccessible::Table)
     {}
 
     /** Returns a specialized accessibility interface @a enmType. */
@@ -369,6 +371,8 @@ public:
             case QAccessible::SelectionInterface:
                 return static_cast<QAccessibleSelectionInterface*>(this);
 #endif
+            case UIAccessible::Advanced:
+                return static_cast<UIAccessibleAdvancedInterface*>(this);
             default:
                 break;
         }
@@ -382,11 +386,9 @@ public:
         /* Sanity check: */
         QITableView *pTable = table();
         AssertPtrReturn(pTable, 0);
-        QAbstractItemModel *pModel = pTable->model();
-        AssertPtrReturn(pModel, 0);
 
-        /* Return the number of children: */
-        return pModel->rowCount();
+        /* Return the number of children table has: */
+        return pTable->count();
     }
 
     /** Returns the child with the passed @a iIndex. */
@@ -394,45 +396,40 @@ public:
     {
         /* Sanity check: */
         AssertReturn(iIndex >= 0, 0);
+        if (childCount() == 0)
+            return 0;
         QITableView *pTable = table();
         AssertPtrReturn(pTable, 0);
         QAbstractItemModel *pModel = pTable->model();
         AssertPtrReturn(pModel, 0);
 
-        /* Real index might be different: */
-        int iRealRowIndex = iIndex;
-
-        // WORKAROUND:
-        // For a table-views Qt accessibility code has a hard-coded architecture which we do not like
-        // but have to live with, this architecture enumerates cells including header column and row,
-        // so Qt can try to address our interface with index which surely out of bounds by our laws.
-        // Let's assume that's exactly the case and try to enumerate cells including header column and row.
-        if (iRealRowIndex >= childCount())
+        /* For Advanced interface enabled we have special processing: */
+        if (isEnabled())
         {
-            // Split delimeter is overall column count, including vertical header:
+            // WORKAROUND:
+            // Qt's qtableview class has a piece of accessibility code we do not like.
+            // It's located in currentChanged() method and sends us iIndex calculated on
+            // the basis of current model-index, instead of current qtableviewrow/cell index.
+            // So qtableview enumerates all table-view rows/columns as children of level 0.
+            // We are locking interface for the case and have special handling.
+            //printf("Advanced iIndex: %d\n", iIndex);
+
+            // Take into account we also have header with 'column count' indexes,
+            // so we should start enumerating tree indexes since 'column count'.
             const int iColumnCount = pModel->columnCount() + 1 /* v_header */;
-            // Real index is zero-based, incoming is 1-based:
-            const int iRealIndex = iIndex - 1;
-            // Real row index, excluding horizontal header:
-            iRealRowIndex = iRealIndex / iColumnCount - 1 /* h_header */;
-            // printf("Invalid index: %d, Actual index: %d\n", iIndex, iRealRowIndex);
+            const int iRow = iIndex / iColumnCount - 1;
+            const int iColumn = iIndex % iColumnCount - 1;
+
+            // We can address this child directly:
+            const QModelIndex idxChild = pModel->index(iRow, iColumn, pTable->rootIndex());
+
+            // Return what we found:
+            return idxChild.isValid() ? QAccessible::queryAccessibleInterface(QITableViewCell::toCell(idxChild)) : 0;
         }
 
-        /* Make sure index fits the bounds finally: */
-        if (iRealRowIndex >= childCount())
-            return 0;
-
-        /* Acquire child-index: */
-        const QModelIndex childIndex = pModel->index(iRealRowIndex, 0);
-        /* Check whether we have proxy model set or source one otherwise: */
-        const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
-        /* Acquire source-model child-index (can be the same as original if there is no proxy model): */
-        const QModelIndex sourceChildIndex = pProxyModel ? pProxyModel->mapToSource(childIndex) : childIndex;
-
-        /* Acquire row item: */
-        QITableViewRow *pRow = static_cast<QITableViewRow*>(sourceChildIndex.internalPointer());
-        /* Return row's accessibility interface: */
-        return QAccessible::queryAccessibleInterface(pRow);
+        /* Return the child with the passed iIndex: */
+        //printf("iIndex = %d\n", iIndex);
+        return QAccessible::queryAccessibleInterface(pTable->child(iIndex));
     }
 
     /** Returns the index of the passed @a pChild. */
@@ -638,6 +635,33 @@ QITableView::~QITableView()
         disconnect(pEditor, 0, this, 0);
 }
 
+int QITableView::count() const
+{
+    /* Sanity check: */
+    QAbstractItemModel *pModel = model();
+    AssertPtrReturn(pModel, 0);
+
+    /* Return the number of children model has for root item: */
+    return pModel->rowCount(rootIndex());
+}
+
+QITableViewRow *QITableView::child(int iIndex) const
+{
+    /* Sanity check: */
+    AssertReturn(iIndex >= 0, 0);
+    if (count() == 0)
+        return 0;
+    QAbstractItemModel *pModel = model();
+    AssertPtrReturn(pModel, 0);
+
+    /* Compose child model-index: */
+    const QModelIndex idxChild = pModel->index(iIndex, 0, rootIndex());
+    AssertReturn(idxChild.isValid(), 0);
+
+    /* Return table row: */
+    return QITableViewRow::toRow(idxChild);
+}
+
 QITableViewCell *QITableView::currentCell() const
 {
     return QITableViewCell::toCell(currentIndex());
@@ -667,6 +691,10 @@ void QITableView::makeSureEditorDataCommitted()
 
 void QITableView::currentChanged(const QModelIndex &current, const QModelIndex &previous)
 {
+    /* A call to base-class needs to be executed by advanced interface: */
+    UIAccessibleAdvancedInterfaceLocker locker(this);
+    Q_UNUSED(locker);
+
     /* Notify listeners about index changed: */
     emit sigCurrentChanged(current, previous);
     /* Call to base-class: */
@@ -675,6 +703,10 @@ void QITableView::currentChanged(const QModelIndex &current, const QModelIndex &
 
 void QITableView::selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
 {
+    /* A call to base-class needs to be executed by advanced interface: */
+    UIAccessibleAdvancedInterfaceLocker locker(this);
+    Q_UNUSED(locker);
+
     /* Notify listeners about index changed: */
     emit sigSelectionChanged(selected, deselected);
     /* Call to base-class: */

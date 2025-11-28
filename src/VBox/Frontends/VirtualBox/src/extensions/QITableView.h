@@ -124,6 +124,11 @@ public:
     /** Destructs table-view. */
     virtual ~QITableView() RT_OVERRIDE;
 
+    /** Returns the number of children. */
+    int count() const;
+    /** Returns the child item with @a iIndex. */
+    QITableViewRow *child(int iIndex) const;
+
     /** Returns current cell. */
     QITableViewCell *currentCell() const;
     /** Returns current row. */
