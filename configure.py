@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+"""
+Configuration script for building VirtualBox.
+"""
 
 # -*- coding: utf-8 -*-
 # $Id$
@@ -43,6 +46,7 @@ import tempfile
 
 g_sScriptPath = os.path.abspath(os.path.dirname(__file__));
 g_sScriptName = os.path.basename(__file__);
+g_sOutPath    = os.path.join(g_sScriptPath, 'out');
 
 class Log(io.TextIOBase):
     """
@@ -86,7 +90,7 @@ g_enmHostArch = {
     "arm64": BuildArch.ARM64
 }.get(g_sHostArch, BuildArch.UNKNOWN);
 
-class BuildTargets:
+class BuildTarget:
     """
     Supported build targets enumeration.
     This resembles the kBuild targets.
@@ -112,16 +116,16 @@ g_cWarnings = 0;
 g_sHostTarget = platform.system().lower();
 # Maps Python system string to kBuild build targets.
 g_enmHostTarget = {
-    "linux":    BuildTargets.LINUX,
-    "win":      BuildTargets.WINDOWS,
-    "darwin":   BuildTargets.DARWIN,
-    "solaris":  BuildTargets.SOLARIS,
-    "freebsd":  BuildTargets.BSD,
-    "openbsd":  BuildTargets.BSD,
-    "netbsd":   BuildTargets.BSD,
-    "haiku":    BuildTargets.HAIKU,
-    "":         BuildTargets.UNKNOWN
-}.get(g_sHostTarget, BuildTargets.UNKNOWN);
+    "linux":    BuildTarget.LINUX,
+    "win":      BuildTarget.WINDOWS,
+    "darwin":   BuildTarget.DARWIN,
+    "solaris":  BuildTarget.SOLARIS,
+    "freebsd":  BuildTarget.BSD,
+    "openbsd":  BuildTarget.BSD,
+    "netbsd":   BuildTarget.BSD,
+    "haiku":    BuildTarget.HAIKU,
+    "":         BuildTarget.UNKNOWN
+}.get(g_sHostTarget, BuildTarget.UNKNOWN);
 
 class BuildType:
     """
@@ -146,7 +150,7 @@ def printVerbose(uVerbosity, sMessage):
     if g_cVerbosity >= uVerbosity:
         print(f"--- {sMessage}");
 
-def checkWhich(sCmdName, sToolDesc, sCustomPath=None):
+def checkWhich(sCmdName, sToolDesc, sCustomPath=None, asVersionSwitches = None):
     """
     Helper to check for a command in PATH or custom path.
 
@@ -167,12 +171,14 @@ def checkWhich(sCmdName, sToolDesc, sCustomPath=None):
 
     # Try to get version.
     if sCmdPath:
-        asSwitches = [ '--version', '-V', '/?', '/h', '/help', '-version', 'version' ];
+        if not asVersionSwitches:
+            asVersionSwitches = [ '--version', '-V', '/?', '/h', '/help', '-version', 'version' ];
         try:
-            for sSwitch in asSwitches:
+            for sSwitch in asVersionSwitches:
                 oProc = subprocess.run([sCmdPath, sSwitch], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=10);
                 if oProc.returncode == 0:
                     sVer = oProc.stdout.decode('utf-8', 'replace').strip().splitlines()[0];
+                    printVerbose(1, f"Detected version for '{sCmdName}' is: {sVer}");
                     return sCmdPath, sVer;
             return sCmdPath, '<unknown>';
         except subprocess.SubprocessError as ex:
@@ -220,7 +226,7 @@ class LibraryCheck:
         # Remove 'lib' prefix if present for -l on UNIX-y OSes.
         asLibArgs = [];
         for sLibCur in self.asLibFiles:
-            if  g_oEnv['KBUILD_TARGET'] != BuildTargets.WINDOWS:
+            if  g_oEnv['KBUILD_TARGET'] != BuildTarget.WINDOWS:
                 if sLibCur.startswith("lib"):
                     sLibCur = sLibCur[3:];
                 else:
@@ -325,8 +331,8 @@ class LibraryCheck:
         if self.sCustomPath:
             asPaths.extend([ os.path.join(self.sCustomPath, "include")] );
         # Use source tree lib paths first.
-        asPaths.extend([ os.path.join(g_sScriptPath, "src/libs") ]);
-        if  g_oEnv['KBUILD_TARGET'] == BuildTargets.WINDOWS:
+        asPaths.extend([ os.path.join(g_sScriptPath, "src/libs", self.sName) ]);
+        if  g_oEnv['KBUILD_TARGET'] == BuildTarget.WINDOWS:
             asRootDrivers = [ d+":" for d in "CDEFGHIJKLMNOPQRSTUVWXYZ" if os.path.exists(d+":") ];
             for r in asRootDrivers:
                 asPaths.extend([ os.path.join(r, p) for p in [
@@ -339,9 +345,16 @@ class LibraryCheck:
                              "/usr/include/" + sGnuType, "/usr/local/include/" + sGnuType,
                              "/usr/include/" + self.sName, "/usr/local/include/" + self.sName,
                              "/opt/include", "/opt/local/include" ]);
-            if  g_oEnv['KBUILD_TARGET'] == BuildTargets.DARWIN:
+            if  g_oEnv['KBUILD_TARGET'] == BuildTarget.DARWIN:
                 asPaths.extend([ "/opt/homebrew/include" ]);
-        return [p for p in asPaths if os.path.exists(p)];
+
+        asPathMatched = [];
+        for sPathCur in asPaths:
+            sPattern = sPathCur + '-*';
+            asPathMatched.extend(glob.glob(sPattern));
+        asPaths = asPathMatched + asPaths; # Put at the beginning.
+
+        return [p for p in asPaths if os.path.isdir(p)];
 
     def getLibSearchPaths(self):
         """
@@ -351,24 +364,31 @@ class LibraryCheck:
         if self.sCustomPath:
             asPaths = [os.path.join(self.sCustomPath, "lib")];
         # Use source tree lib paths first.
-        asPaths.extend([ os.path.join(g_sScriptPath, "src/libs") ]);
-        if  g_oEnv['KBUILD_TARGET'] == BuildTargets.WINDOWS:
+        asPaths.extend([ os.path.join(g_sScriptPath, "src/libs", self.sName) ]);
+        if  g_oEnv['KBUILD_TARGET'] == BuildTarget.WINDOWS:
             root_drives = [d+":" for d in "CDEFGHIJKLMNOPQRSTUVWXYZ" if os.path.exists(d+":")];
             for r in root_drives:
                 asPaths += [os.path.join(r, p) for p in [
                     "\\msys64\\mingw64\\lib", "\\msys64\\mingw32\\lib", "\\lib"]];
                 asPaths += [r"c:\\Program Files", r"c:\\Program Files (x86)"];
         else:
-            if  g_oEnv['KBUILD_TARGET'] == BuildTargets.LINUX \
-            or  g_oEnv['KBUILD_TARGET'] == BuildTargets.SOLARIS:
+            if  g_oEnv['KBUILD_TARGET'] == BuildTarget.LINUX \
+            or  g_oEnv['KBUILD_TARGET'] == BuildTarget.SOLARIS:
                 sGnuType = self.getLinuxGnuTypeFromPlatform();
                 # Sorted by most likely-ness.
-                asPaths = [ "/usr/lib", "/usr/local/lib",
-                            "/usr/lib/" + sGnuType, "/opt/local/lib/" + sGnuType,
-                            "/usr/lib64", "/lib", "/lib64",
-                            "/opt/lib", "/opt/local/lib" ];
+                asPaths.extend([ "/usr/lib", "/usr/local/lib",
+                                 "/usr/lib/" + sGnuType, "/opt/local/lib/" + sGnuType,
+                                 "/usr/lib64", "/lib", "/lib64",
+                                 "/opt/lib", "/opt/local/lib" ]);
             else: # Darwin
                 asPaths.append("/opt/homebrew/lib");
+
+        asPathMatched = [];
+        for sPathCur in asPaths:
+            sPattern = sPathCur + '-*';
+            asPathMatched.extend(glob.glob(sPattern));
+        asPaths = asPathMatched + asPaths; # Put at the beginning.
+
         return [p for p in asPaths if os.path.exists(p)];
 
     def checkInc(self):
@@ -383,6 +403,7 @@ class LibraryCheck:
         asHeaderToSearch.extend(self.asAltIncFiles);
         asSearchPaths = self.getIncSearchPaths();
         for sCurSearchPath in asSearchPaths:
+            printVerbose(1, f'Checking include path for {self.sName}: {sCurSearchPath}');
             for sCurHeader in asHeaderToSearch:
                 sCur = os.path.join(sCurSearchPath, sCurHeader);
                 if os.path.isfile(sCur):
@@ -405,14 +426,15 @@ class LibraryCheck:
             return True;
         sBasename = self.asLibFiles;
         asLibExts = [];
-        if  g_oEnv['KBUILD_TARGET'] == BuildTargets.WINDOWS:
+        if  g_oEnv['KBUILD_TARGET'] == BuildTarget.WINDOWS:
             asLibExts = [".lib", ".dll", ".a", ".dll.a"];
-        elif  g_oEnv['KBUILD_TARGET'] == BuildTargets.DARWIN:
+        elif  g_oEnv['KBUILD_TARGET'] == BuildTarget.DARWIN:
             asLibExts = [".a", ".dylib", ".so"];
         else:
             asLibExts = [".a", ".so"];
         asSearchPaths = self.getLibSearchPaths();
         for sCurSearchPath in asSearchPaths:
+            printVerbose(1, f'Checking library path for {self.sName}: {sCurSearchPath}');
             for sCurExt in asLibExts:
                 sPattern = os.path.join(sCurSearchPath, f"{sBasename}*{sCurExt}");
                 for sCurFile in glob.glob(sPattern):
@@ -434,7 +456,7 @@ class LibraryCheck:
             self.fHave = None;
             return;
         if  g_oEnv['KBUILD_TARGET'] in self.aeTargets \
-        or BuildTargets.ANY in self.aeTargets:
+        or BuildTarget.ANY in self.aeTargets:
             self.fHave = self.checkInc() and self.checkLib();
 
     def getStatusString(self):
@@ -457,7 +479,7 @@ class ToolCheck:
     """
     Describes and checks for a build tool.
     """
-    def __init__(self, sName, asCmd = None, fnCallback = None, aeTargets = BuildTargets.ANY):
+    def __init__(self, sName, asCmd = None, fnCallback = None, aeTargets = BuildTarget.ANY):
         """
         Constructor.
         """
@@ -497,7 +519,7 @@ class ToolCheck:
             self.fHave = None;
             return True;
         if g_oEnv['KBUILD_TARGET'] in self.aeTargets \
-        or BuildTargets.ANY in self.aeTargets:
+        or BuildTarget.ANY in self.aeTargets:
             if self.fnCallback: # Custom callback function provided?
                 self.fHave = self.fnCallback(self);
             else:
@@ -524,6 +546,126 @@ class ToolCheck:
     def __repr__(self):
         return f"{self.sName}: {self.getStatusString()}"
 
+    def checkCallback_kBuild(self):
+        """
+        Checks for kBuild stuff and sets the paths.
+        """
+
+        #
+        # Git submodules can only mirror whole repositories, not sub directories,
+        # meaning that kBuild is residing a level deeper than with svn externals.
+        #
+        if not g_oEnv['KBUILD_PATH']:
+            sPath = os.path.join(g_sScriptPath, 'kBuild/kBuild');
+            if not os.path.exists(sPath):
+                sPath = os.path.join(g_sScriptPath, 'kBuild');
+            sPath = os.path.join(sPath, 'bin', g_oEnv['KBUILD_TARGET'] + "." + g_oEnv['KBUILD_TARGET_ARCH']);
+            if os.path.exists(sPath):
+                if  checkWhich('kmk', 'kBuild kmk', sPath) \
+                and checkWhich('kmk_ash', 'kBuild kmk_ash', sPath):
+                    g_oEnv.set('KBUILD_PATH', sPath);
+                    self.sCmdPath = g_oEnv['KBUILD_PATH'];
+                    return True;
+
+        return False;
+
+    def checkCallback_gcc(self):
+        """
+        Checks for gcc.
+        """
+        class gccTools:
+            """ Structure for the GCC tools. """
+            def __init__(self, name, switches):
+                self.sName = name;
+                self.asVerSwitches = switches;
+                self.sVer = None;
+                self.sPath = None;
+        asToolsToCheck = {
+            'gcc' : gccTools( "gcc", [ '-dumpfullversion', '-dumpversion' ] ),
+            'g++' : gccTools( "g++", [ '-dumpfullversion', '-dumpversion' ] )
+        };
+
+        for _, (sName, curEntry) in enumerate(asToolsToCheck.items()):
+            asToolsToCheck[sName].sPath, asToolsToCheck[sName].sVer = \
+                checkWhich(curEntry.sName, curEntry.sName, asVersionSwitches = curEntry.asVerSwitches);
+            if not asToolsToCheck[sName].sPath:
+                printError(f'{curEntry.sName} not found');
+                return False;
+
+        if asToolsToCheck['gcc'].sVer != asToolsToCheck['g++'].sVer:
+            printError('GCC and G++ versions do not match!');
+            return False;
+
+        g_oEnv.set('CC32',  os.path.basename(asToolsToCheck['gcc'].sPath));
+        g_oEnv.set('CXX32', os.path.basename(asToolsToCheck['g++'].sPath));
+        if g_enmHostArch == BuildArch.AMD64:
+            g_oEnv.append('CC32',  ' -m32');
+            g_oEnv.append('CXX32', ' -m32');
+        elif g_enmHostArch == BuildArch.X86 \
+        and  g_oEnv['KBUILD_TARGET_ARCH'] == BuildArch.AMD64: ## @todo Still needed?
+            g_oEnv.append('CC32',  ' -m64');
+            g_oEnv.append('CXX32', ' -m64');
+        elif g_oEnv['KBUILD_TARGET_ARCH'] == BuildArch.AMD64:
+            g_oEnv.unset('CC32');
+            g_oEnv.unset('CXX32');
+
+        sCC = os.path.basename(asToolsToCheck['gcc'].sPath);
+        if sCC != 'gcc':
+            g_oEnv.set('TOOL_GCC3_CC', sCC);
+            g_oEnv.set('TOOL_GCC3_AS', sCC);
+            g_oEnv.set('TOOL_GCC3_LD', sCC);
+            g_oEnv.set('TOOL_GXX3_CC', sCC);
+            g_oEnv.set('TOOL_GXX3_AS', sCC);
+        sCXX = os.path.basename(asToolsToCheck['g++'].sPath);
+        if sCXX != 'gxx':
+            g_oEnv.set('TOOL_GCC3_CXX', sCXX);
+            g_oEnv.set('TOOL_GXX3_CXX', sCXX);
+            g_oEnv.set('TOOL_GXX3_LD' , sCXX);
+
+        sCC32 = g_oEnv['CC32'];
+        if  sCC32 != 'gcc -m32' \
+        and sCC32 != '':
+            g_oEnv.set('TOOL_GCC3_CC', sCC32);
+            g_oEnv.set('TOOL_GCC3_AS', sCC32);
+            g_oEnv.set('TOOL_GCC3_LD', sCC32);
+            g_oEnv.set('TOOL_GXX3_CC', sCC32);
+            g_oEnv.set('TOOL_GXX3_AS', sCC32);
+
+        sCXX32 = g_oEnv['CXX32'];
+        if  sCXX32 != 'g++ -m32' \
+        and sCXX32 != '':
+            g_oEnv.set('TOOL_GCC32_CXX', sCXX32);
+            g_oEnv.set('TOOL_GXX32_CXX', sCXX32);
+            g_oEnv.set('TOOL_GXX32_LD' , sCXX32);
+
+        sCC64  = g_oEnv['CC64'];
+        sCXX64 = g_oEnv['CXX64'];
+        g_oEnv.set('TOOL_Bs3Gcc64Elf64_CC', sCC64 if sCC64 else sCC);
+        g_oEnv.set('TOOL_Bs3Gcc64Elf64_CXX', sCXX64 if sCXX64 else sCXX);
+
+        # Solaris sports a 32-bit gcc/g++.
+        if  g_oEnv['KBUILD_TARGET']      == BuildTarget.SOLARIS \
+        and g_oEnv['KBUILD_TARGET_ARCH'] == BuildArch.AMD64:
+            g_oEnv.set('CC' , 'gcc -m64' if sCC == 'gcc' else None);
+            g_oEnv.set('CXX', 'gxx -m64' if sCC == 'gxx' else None);
+
+        return True;
+
+    def checkCallback_devtools(self):
+        """
+        Checks for devtools and sets the paths.
+        """
+
+        if not g_oEnv['KBUILD_DEVTOOLS']:
+            sPath = os.path.join(g_sScriptPath, 'tools');
+            if os.path.exists(sPath):
+                sPath = os.path.join(sPath, g_oEnv['KBUILD_TARGET'] + "." + g_oEnv['KBUILD_TARGET_ARCH']);
+                if os.path.exists(sPath):
+                    g_oEnv.set('KBUILD_DEVTOOLS', sPath);
+                    self.sCmdPath = g_oEnv['KBUILD_DEVTOOLS'];
+                    return True;
+        return False;
+
     def checkCallback_OpenWatcom(self):
         """
         Checks for OpenWatcom tools.
@@ -531,11 +673,11 @@ class ToolCheck:
 
         # These are the sub directories OpenWatcom ships its binaries in.
         mapBuildTarget2Bin = {
-            BuildTargets.DARWIN:  "binosx",  ## @todo Still correct for Apple Silicon?
-            BuildTargets.LINUX:   "binl64" if g_oEnv['KBUILD_TARGET_ARCH'] is BuildArch.AMD64 else "arml64", # ASSUMES 64-bit.
-            BuildTargets.SOLARIS: "binsol",  ## @todo Test on Solaris.
-            BuildTargets.WINDOWS: "binnt",
-            BuildTargets.BSD:     "binnbsd"  ## @todo Test this on FreeBSD.
+            BuildTarget.DARWIN:  "binosx",  ## @todo Still correct for Apple Silicon?
+            BuildTarget.LINUX:   "binl64" if g_oEnv['KBUILD_TARGET_ARCH'] is BuildArch.AMD64 else "arml64", # ASSUMES 64-bit.
+            BuildTarget.SOLARIS: "binsol",  ## @todo Test on Solaris.
+            BuildTarget.WINDOWS: "binnt",
+            BuildTarget.BSD:     "binnbsd"  ## @todo Test this on FreeBSD.
         };
 
         sBinSubdir = mapBuildTarget2Bin.get(g_oEnv['KBUILD_TARGET'], None);
@@ -591,17 +733,30 @@ class EnvManager:
         """
         self.env = {};
 
-    def set(self, sKey, oVal):
+    def set(self, sKey, sVal):
         """
         Set the value for a given environment variable key.
         Empty values are allowed.
+        None values skips setting altogether (practical for inline comparison).
         """
-        if isinstance(oVal, str):
-            self.env[sKey] = oVal;
-        elif isinstance(oVal, bool):
-            self.env[sKey] = '1' if oVal is True else '';
-        else:
-            assert True, "Implement me!"
+        if sVal is None:
+            return;
+        assert isinstance(sVal, str);
+        self.env[sKey] = sVal;
+
+    def unset(self, sKey):
+        """
+        Unsets (deletes) a key from the set.
+        """
+        if sKey in self.env:
+            del self.env[sKey];
+
+    def append(self, sKey, sVal):
+        """
+        Appends a value to an existing key.
+        If the key does not exist yet, it will be created.
+        """
+        return self.set(sKey, self.env[sKey] + sVal if sKey in self.env else sVal);
 
     def get(self, key, default=None):
         """
@@ -609,14 +764,14 @@ class EnvManager:
         """
         return self.env.get(key, default);
 
-    def modify(self, key, func):
+    def modify(self, sKey, func):
         """
         Modifies the value of an existing environment variable using a function.
         """
-        if key in self.env:
-            self.env[key] = str(func(self.env[key]));
+        if sKey in self.env:
+            self.env[sKey] = str(func(self.env[sKey]));
         else:
-            raise KeyError(f"{key} not set in environment");
+            raise KeyError(f"{sKey} not set in environment");
 
     def updateFromArgs(self, oArgs):
         """
@@ -639,10 +794,11 @@ class EnvManager:
         """
         Writes all stored environment variables as KEY=VALUE pairs to the given file handle.
         """
-        for key, value in self.env.items():
-            if asPrefixExclude and any(key.startswith(p) for p in asPrefixExclude):
+        for sKey, sVal in self.env.items():
+            if asPrefixExclude and any(sKey.startswith(p) for p in asPrefixExclude):
                 continue;
-            fh.write(f"{key}={value}\n");
+            if sVal: # Might be None.
+                fh.write(f"{sKey}={sVal}\n");
 
     def transform(self, mapTransform):
         """
@@ -655,7 +811,7 @@ class EnvManager:
 
     def __getitem__(self, sName):
         """
-
+        Magic function to return an environment variable if found, None if not found.
         """
         return self.get(sName, None);
 
@@ -738,88 +894,90 @@ g_aoLibs = sorted([
     ## @todo
     #LibraryCheck("berkeley-softfloat-3", [ "softfloat.h" ], [ "libsoftfloat" ],
     #             '#include <softfloat.h>\nint main() { float32_t x, y; f32_add(x, y); printf("<found>"); return 0; }\n'),
-    LibraryCheck("dmtx", [ "dmtx.h" ], [ "libdmtx" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
-                '#include <dmtx.h>\nint main() { dmtxEncodeCreate(); printf("%s", dmtxVersion()); return 0; }\n'),
-    LibraryCheck("dxvk", [ "dxvk/dxvk.h" ], [ "libdxvk" ],  [ BuildTargets.LINUX ],
-                 '#include <dxvk/dxvk.h>\nint main() { printf("1"); return 0; }\n'),
-    LibraryCheck("libalsa", [ "alsa/asoundlib.h" ], [ "libasound" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("dxmt", [ "version.h" ], [ "libdxmt" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
+                '#include <version.h>\nint main() { return 0; }\n'),
+    LibraryCheck("dxvk", [ "dxvk/dxvk.h" ], [ "libdxvk" ],  [ BuildTarget.LINUX ],
+                 '#include <dxvk/dxvk.h>\nint main() { printf("<found>"); return 0; }\n'),
+    LibraryCheck("libalsa", [ "alsa/asoundlib.h" ], [ "libasound" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <alsa/asoundlib.h>\n#include <alsa/version.h>\nint main() { snd_pcm_info_sizeof(); printf("%s", SND_LIB_VERSION_STR); return 0; }\n'),
-    LibraryCheck("libcap", [ "sys/capability.h" ], [ "libcap" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("libcap", [ "sys/capability.h" ], [ "libcap" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <sys/capability.h>\nint main() { cap_t c = cap_init(); printf("<found>"); return 0; }\n'),
-    LibraryCheck("libcursor", [ "X11/cursorfont.h" ], [ "libXcursor" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("libcursor", [ "X11/cursorfont.h" ], [ "libXcursor" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <X11/Xcursor/Xcursor.h>\nint main() { printf("%d.%d", XCURSOR_LIB_MAJOR, XCURSOR_LIB_MINOR); return 0; }\n'),
-    LibraryCheck("libcurl", [ "curl/curl.h" ], [ "libcurl" ], [ BuildTargets.ANY ],
+    LibraryCheck("curl", [ "curl/curl.h" ], [ "libcurl" ], [ BuildTarget.ANY ],
                  '#include <curl/curl.h>\nint main() { printf("%s", LIBCURL_VERSION); return 0; }\n'),
-    LibraryCheck("libdevmapper", [ "libdevmapper.h" ], [ "libdevmapper" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("libdevmapper", [ "libdevmapper.h" ], [ "libdevmapper" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <libdevmapper.h>\nint main() { char v[64]; dm_get_library_version(v, sizeof(v)); printf("%s", v); return 0; }\n'),
-    LibraryCheck("libjpeg-turbo", [ "turbojpeg.h" ], [ "libturbojpeg" ], [ BuildTargets.ANY ],
-                 '#include <turbojpeg.h>\nint main() { tjInitCompress(); printf("0.0"); return 0; }\n'),
-    LibraryCheck("liblzf", [ "lzf.h" ], [ "liblzf" ], [ BuildTargets.ANY ],
+    LibraryCheck("libjpeg-turbo", [ "turbojpeg.h" ], [ "libturbojpeg" ], [ BuildTarget.ANY ],
+                 '#include <turbojpeg.h>\nint main() { tjInitCompress(); printf("<found>"); return 0; }\n'),
+    LibraryCheck("liblzf", [ "lzf.h" ], [ "liblzf" ], [ BuildTarget.ANY ],
                  '#include <liblzf/lzf.h>\nint main() { printf("%d.%d", LZF_VERSION >> 8, LZF_VERSION & 0xff);\n#if LZF_VERSION >= 0x0105\nreturn 0;\n#else\nreturn 1;\n#endif\n }\n'),
-    LibraryCheck("liblzma", [ "lzma.h" ], [ "liblzma" ], [ BuildTargets.ANY ],
+    LibraryCheck("liblzma", [ "lzma.h" ], [ "liblzma" ], [ BuildTarget.ANY ],
                  '#include <lzma.h>\nint main() { printf("%s", lzma_version_string()); return 0; }\n'),
-    LibraryCheck("libogg", [ "ogg/ogg.h" ], [ "libogg" ], [ BuildTargets.ANY ],
+    LibraryCheck("libogg", [ "ogg/ogg.h" ], [ "libogg" ], [ BuildTarget.ANY ],
                  '#include <ogg/ogg.h>\nint main() { oggpack_buffer o; oggpack_get_buffer(&o); printf("<found>"); return 0; }\n'),
-    LibraryCheck("libpam", [ "security/pam_appl.h" ], [ "libpam" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("libpam", [ "security/pam_appl.h" ], [ "libpam" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <security/pam_appl.h>\nint main() { \n#ifdef __LINUX_PAM__\nprintf("%d.%d", __LINUX_PAM__, __LINUX_PAM_MINOR__); if (__LINUX_PAM__ >= 1) return 0;\n#endif\nreturn 1; }\n'),
-    LibraryCheck("libpng", [ "png.h" ], [ "libpng" ], [ BuildTargets.ANY ],
+    LibraryCheck("libpng", [ "png.h" ], [ "libpng" ], [ BuildTarget.ANY ],
                  '#include <png.h>\nint main() { printf("%s", PNG_LIBPNG_VER_STRING); return 0; }\n'),
-    LibraryCheck("libpthread", [ "pthread.h" ], [ "libpthread" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("libpthread", [ "pthread.h" ], [ "libpthread" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <unistd.h>\n#include <pthread.h>\nint main() { \n#ifdef _POSIX_VERSION\nprintf("%d", (long)_POSIX_VERSION); return 0;\n#else\nreturn 1;\n#endif\n }\n'),
-    LibraryCheck("libpulse", [ "pulse/pulseaudio.h", "pulse/version.h" ], [ "libpulse" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("libpulse", [ "pulse/pulseaudio.h", "pulse/version.h" ], [ "libpulse" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <pulse/version.h>\nint main() { printf("%s", pa_get_library_version()); return 0; }\n'),
-    LibraryCheck("libslirp", [ "slirp/libslirp.h", "slirp/libslirp-version.h" ], [ "libslirp" ], [ BuildTargets.ANY ],
+    LibraryCheck("libslirp", [ "slirp/libslirp.h", "slirp/libslirp-version.h" ], [ "libslirp" ], [ BuildTarget.ANY ],
                  '#include <slirp/libslirp.h>\n#include <slirp/libslirp-version.h>\nint main() { printf("%d.%d.%d", SLIRP_MAJOR_VERSION, SLIRP_MINOR_VERSION, SLIRP_MICRO_VERSION); return 0; }\n'),
-    LibraryCheck("libssh", [ "libssh/libssh.h" ], [ "libssh" ], [ BuildTargets.ANY ],
+    LibraryCheck("libssh", [ "libssh/libssh.h" ], [ "libssh" ], [ BuildTarget.ANY ],
                  '#include <libssh/libssh.h>\n#include <libssh/libssh_version.h>\nint main() { printf("%d.%d.%d", LIBSSH_VERSION_MAJOR, LIBSSH_VERSION_MINOR, LIBSSH_VERSION_MICRO); return 0; }\n'),
-    LibraryCheck("libstdc++", [ "c++/11/iostream" ], [ ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("libstdc++", [ "c++/11/iostream" ], [ ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  "#include <iostream>\nint main() { \n #ifdef __GLIBCXX__\nstd::cout << __GLIBCXX__;\n#elif defined(__GLIBCPP__)\nstd::cout << __GLIBCPP__;\n#else\nreturn 1\n#endif\nreturn 0; }\n",
                  asAltIncFiles = [ "c++/4.8.2/iostream", "c++/iostream" ]),
-    LibraryCheck("libtpms", [ "libtpms/tpm_library.h" ], [ "libtpms" ], [ BuildTargets.ANY ],
+    LibraryCheck("libtpms", [ "libtpms/tpm_library.h" ], [ "libtpms" ], [ BuildTarget.ANY ],
                  '#include <libtpms/tpm_library.h>\nint main() { printf("%d.%d.%d", TPM_LIBRARY_VER_MAJOR, TPM_LIBRARY_VER_MINOR, TPM_LIBRARY_VER_MICRO); return 0; }\n'),
-    LibraryCheck("libvncserver", [ "rfb/rfb.h", "rfb/rfbclient.h" ], [ "libvncserver" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("libvncserver", [ "rfb/rfb.h", "rfb/rfbclient.h" ], [ "libvncserver" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <rfb/rfb.h>\nint main() { printf("%s", LIBVNCSERVER_PACKAGE_VERSION); return 0; }\n'),
-    LibraryCheck("libvorbis", [ "vorbis/vorbisenc.h" ], [ "libvorbis", "libvorbisenc" ], [ BuildTargets.ANY ],
+    LibraryCheck("libvorbis", [ "vorbis/vorbisenc.h" ], [ "libvorbis", "libvorbisenc" ], [ BuildTarget.ANY ],
                  '#include <vorbis/vorbisenc.h>\nint main() { vorbis_info v; vorbis_info_init(&v); int vorbis_rc = vorbis_encode_init_vbr(&v, 2 /* channels */, 44100 /* hz */, (float).4 /* quality */); printf("<found>"); return 0; }\n'),
-    LibraryCheck("libvpx", [ "vpx/vpx_decoder.h" ], [ "libvpx" ], [ BuildTargets.ANY ],
+    LibraryCheck("libvpx", [ "vpx/vpx_decoder.h" ], [ "libvpx" ], [ BuildTarget.ANY ],
                  '#include <vpx/vpx_codec.h>\nint main() { printf("%s", vpx_codec_version_str()); return 0; }\n'),
-    LibraryCheck("libxml2", [ "libxml/parser.h" ] , [ "libxml2" ], [ BuildTargets.ANY ],
+    LibraryCheck("libxml2", [ "libxml/parser.h" ] , [ "libxml2" ], [ BuildTarget.ANY ],
                  '#include <libxml/xmlversion.h>\nint main() { printf("%s", LIBXML_DOTTED_VERSION); return 0; }\n'),
-    LibraryCheck("zlib1g", [ "zlib.h" ], [ "libz" ], [ BuildTargets.ANY ],
+    LibraryCheck("zlib", [ "zlib.h" ], [ "libz" ], [ BuildTarget.ANY ],
                  '#include <zlib.h>\nint main() { printf("%s", ZLIB_VERSION); return 0; }\n'),
-    LibraryCheck("lwip", [ "lwip/init.h" ], [ "liblwip" ], [ BuildTargets.ANY ],
+    LibraryCheck("lwip", [ "lwip/init.h" ], [ "liblwip" ], [ BuildTarget.ANY ],
                  '#include <lwip/init.h>\nint main() { printf("%d.%d.%d", LWIP_VERSION_MAJOR, LWIP_VERSION_MINOR, LWIP_VERSION_REVISION); return 0; }\n'),
-    LibraryCheck("opengl", [ "GL/gl.h" ], [ "libGL" ], [ BuildTargets.ANY ],
+    LibraryCheck("opengl", [ "GL/gl.h" ], [ "libGL" ], [ BuildTarget.ANY ],
                  '#include <GL/gl.h>\n#include <stdio.h>\nint main() { const GLubyte *s = glGetString(GL_VERSION); printf("%s", s ? (const char *)s : "<found>"); return 0; }\n'),
-    LibraryCheck("qt6", [ "QtCore/qconfig.h" ], [ "libQt6Core" ], [ BuildTargets.ANY ],
+    LibraryCheck("qt6", [ "QtCore/qconfig.h" ], [ "libQt6Core" ], [ BuildTarget.ANY ],
                  '#include <stdio.h>\n#include <qt6/QtCore/qconfig.h>\nint main() { printf("%s", QT_VERSION_STR); }',
                  asAltIncFiles = [ "qt/QtCore/qglobal.h", "QtCore/qcoreapplication.h", "qt6/QtCore/qcoreapplication.h" ] ),
-    LibraryCheck("sdl2", [ "SDL2/SDL.h" ], [ "libSDL2" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("sdl2", [ "SDL2/SDL.h" ], [ "libSDL2" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <SDL2/SDL.h>\nint main() { printf("%d.%d.%d", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL); return 0; }\n',
                  asAltIncFiles = [ "SDL.h" ]),
-    LibraryCheck("sdl2_ttf", [ "SDL2/SDL_ttf.h" ], [ "libSDL2_ttf" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("sdl2_ttf", [ "SDL2/SDL_ttf.h" ], [ "libSDL2_ttf" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <SDL2/SDL_ttf.h>\nint main() { printf("%d.%d.%d", SDL_TTF_MAJOR_VERSION, SDL_TTF_MINOR_VERSION, SDL_TTF_PATCHLEVEL); return 0; }\n',
                  asAltIncFiles = [ "SDL_ttf.h" ]),
-    LibraryCheck("x11", [ "X11/Xlib.h" ], [ "libX11" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("x11", [ "X11/Xlib.h" ], [ "libX11" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <X11/Xlib.h>\nint main() { XOpenDisplay(NULL); printf("<found>"); return 0; }\n'),
-    LibraryCheck("xext", [ "X11/extensions/Xext.h" ], [ "libXext" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("xext", [ "X11/extensions/Xext.h" ], [ "libXext" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <X11/Xlib.h>\n#include <X11/extensions/Xext.h>\nint main() { XSetExtensionErrorHandler(NULL); printf("<found>"); return 0; }\n'),
-    LibraryCheck("xmu", [ "X11/Xmu/Xmu.h" ], [ "libXmu" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
-                 '#include <X11/Xmu/Xmu.h>\nint main() { XmuMakeAtom("test"); printf("<found>"); return 0; }\n', aeTargetsExcluded=[ BuildTargets.DARWIN ]),
-    LibraryCheck("xrandr", [ "X11/extensions/Xrandr.h" ], [ "libXrandr", "libX11" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("xmu", [ "X11/Xmu/Xmu.h" ], [ "libXmu" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
+                 '#include <X11/Xmu/Xmu.h>\nint main() { XmuMakeAtom("test"); printf("<found>"); return 0; }\n', aeTargetsExcluded=[ BuildTarget.DARWIN ]),
+    LibraryCheck("xrandr", [ "X11/extensions/Xrandr.h" ], [ "libXrandr", "libX11" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <X11/Xlib.h>\n#include <X11/extensions/Xrandr.h>\nint main() { Display *dpy = XOpenDisplay(NULL); Window root = RootWindow(dpy, 0); XRRScreenConfiguration *c = XRRGetScreenInfo(dpy, root); printf("<found>"); return 0; }\n'),
-    LibraryCheck("libxinerama", [ "X11/extensions/Xinerama.h" ], [ "libXinerama", "libX11" ], [ BuildTargets.LINUX, BuildTargets.SOLARIS, BuildTargets.BSD ],
+    LibraryCheck("libxinerama", [ "X11/extensions/Xinerama.h" ], [ "libXinerama", "libX11" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <X11/Xlib.h>\n#include <X11/extensions/Xinerama.h>\nint main() { Display *dpy = XOpenDisplay(NULL); XineramaIsActive(dpy); printf("<found>"); return 0; }\n')
 ], key=lambda l: l.sName);
 
 g_aoTools = sorted([
+    ToolCheck("gcc", asCmd = [ "gcc" ], fnCallback = ToolCheck.checkCallback_gcc, aeTargets = [ BuildTarget.LINUX, BuildTarget.SOLARIS ] ),
+    ToolCheck("devtools", asCmd = [ ], fnCallback = ToolCheck.checkCallback_devtools ),
     ToolCheck("gsoap", asCmd = [ "soapcpp2", "wsdl2h" ]),
     ToolCheck("java", asCmd = [ "java" ]),
-    ToolCheck("kbuild", asCmd = [ "kmk" ]),
-    ToolCheck("makeself", asCmd = [ "makeself" ], aeTargets = [ BuildTargets.LINUX ]),
+    ToolCheck("kbuild", asCmd = [ "kbuild" ], fnCallback = ToolCheck.checkCallback_kBuild ),
+    ToolCheck("makeself", asCmd = [ "makeself" ], aeTargets = [ BuildTarget.LINUX ]),
     ToolCheck("openwatcom", asCmd = [ "wcl", "wcl386", "wlink" ], fnCallback = ToolCheck.checkCallback_OpenWatcom ),
-    ToolCheck("xcode", asCmd = [], fnCallback = ToolCheck.checkCallback_XCode, aeTargets = [ BuildTargets.DARWIN ]),
-    ToolCheck("yasm", asCmd = [ 'yasm' ], aeTargets = [ BuildTargets.LINUX ]),
+    ToolCheck("xcode", asCmd = [], fnCallback = ToolCheck.checkCallback_XCode, aeTargets = [ BuildTarget.DARWIN ]),
+    ToolCheck("yasm", asCmd = [ 'yasm' ], aeTargets = [ BuildTarget.LINUX ]),
 ], key=lambda t: t.sName.lower())
 
 def write_autoconfig_kmk(sFilePath, oEnv, aoLibs, aoTools):
@@ -835,7 +993,9 @@ def write_autoconfig_kmk(sFilePath, oEnv, aoLibs, aoTools):
             fh.write(f"""
 # -*- Makefile -*-
 #
-# Generated by {g_sScriptName}.
+# Automatically generated by
+#
+#   {g_sScriptName} """ + ' '.join(sys.argv[1:]) + f"""
 #
 # DO NOT EDIT THIS FILE MANUALLY
 # It will be completely overwritten if {g_sScriptName} is executed again.
@@ -843,7 +1003,7 @@ def write_autoconfig_kmk(sFilePath, oEnv, aoLibs, aoTools):
 # Generated on """ + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """
 #
 \n""");
-            oEnv.write(fh, asPrefixExclude = ['CONFIG_'] );
+            oEnv.write(fh, asPrefixExclude = ['CONFIG_', 'KBUILD_'] );
             fh.write('\n');
 
             for oLibCur in aoLibs:
@@ -863,18 +1023,19 @@ def write_autoconfig_kmk(sFilePath, oEnv, aoLibs, aoTools):
 
 def write_env(sFilePath, oEnv, aoLibs, aoTools):
     """
-    Writes the env.sh file with SDK paths and enable/disable flags.
-    Each library/tool gets VBOX_WITH_<NAME>, SDK_<NAME>_LIBS, SDK_<NAME>_INCS.
+    Writes the env.sh file with kBuild configuration and other tools stuff.
     """
 
-    _ = oEnv, aoLibs, aoTools; # Unused for now.
+    _ = aoLibs, aoTools; # Unused for now.
 
     try:
         with open(sFilePath, "w", encoding = "utf-8") as fh:
             fh.write(f"""
 # -*- Environment -*-
 #
-# Generated by {g_sScriptName}.
+# Automatically generated by
+#
+#   {g_sScriptName} """ + ' '.join(sys.argv[1:]) + f"""
 #
 # DO NOT EDIT THIS FILE MANUALLY
 # It will be completely overwritten if {g_sScriptName} is executed again.
@@ -889,7 +1050,18 @@ KBUILD_TARGET_ARCH={ oEnv['KBUILD_TARGET_ARCH'] }
 KBUILD_TARGET_CPU={ oEnv['KBUILD_TARGET_ARCH'] }
 KBUILD_TYPE={ oEnv['KBUILD_TYPE'] }
 export KBUILD_HOST KBUILD_HOST_ARCH KBUILD_TARGET KBUILD_TARGET_ARCH KBUILD_TARGET_CPU KBUILD_TYPE
+KBUILD_PATH={ oEnv['KBUILD_PATH'] }
 """);
+
+            sPath = oEnv['KBUILD_DEVTOOLS'];
+            if sPath:
+                fh.writef(f'KBUILD_DEVTOOLS={sPath}\n');
+                fh.writef( 'export KBUILD_PATH KBUILD_DEVTOOLS\n');
+            sPath = oEnv['PATH_OUT_BASE'];
+            if sPath:
+                fh.write(f'PATH_OUT_BASE={sPath}\n');
+                fh.write( 'export PATH_OUT_BASE\n');
+
         return True;
     except OSError as ex:
         printError(f"Failed to write env.sh to {sFilePath}: {str(ex)}");
@@ -933,6 +1105,7 @@ def main():
     oParser.add_argument('--file-log', help='Path to output log file', action='store_true', default='configure.log', dest='config_file_log');
     oParser.add_argument('--only-additions', help='Only build Guest Additions related libraries and tools', action='store_true', default=None, dest='vbox_only_additions=');
     oParser.add_argument('--only-docs', help='Only build the documentation', action='store_true', default=None, dest='vbox_only_docs=1');
+    oParser.add_argument('--path-out-base', help='Specifies the output directory', action='store', default=None, dest='config_path_out_base');
     oParser.add_argument('--ose', help='Builds the OSE version', action='store_true', default=None, dest='vbox_ose=1');
     oParser.add_argument('--debug', help='Runs in debug mode. Only use for development', action='store_true', default=False, dest='config_debug');
     oParser.add_argument('--nofatal', help='Continues execution on fatal errors', action='store_true', dest='config_nofatal');
@@ -966,8 +1139,10 @@ def main():
     g_oEnv.set('KBUILD_TYPE', BuildType.RELEASE);
     g_oEnv.set('KBUILD_TARGET', g_enmHostTarget);
     g_oEnv.set('KBUILD_TARGET_ARCH', g_enmHostArch);
+    g_oEnv.set('KBUILD_PATH', oArgs.config_tools_path_kbuild);
     g_oEnv.set('VBOX_OSE', '1');
     g_oEnv.set('VBOX_WITH_HARDENING', '1');
+    g_oEnv.set('PATH_OUT_BASE', oArgs.config_path_out_base);
 
     # Apply updates from command line arguments.
     g_oEnv.updateFromArgs(oArgs);
@@ -978,8 +1153,8 @@ def main():
     aoLibsToCheck = aoOnlyLibs if aoOnlyLibs else g_aoLibs;
     aoToolsToCheck = aoOnlyTools if aoOnlyTools else g_aoTools;
     # Filter libs and tools based on build target.
-    aoLibsToCheck  = [lib for lib in aoLibsToCheck if g_oEnv['KBUILD_TARGET'] in lib.aeTargets or BuildTargets.ANY in lib.aeTargets];
-    aoToolsToCheck = [tool for tool in aoToolsToCheck if g_oEnv['KBUILD_TARGET'] in tool.aeTargets or BuildTargets.ANY in tool.aeTargets];
+    aoLibsToCheck  = [lib for lib in aoLibsToCheck if g_oEnv['KBUILD_TARGET'] in lib.aeTargets or BuildTarget.ANY in lib.aeTargets];
+    aoToolsToCheck = [tool for tool in aoToolsToCheck if g_oEnv['KBUILD_TARGET'] in tool.aeTargets or BuildTarget.ANY in tool.aeTargets];
 
     print( 'VirtualBox configuration script');
     print();
@@ -1023,7 +1198,15 @@ def main():
                       'VBOX_WITH_SECURELABEL': '', \
                       'VBOX_WITH_VMSVGA3D': '', \
                       'VBOX_WITH_3D_ACCELERATION' : '', \
-                      'VBOX_GUI_USE_QGL' : '' } if g_oEnv['CONFIG_BUILD_HEADLESS'] else {}
+                      'VBOX_GUI_USE_QGL' : '' } if g_oEnv['CONFIG_BUILD_HEADLESS'] else {},
+        # Disable recording if libvpx is disabled.
+        lambda env: { 'VBOX_WITH_LIBVPX': '', \
+                      'VBOX_WITH_RECORDING': '' } if g_oEnv['CONFIG_LIBS_DISABLE_LIBVPX'] else {},
+        # Disable audio recording if libvpx is disabled.
+        lambda env: { 'VBOX_WITH_LIBOGG': '', \
+                      'VBOX_WITH_LIBVORBIS': '', \
+                      'VBOX_WITH_AUDIO_RECORDING': '' } if  g_oEnv['CONFIG_LIBS_DISABLE_LIBOGG'] \
+                                                        and g_oEnv['CONFIG_LIBS_DISABLE_LIBVORBIS'] else {},
     ];
     g_oEnv.transform(envTransforms);
 
@@ -1036,10 +1219,10 @@ def main():
     # These are essential and must be present for all following checks.
     #
     aOsTools = {
-        BuildTargets.LINUX:   [ 'gcc', 'make', 'pkg-config' ],
-        BuildTargets.DARWIN:  [ 'clang', 'make', 'brew' ],
-        BuildTargets.WINDOWS: [ 'cl', 'gcc', 'nmake', 'cmake', 'msbuild' ],
-        BuildTargets.SOLARIS: [ 'cc', 'gmake', 'pkg-config' ]
+        BuildTarget.LINUX:   [ 'gcc', 'make', 'pkg-config' ],
+        BuildTarget.DARWIN:  [ 'clang', 'make', 'brew' ],
+        BuildTarget.WINDOWS: [ 'cl', 'gcc', 'nmake', 'cmake', 'msbuild' ],
+        BuildTarget.SOLARIS: [ 'cc', 'gmake', 'pkg-config' ]
     };
     aOsToolsToCheck = aOsTools.get( g_oEnv[ 'KBUILD_TARGET' ], [] );
     oOsToolsTable = SimpleTable([ 'Tool', 'Status', 'Version', 'Path' ]);
@@ -1112,10 +1295,10 @@ def main():
                 print( '  kmk');
                 print();
 
-        if g_oEnv['KBUILD_TARGET'] == BuildTargets.LINUX:
+        if g_oEnv['KBUILD_TARGET'] == BuildTarget.LINUX:
             print('To compile the kernel modules, do:');
             print();
-            print('  cd $out_base_dir/out/$OS.$TARGET_MACHINE/$BUILD_TYPE/bin/src');
+            print(f"  cd {g_sOutPath}/{ g_oEnv['KBUILD_TARGET'] }.{ g_oEnv['KBUILD_TARGET_ARCH'] }/{ g_oEnv['KBUILD_TYPE'] }/bin/src");
             print('  make');
             print();
 
@@ -1146,11 +1329,17 @@ def main():
 
     if g_cWarnings:
         print(f'\nConfiguration completed with {g_cWarnings} warning(s). See {g_sFileLog} for details.');
+        print('');
     if g_cErrors:
         print(f'\nConfiguration failed with {g_cErrors} error(s). See {g_sFileLog} for details.');
+        print('');
     if  g_fNoFatal \
     and g_cErrors:
         print('\nWARNING: Errors occurred but non-fatal mode active -- check build carefully!');
+        print('');
+
+    if g_cErrors == 0:
+        print('Enjoy!')
 
     print('\nWork in progress! Do not use for production builds yet!\n');
 
