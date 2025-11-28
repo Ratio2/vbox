@@ -335,6 +335,9 @@ private:
 /** QAccessibleWidget extension used as an accessibility interface for QITableView. */
 class QIAccessibilityInterfaceForQITableView
     : public QAccessibleWidget
+#ifndef VBOX_WS_MAC
+    , public QAccessibleSelectionInterface
+#endif
 {
 public:
 
@@ -353,6 +356,25 @@ public:
     QIAccessibilityInterfaceForQITableView(QWidget *pWidget)
         : QAccessibleWidget(pWidget, QAccessible::List)
     {}
+
+    /** Returns a specialized accessibility interface @a enmType. */
+    virtual void *interface_cast(QAccessible::InterfaceType enmType) RT_OVERRIDE
+    {
+        const int iCase = static_cast<int>(enmType);
+        switch (iCase)
+        {
+#ifdef VBOX_WS_MAC
+            /// @todo Fix selection interface for macOS first of all!
+#else
+            case QAccessible::SelectionInterface:
+                return static_cast<QAccessibleSelectionInterface*>(this);
+#endif
+            default:
+                break;
+        }
+
+        return 0;
+    }
 
     /** Returns the number of children. */
     virtual int childCount() const RT_OVERRIDE
@@ -467,6 +489,60 @@ public:
         /* Null string by default: */
         return QString();
     }
+
+#ifndef VBOX_WS_MAC
+    /** Returns the total number of selected accessible items. */
+    virtual int selectedItemCount() const RT_OVERRIDE
+    {
+        /* For now we are interested in just first one selected cell: */
+        return 1;
+    }
+
+    /** Returns the list of selected accessible items. */
+    virtual QList<QAccessibleInterface*> selectedItems() const RT_OVERRIDE
+    {
+        /* Sanity check: */
+        QITableView *pTable = table();
+        AssertPtrReturn(pTable, QList<QAccessibleInterface*>());
+        QAbstractItemModel *pModel = pTable->model();
+        AssertPtrReturn(pModel, QList<QAccessibleInterface*>());
+
+        /* Get current cell: */
+        QITableViewCell *pCurrentCell = pTable->currentCell();
+        AssertPtrReturn(pCurrentCell, QList<QAccessibleInterface*>());
+
+        /* For now we are interested in just first one selected cell: */
+        return QList<QAccessibleInterface*>() << QAccessible::queryAccessibleInterface(pCurrentCell);
+    }
+
+    /** Adds childItem to the selection. */
+    virtual bool select(QAccessibleInterface *) RT_OVERRIDE
+    {
+        /// @todo implement
+        return false;
+    }
+
+    /** Removes childItem from the selection. */
+    virtual bool unselect(QAccessibleInterface *) RT_OVERRIDE
+    {
+        /// @todo implement
+        return false;
+    }
+
+    /** Selects all accessible child items. */
+    virtual bool selectAll() RT_OVERRIDE
+    {
+        /// @todo implement
+        return false;
+    }
+
+    /** Unselects all accessible child items. */
+    virtual bool clear() RT_OVERRIDE
+    {
+        /// @todo implement
+        return false;
+    }
+#endif /* VBOX_WS_MAC */
 
 private:
 
