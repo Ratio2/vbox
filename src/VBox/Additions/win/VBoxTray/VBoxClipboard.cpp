@@ -425,7 +425,7 @@ static LRESULT vbtrShClWndProcWorker(PSHCLCONTEXT pCtx, HWND hwnd, UINT msg, WPA
                 }
             }
 
-            if (RT_FAILURE(rc))
+            if (RT_FAILURE(rc) && rc != VERR_ACCESS_DENIED /* mode */)
                 VBoxTrayError("Shared Clipboard: WM_CLIPBOARDUPDATE failed with %Rrc\n", rc);
 
             break;
