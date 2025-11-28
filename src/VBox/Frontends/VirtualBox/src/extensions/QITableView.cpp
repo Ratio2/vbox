@@ -408,14 +408,32 @@ private:
 QITableView::QITableView(QWidget *pParent)
     : QTableView(pParent)
 {
-    /* Prepare: */
-    prepare();
+    /* Install QITableViewCell accessibility interface factory: */
+    QAccessible::installFactory(QIAccessibilityInterfaceForQITableViewCell::pFactory);
+    /* Install QITableViewRow accessibility interface factory: */
+    QAccessible::installFactory(QIAccessibilityInterfaceForQITableViewRow::pFactory);
+    /* Install QITableView accessibility interface factory: */
+    QAccessible::installFactory(QIAccessibilityInterfaceForQITableView::pFactory);
+
+    /* Delete old delegate: */
+    delete itemDelegate();
+    /* Create new delegate: */
+    QIStyledItemDelegate *pStyledItemDelegate = new QIStyledItemDelegate(this);
+    if (pStyledItemDelegate)
+    {
+        /* Assign newly created delegate to the table: */
+        setItemDelegate(pStyledItemDelegate);
+        /* Connect newly created delegate to the table: */
+        connect(pStyledItemDelegate, &QIStyledItemDelegate::sigEditorCreated,
+                this, &QITableView::sltEditorCreated);
+    }
 }
 
 QITableView::~QITableView()
 {
-    /* Cleanup: */
-    cleanup();
+    /* Disconnect all the editors prematurelly: */
+    foreach (QObject *pEditor, m_editors.values())
+        disconnect(pEditor, 0, this, 0);
 }
 
 void QITableView::makeSureEditorDataCommitted()
@@ -464,34 +482,4 @@ void QITableView::sltEditorDestroyed(QObject *pEditor)
     const QModelIndex index = m_editors.key(pEditor);
     AssertReturnVoid(index.isValid());
     m_editors.remove(index);
-}
-
-void QITableView::prepare()
-{
-    /* Install QITableViewCell accessibility interface factory: */
-    QAccessible::installFactory(QIAccessibilityInterfaceForQITableViewCell::pFactory);
-    /* Install QITableViewRow accessibility interface factory: */
-    QAccessible::installFactory(QIAccessibilityInterfaceForQITableViewRow::pFactory);
-    /* Install QITableView accessibility interface factory: */
-    QAccessible::installFactory(QIAccessibilityInterfaceForQITableView::pFactory);
-
-    /* Delete old delegate: */
-    delete itemDelegate();
-    /* Create new delegate: */
-    QIStyledItemDelegate *pStyledItemDelegate = new QIStyledItemDelegate(this);
-    AssertPtrReturnVoid(pStyledItemDelegate);
-    {
-        /* Assign newly created delegate to the table: */
-        setItemDelegate(pStyledItemDelegate);
-        /* Connect newly created delegate to the table: */
-        connect(pStyledItemDelegate, &QIStyledItemDelegate::sigEditorCreated,
-                this, &QITableView::sltEditorCreated);
-    }
-}
-
-void QITableView::cleanup()
-{
-    /* Disconnect all the editors prematurelly: */
-    foreach (QObject *pEditor, m_editors.values())
-        disconnect(pEditor, 0, this, 0);
 }

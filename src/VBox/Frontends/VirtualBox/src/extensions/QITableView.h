@@ -139,11 +139,6 @@ private slots:
 
 private:
 
-    /** Prepares all. */
-    void prepare();
-    /** Cleanups all. */
-    void cleanup();
-
     /** Holds the map of editors stored for passed indexes. */
     QMap<QModelIndex, QObject*> m_editors;
 };
