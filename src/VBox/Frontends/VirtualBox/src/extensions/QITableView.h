@@ -50,6 +50,9 @@ class SHARED_LIBRARY_STUFF QITableViewCell : public QObject
 
 public:
 
+    /** Acquires QITableViewCell* from passed @a idx. */
+    static QITableViewCell *toCell(const QModelIndex &idx);
+
     /** Constructs table-view cell for passed @a pParentRow. */
     QITableViewCell(QITableViewRow *pParentRow)
         : m_pRow(pParentRow)
@@ -76,6 +79,9 @@ class SHARED_LIBRARY_STUFF QITableViewRow : public QObject
     Q_OBJECT;
 
 public:
+
+    /** Acquires QITableViewRow* from passed @a idx. */
+    static QITableViewRow *toRow(const QModelIndex &idx);
 
     /** Constructs table-view row for passed @a pParentTable. */
     QITableViewRow(QITableView *pParentTable)
@@ -117,6 +123,11 @@ public:
     QITableView(QWidget *pParent = 0);
     /** Destructs table-view. */
     virtual ~QITableView() RT_OVERRIDE;
+
+    /** Returns current cell. */
+    QITableViewCell *currentCell() const;
+    /** Returns current row. */
+    QITableViewRow *currentRow() const;
 
     /** Makes sure current editor data committed. */
     void makeSureEditorDataCommitted();

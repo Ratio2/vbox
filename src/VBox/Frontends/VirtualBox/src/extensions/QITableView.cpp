@@ -130,7 +130,29 @@ public:
     /** Returns the state. */
     virtual QAccessible::State state() const RT_OVERRIDE
     {
-        return QAccessible::State();
+        /* Sanity check: */
+        QITableViewCell *pCell = cell();
+        AssertPtrReturn(pCell, QAccessible::State());
+        QITableViewRow *pRow = pCell->row();
+        AssertPtrReturn(pRow, QAccessible::State());
+        QITableView *pTable = pRow->table();
+        AssertPtrReturn(pTable, QAccessible::State());
+        QAbstractItemModel *pModel = pTable->model();
+        AssertPtrReturn(pModel, QAccessible::State());
+
+        /* Compose the state: */
+        QAccessible::State myState;
+        myState.focusable = true;
+        myState.selectable = true;
+        if (   pTable->hasFocus()
+            && pTable->currentCell() == pCell)
+        {
+            myState.focused = true;
+            myState.selected = true;
+        }
+
+        /* Return the state: */
+        return myState;
     }
 
     /** Returns a text for the passed @a enmTextRole. */
@@ -266,7 +288,27 @@ public:
     /** Returns the state. */
     virtual QAccessible::State state() const RT_OVERRIDE
     {
-        return QAccessible::State();
+        /* Sanity check: */
+        QITableViewRow *pRow = row();
+        AssertPtrReturn(pRow, QAccessible::State());
+        QITableView *pTable = pRow->table();
+        AssertPtrReturn(pTable, QAccessible::State());
+        QAbstractItemModel *pModel = pTable->model();
+        AssertPtrReturn(pModel, QAccessible::State());
+
+        /* Compose the state: */
+        QAccessible::State myState;
+        myState.focusable = true;
+        myState.selectable = true;
+        if (   pTable->hasFocus()
+            && pTable->currentRow() == pRow)
+        {
+            myState.focused = true;
+            myState.selected = true;
+        }
+
+        /* Return the state: */
+        return myState;
     }
 
     /** Returns a text for the passed @a enmTextRole. */
@@ -383,6 +425,23 @@ public:
         return -1;
     }
 
+    /** Returns the state. */
+    virtual QAccessible::State state() const RT_OVERRIDE
+    {
+        /* Sanity check: */
+        QITableView *pTable = table();
+        AssertPtrReturn(pTable, QAccessible::State());
+
+        /* Compose the state: */
+        QAccessible::State myState;
+        myState.focusable = true;
+        if (pTable->hasFocus())
+            myState.focused = true;
+
+        /* Return the state: */
+        return myState;
+    }
+
     /** Returns a text for the passed @a enmTextRole. */
     virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE
     {
@@ -414,6 +473,58 @@ private:
     /** Returns corresponding QITableView. */
     QITableView *table() const { return qobject_cast<QITableView*>(widget()); }
 };
+
+
+/*********************************************************************************************************************************
+*   Class QITableViewCell implementation.                                                                                        *
+*********************************************************************************************************************************/
+
+/* static */
+QITableViewCell *QITableViewCell::toCell(const QModelIndex &idx)
+{
+    /* Sanity check: */
+    AssertReturn(idx.isValid(), 0);
+    const QAbstractItemModel *pModel = idx.model();
+    AssertPtrReturn(pModel, 0);
+
+    /* Check whether we have proxy model set or source one otherwise: */
+    const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
+
+    /* Acquire source-model index (which can be the same as original if there is no proxy model): */
+    const QModelIndex idxSource = pProxyModel ? pProxyModel->mapToSource(idx) : idx;
+
+    /* Internal pointer of idx currently points to row (not cell), so acquire it first: */
+    QITableViewRow *pRow = reinterpret_cast<QITableViewRow*>(idxSource.internalPointer());
+
+    /* Return cell finally: */
+    return pRow->childItem(idx.column());
+}
+
+
+/*********************************************************************************************************************************
+*   Class QITableViewRow implementation.                                                                                         *
+*********************************************************************************************************************************/
+
+/* static */
+QITableViewRow *QITableViewRow::toRow(const QModelIndex &idx)
+{
+    /* Sanity check: */
+    AssertReturn(idx.isValid(), 0);
+    const QAbstractItemModel *pModel = idx.model();
+    AssertPtrReturn(pModel, 0);
+
+    /* Check whether we have proxy model set or source one otherwise: */
+    const QSortFilterProxyModel *pProxyModel = qobject_cast<const QSortFilterProxyModel*>(pModel);
+
+    /* Acquire source-model index (which can be the same as original if there is no proxy model): */
+    const QModelIndex idxSource = pProxyModel ? pProxyModel->mapToSource(idx) : idx;
+
+    /* Internal pointer of idx currently points to row (not cell), that's what we need: */
+    QITableViewRow *pRow = reinterpret_cast<QITableViewRow*>(idxSource.internalPointer());
+
+    /* Return row finally: */
+    return pRow;
+}
 
 
 /*********************************************************************************************************************************
@@ -449,6 +560,16 @@ QITableView::~QITableView()
     /* Disconnect all the editors prematurelly: */
     foreach (QObject *pEditor, m_editors.values())
         disconnect(pEditor, 0, this, 0);
+}
+
+QITableViewCell *QITableView::currentCell() const
+{
+    return QITableViewCell::toCell(currentIndex());
+}
+
+QITableViewRow *QITableView::currentRow() const
+{
+    return QITableViewRow::toRow(currentIndex());
 }
 
 void QITableView::makeSureEditorDataCommitted()
