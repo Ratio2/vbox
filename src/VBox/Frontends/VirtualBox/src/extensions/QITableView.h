@@ -108,6 +108,8 @@ signals:
 
     /** Notifies listeners about index changed from @a previous to @a current. */
     void sigCurrentChanged(const QModelIndex &current, const QModelIndex &previous);
+    /** Notifies listeners about selection changed from @a deselected to @a selected. */
+    void sigSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
 
 public:
 
@@ -124,6 +126,9 @@ protected:
     /** This slot is called when a new item becomes the current item.
       * The previous current item is specified by the @a previous index, and the new item by the @a current index. */
     virtual void currentChanged(const QModelIndex &current, const QModelIndex &previous) RT_OVERRIDE RT_FINAL;
+    /** This slot is called when the selection is changed.
+      * The previous selection (which may be empty), is specified by @a deselected, and the new selection by @a selected. */
+    virtual void selectionChanged(const QItemSelection &selected, const QItemSelection &deselected) RT_OVERRIDE RT_FINAL;
 
 private slots:
 

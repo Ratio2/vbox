@@ -72,10 +72,6 @@ class UIVMActivityOverviewTableView : public QITableView
 {
     Q_OBJECT;
 
-signals:
-
-    void sigSelectionChanged(const QItemSelection &selected, const QItemSelection &deselected);
-
 public:
 
     UIVMActivityOverviewTableView(QWidget *pParent);
@@ -87,7 +83,6 @@ public:
 private:
 
     virtual void resizeEvent(QResizeEvent *pEvent) RT_OVERRIDE;
-    virtual void selectionChanged(const QItemSelection &selected, const QItemSelection &deselected) RT_OVERRIDE;
     virtual void mousePressEvent(QMouseEvent *pEvent) RT_OVERRIDE;
     /** Resizes all the columns in response to resizeEvent. Columns cannot be narrower than m_minimumColumnWidths values. */
     void resizeHeaders();

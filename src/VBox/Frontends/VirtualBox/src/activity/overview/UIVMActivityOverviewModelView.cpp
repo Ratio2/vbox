@@ -679,12 +679,6 @@ void UIVMActivityOverviewTableView::resizeEvent(QResizeEvent *pEvent)
     QTableView::resizeEvent(pEvent);
 }
 
-void UIVMActivityOverviewTableView::selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
-{
-    emit sigSelectionChanged(selected, deselected);
-    QTableView::selectionChanged(selected, deselected);
-}
-
 void UIVMActivityOverviewTableView::mousePressEvent(QMouseEvent *pEvent)
 {
     if (!indexAt(pEvent->position().toPoint()).isValid())

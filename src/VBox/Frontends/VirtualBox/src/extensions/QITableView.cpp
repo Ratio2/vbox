@@ -443,6 +443,14 @@ void QITableView::currentChanged(const QModelIndex &current, const QModelIndex &
     QTableView::currentChanged(current, previous);
 }
 
+void QITableView::selectionChanged(const QItemSelection &selected, const QItemSelection &deselected)
+{
+    /* Notify listeners about index changed: */
+    emit sigSelectionChanged(selected, deselected);
+    /* Call to base-class: */
+    QTableView::selectionChanged(selected, deselected);
+}
+
 void QITableView::sltEditorCreated(QWidget *pEditor, const QModelIndex &index)
 {
     /* Connect created editor to the table and store it: */
