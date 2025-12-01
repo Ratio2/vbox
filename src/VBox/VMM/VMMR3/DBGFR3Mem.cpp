@@ -93,12 +93,11 @@ static DECLCALLBACK(int) dbgfR3MemScan(PUVM pUVM, VMCPUID idCpu, PCDBGFADDRESS p
     }
     else
     {
-#if GC_ARCH_BITS > 32
         if (    (   pAddress->FlatPtr >= _4G
                  || pAddress->FlatPtr + cbRange > _4G)
             &&  !PGMMODE_IS_64BIT_MODE(enmMode))
             return VERR_DBGF_MEM_NOT_FOUND;
-#endif
+
         RTGCUINTPTR GCPtrHit;
         rc = PGMR3DbgScanVirtual(pVM, pVCpu, pAddress->FlatPtr, cbRange, *puAlign, pabNeedle, cbNeedle, &GCPtrHit);
         if (RT_SUCCESS(rc))
@@ -176,12 +175,11 @@ static DECLCALLBACK(int) dbgfR3MemRead(PUVM pUVM, VMCPUID idCpu, PCDBGFADDRESS p
         rc = PGMPhysSimpleReadGCPhys(pVM, pvBuf, pAddress->FlatPtr, cbRead);
     else
     {
-#if GC_ARCH_BITS > 32
         if (    (   pAddress->FlatPtr >= _4G
                  || pAddress->FlatPtr + cbRead > _4G)
             &&  !PGMMODE_IS_64BIT_MODE(enmMode))
             return VERR_PAGE_TABLE_NOT_PRESENT;
-#endif
+
         rc = PGMPhysSimpleReadGCPtr(pVCpu, pvBuf, pAddress->FlatPtr, cbRead);
     }
     return rc;
@@ -327,12 +325,11 @@ static DECLCALLBACK(int) dbgfR3MemWrite(PUVM pUVM, VMCPUID idCpu, PCDBGFADDRESS 
         rc = PGMPhysSimpleWriteGCPhys(pVM, pAddress->FlatPtr, pvBuf, cbWrite);
     else
     {
-#if GC_ARCH_BITS > 32
         if (    (   pAddress->FlatPtr >= _4G
                  || pAddress->FlatPtr + cbWrite > _4G)
             &&  !PGMMODE_IS_64BIT_MODE(enmMode))
             return VERR_PAGE_TABLE_NOT_PRESENT;
-#endif
+
         rc = PGMPhysSimpleWriteGCPtr(pVCpu, pAddress->FlatPtr, pvBuf, cbWrite);
     }
     return rc;
