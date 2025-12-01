@@ -357,7 +357,7 @@ VMMR3_INT_DECL(int) HMR3Init(PVM pVM)
      * Enables AMD64 cpu features.
      * On 32-bit hosts this isn't default and require host CPU support. 64-bit hosts
      * already have the support. */
-    rc = CFGMR3QueryBoolDef(pCfgHm, "64bitEnabled", &pVM->hm.s.fAllow64BitGuestsCfg, HC_ARCH_BITS == 64);
+    rc = CFGMR3QueryBoolDef(pCfgHm, "64bitEnabled", &pVM->hm.s.fAllow64BitGuestsCfg, true);
     AssertLogRelRCReturn(rc, rc);
 
     /** @cfgm{/HM/VmxPleGap, uint32_t, 0}

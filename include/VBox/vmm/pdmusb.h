@@ -969,9 +969,6 @@ typedef struct PDMUSBINS
      * The device constructor initializes this if it has any device level
      * interfaces to export. To obtain this interface call PDMR3QueryUSBDevice(). */
     PDMIBASE                    IBase;
-#if HC_ARCH_BITS == 32
-    uint32_t                    u32Alignment; /**< Alignment padding. */
-#endif
 
     /** Internal data. */
     union
@@ -979,7 +976,7 @@ typedef struct PDMUSBINS
 #ifdef PDMUSBINSINT_DECLARED
         PDMUSBINSINT            s;
 #endif
-        uint8_t                 padding[HC_ARCH_BITS == 32 ? 96 : 128];
+        uint8_t                 padding[128];
     } Internal;
 
     /** Pointer the PDM USB Device API. */
@@ -1007,7 +1004,7 @@ typedef struct PDMUSBINS
     VUSBSPEED                   enmSpeed;
 
     /** Padding to make achInstanceData aligned at 32 byte boundary. */
-    uint32_t                    au32Padding[HC_ARCH_BITS == 32 ? 2 : 3];
+    uint32_t                    au32Padding[3];
 
     /** Device instance data. The size of this area is defined
      * in the PDMUSBREG::cbInstanceData field. */

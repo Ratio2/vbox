@@ -160,21 +160,11 @@ typedef struct VMMR0JMPBUF
 {
     /** Traditional jmp_buf stuff
      * @{ */
-#if HC_ARCH_BITS == 32
-    uint32_t                    ebx;
-    uint32_t                    esi;
-    uint32_t                    edi;
-    uint32_t                    ebp;
-    uint32_t                    esp;
-    uint32_t                    eip;
-    uint32_t                    eflags;
-#endif
-#if HC_ARCH_BITS == 64
     uint64_t                    rbx;
-# ifdef RT_OS_WINDOWS
+#ifdef RT_OS_WINDOWS
     uint64_t                    rsi;
     uint64_t                    rdi;
-# endif
+#endif
     uint64_t                    rbp;
     uint64_t                    r12;
     uint64_t                    r13;
@@ -182,7 +172,7 @@ typedef struct VMMR0JMPBUF
     uint64_t                    r15;
     uint64_t                    rsp;
     uint64_t                    rip;
-# ifdef RT_OS_WINDOWS
+#ifdef RT_OS_WINDOWS
     uint128_t                   xmm6;
     uint128_t                   xmm7;
     uint128_t                   xmm8;
@@ -193,9 +183,8 @@ typedef struct VMMR0JMPBUF
     uint128_t                   xmm13;
     uint128_t                   xmm14;
     uint128_t                   xmm15;
-# endif
-    uint64_t                    rflags;
 #endif
+    uint64_t                    rflags;
     /** @} */
 
     /** RSP/ESP at the time of the stack mirroring (what pvStackBuf starts with). */

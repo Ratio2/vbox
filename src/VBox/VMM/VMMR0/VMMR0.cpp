@@ -2148,7 +2148,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
         }
 # endif
 
-# if defined(VBOX_STRICT) && HC_ARCH_BITS == 64
+# if defined(VBOX_STRICT)
         case VMMR0_DO_GMM_FIND_DUPLICATE_PAGE:
             if (u64Arg)
                 return VERR_INVALID_PARAMETER;

@@ -1383,9 +1383,7 @@ typedef struct PDMDEVHLPTASK
     PPDMDEVINSR3                    pDevInsR3;
     /** This operation to perform. */
     PDMDEVHLPTASKOP                 enmOp;
-#if HC_ARCH_BITS == 64
     uint32_t                        Alignment0;
-#endif
     /** Parameters to the operation. */
     union PDMDEVHLPTASKPARAMS
     {

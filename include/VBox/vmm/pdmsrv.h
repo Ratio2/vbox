@@ -271,7 +271,7 @@ typedef struct PDMSRVINS
 #ifdef PDMSRVINSINT_DECLARED
         PDMSRVINSINT            s;
 #endif
-        uint8_t                 padding[HC_ARCH_BITS == 32 ? 32 : 32];
+        uint8_t                 padding[32];
     } Internal;
 
     /** Pointer the PDM Service API. */

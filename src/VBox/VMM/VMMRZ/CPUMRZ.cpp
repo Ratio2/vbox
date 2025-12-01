@@ -126,7 +126,7 @@ VMMRZ_INT_DECL(void)    CPUMRZFpuStateActualizeForRead(PVMCPUCC pVCpu)
  */
 VMMRZ_INT_DECL(void)    CPUMRZFpuStateActualizeSseForRead(PVMCPUCC pVCpu)
 {
-#if defined(VBOX_WITH_KERNEL_USING_XMM) && HC_ARCH_BITS == 64
+#if defined(VBOX_WITH_KERNEL_USING_XMM)
     NOREF(pVCpu);
 #else
     if (pVCpu->cpum.s.fUseFlags & CPUM_USED_FPU_GUEST)

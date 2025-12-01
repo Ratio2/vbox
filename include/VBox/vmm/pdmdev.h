@@ -450,13 +450,7 @@ typedef PDMDEVREGR3 const *PCPDMDEVREGR3;
 /** @def PDM_DEVREG_FLAGS_HOST_BITS_DEFAULT
  * The bit count for the current host.
  * @note Superfluous, but still around for hysterical raisins.  */
-#if HC_ARCH_BITS == 32
-# define PDM_DEVREG_FLAGS_HOST_BITS_DEFAULT             UINT32_C(0x00000100)
-#elif HC_ARCH_BITS == 64
-# define PDM_DEVREG_FLAGS_HOST_BITS_DEFAULT             UINT32_C(0x00000200)
-#else
-# error Unsupported HC_ARCH_BITS value.
-#endif
+#define PDM_DEVREG_FLAGS_HOST_BITS_DEFAULT              UINT32_C(0x00000200)
 /** The host bit count mask. */
 #define PDM_DEVREG_FLAGS_HOST_BITS_MASK                 UINT32_C(0x00000300)
 
@@ -6166,7 +6160,7 @@ typedef struct PDMDEVINSR3
     /** Temporarily. */
     RTRCPTR                         pvInstanceDataRC;
     /** Align the internal data more naturally. */
-    uint32_t                        au32Padding[HC_ARCH_BITS == 32 ? 13 : 11];
+    uint32_t                        au32Padding[11];
 
     /** Internal data. */
     union
@@ -6174,7 +6168,7 @@ typedef struct PDMDEVINSR3
 #ifdef PDMDEVINSINT_DECLARED
         PDMDEVINSINTR3              s;
 #endif
-        uint8_t                     padding[HC_ARCH_BITS == 32 ? 0x40 : 0x90];
+        uint8_t                     padding[0x90];
     } Internal;
 
     /** Device instance data for ring-3.  The size of this area is defined
@@ -6244,7 +6238,7 @@ typedef struct PDMDEVINSR0
     R0PTRTYPE(struct PDMPCIDEV *)   apPciDevs[8];
 
     /** Align the internal data more naturally. */
-    uint32_t                        au32Padding[HC_ARCH_BITS == 32 ? 3 : 2 + 4];
+    uint32_t                        au32Padding[2 + 4];
 
     /** Internal data. */
     union
@@ -6252,7 +6246,7 @@ typedef struct PDMDEVINSR0
 #ifdef PDMDEVINSINT_DECLARED
         PDMDEVINSINTR0              s;
 #endif
-        uint8_t                     padding[HC_ARCH_BITS == 32 ? 0x40 : 0x80];
+        uint8_t                     padding[0x80];
     } Internal;
 
     /** Device instance data for ring-0. The size of this area is defined

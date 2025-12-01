@@ -295,13 +295,7 @@ typedef PDMDRVREG const *PCPDMDRVREG;
  * @{ */
 /** @def PDM_DRVREG_FLAGS_HOST_BITS_DEFAULT
  * The bit count for the current host. */
-#if HC_ARCH_BITS == 32
-# define PDM_DRVREG_FLAGS_HOST_BITS_DEFAULT     UINT32_C(0x00000001)
-#elif HC_ARCH_BITS == 64
 # define PDM_DRVREG_FLAGS_HOST_BITS_DEFAULT     UINT32_C(0x00000002)
-#else
-# error Unsupported HC_ARCH_BITS value.
-#endif
 /** The host bit count mask. */
 #define PDM_DRVREG_FLAGS_HOST_BITS_MASK         UINT32_C(0x00000003)
 /** This flag is used to indicate that the driver has a RC component. */
@@ -398,10 +392,6 @@ typedef struct PDMDRVINS
     uint32_t                    fTracing;
     /** The tracing ID of this device.  */
     uint32_t                    idTracing;
-#if HC_ARCH_BITS == 32
-    /** Align the internal data more naturally. */
-    uint32_t                    au32Padding[HC_ARCH_BITS == 32 ? 7 : 0];
-#endif
 
     /** Internal data. */
     union
@@ -409,7 +399,7 @@ typedef struct PDMDRVINS
 #ifdef PDMDRVINSINT_DECLARED
         PDMDRVINSINT            s;
 #endif
-        uint8_t                 padding[HC_ARCH_BITS == 32 ? 40 + 32 : 72 + 24];
+        uint8_t                 padding[72 + 24];
     } Internal;
 
     /** Driver instance data. The size of this area is defined

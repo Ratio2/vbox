@@ -1388,10 +1388,8 @@ typedef struct PGMRAMRANGE
     R3PTRTYPE(uint8_t *)                pbR3;
     /** The RAM range identifier (index into the pointer table). */
     uint32_t                            idRange;
-#if HC_ARCH_BITS != 32
     /** Padding to make aPage aligned on sizeof(PGMPAGE). */
-    uint32_t                            au32Alignment2[HC_ARCH_BITS == 32 ? 0 : 1];
-#endif
+    uint32_t                            au32Alignment2[1];
     /** Live save per page tracking data. */
     R3PTRTYPE(PPGMLIVESAVERAMPAGE)      paLSPages;
     /** The range description. */
@@ -1714,9 +1712,7 @@ typedef struct PGMCHUNKR3MAPTLBE
 {
     /** The chunk id. */
     uint32_t volatile                   idChunk;
-#if HC_ARCH_BITS == 64
     uint32_t                            u32Padding; /**< alignment padding. */
-#endif
     /** The chunk map. */
     R3PTRTYPE(PPGMCHUNKR3MAP) volatile  pChunk;
 } PGMCHUNKR3MAPTLBE;
@@ -1771,9 +1767,6 @@ typedef struct PGMPAGER3MAPTLBE
     R3PTRTYPE(PPGMCHUNKR3MAP) volatile  pMap;
     /** The address */
     R3PTRTYPE(void *) volatile          pv;
-#if HC_ARCH_BITS == 32
-    uint32_t                            u32Padding; /**< alignment padding. */
-#endif
 } PGMPAGER3MAPTLBE;
 /** Pointer to an entry in the HC physical TLB. */
 typedef PGMPAGER3MAPTLBE *PPGMPAGER3MAPTLBE;
@@ -3199,9 +3192,6 @@ typedef struct PGM
         PGMCHUNKR3MAPTLB            Tlb;
         /** The chunk tree, ordered by chunk id. */
         R3PTRTYPE(PAVLU32NODECORE)  pTree;
-# if HC_ARCH_BITS == 32
-        uint32_t                    u32Alignment0;
-# endif
         /** The number of mapped chunks. */
         uint32_t                    c;
         /** @cfgm{/PGM/MaxRing3Chunks, uint32_t, host dependent}
@@ -4128,7 +4118,7 @@ int             pgmGstLazyMapEptPml4(PVMCPUCC pVCpu, PEPTPML4 *ppPml4);
 int             pgmGstPtWalk(PVMCPUCC pVCpu, RTGCPTR GCPtr, PPGMPTWALK pWalk, PPGMPTWALKGST pGstWalk);
 int             pgmGstPtWalkNext(PVMCPUCC pVCpu, RTGCPTR GCPtr, PPGMPTWALK pWalk, PPGMPTWALKGST pGstWalk);
 
-# if defined(VBOX_STRICT) && HC_ARCH_BITS == 64 && defined(IN_RING3)
+# if defined(VBOX_STRICT) && defined(IN_RING3)
 FNDBGCCMD       pgmR3CmdCheckDuplicatePages;
 FNDBGCCMD       pgmR3CmdShowSharedModules;
 # endif

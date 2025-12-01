@@ -244,9 +244,7 @@ typedef struct IEMCPUCORE
         /** The access flags (IEM_ACCESS_XXX).
          * IEM_ACCESS_INVALID if the entry is unused. */
         uint32_t            fAccess;
-#if HC_ARCH_BITS == 64
         uint32_t            u32Alignment4; /**< Alignment padding. */
-#endif
     } aMemMappings[IEM_MAX_MEM_MAPPINGS];                                           /* arm: 0x50 LB 0x20  x86: 0x50 LB 0x30 */
 
     /** Locking records for the mapped memory. */

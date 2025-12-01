@@ -441,7 +441,7 @@ VMMR3_INT_DECL(int)  GMMR3CheckSharedModules(PVM pVM)
 }
 
 
-# if defined(VBOX_STRICT) && HC_ARCH_BITS == 64
+# if defined(VBOX_STRICT)
 /**
  * @see GMMR0FindDuplicatePage
  */
@@ -459,7 +459,7 @@ VMMR3_INT_DECL(bool) GMMR3IsDuplicatePage(PVM pVM, uint32_t idPage)
         return Req.fDuplicate;
     return false;
 }
-# endif /* VBOX_STRICT && HC_ARCH_BITS == 64 */
+# endif /* VBOX_STRICT */
 
 #endif /* defined(VBOX_WITH_R0_MODULES) && !defined(VBOX_WITH_MINIMAL_R0) */
 

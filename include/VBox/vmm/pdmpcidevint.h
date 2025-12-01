@@ -216,7 +216,7 @@ typedef struct PDMPCIDEVINT
     /** Offset to the PBA for MSI-X.   */
     uint16_t                        offMsixPba;
     /** Add padding to align aIORegions to an 16 byte boundary. */
-    uint8_t                         abPadding2[HC_ARCH_BITS == 32 ? 12 : 8];
+    uint8_t                         abPadding2[8];
     /** The MMIO handle for the MSI-X MMIO bar. */
     IOMMMIOHANDLE                   hMmioMsix;
 
@@ -227,7 +227,7 @@ typedef struct PDMPCIDEVINT
     /** @}  */
 } PDMPCIDEVINT;
 AssertCompileMemberAlignment(PDMPCIDEVINT, aIORegions, 8);
-AssertCompileSize(PDMPCIDEVINT, HC_ARCH_BITS == 32 ? 0x98 : 0x178);
+AssertCompileSize(PDMPCIDEVINT, 0x178);
 
 /** Indicate that PDMPCIDEV::Int.s can be declared. */
 #define PDMPCIDEVINT_DECLARED

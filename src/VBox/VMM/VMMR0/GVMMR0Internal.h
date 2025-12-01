@@ -72,9 +72,7 @@ typedef struct GVMMEMTHASHENTRY
     RTNATIVETHREAD      hNativeEmt;
     /** The VCpu index. */
     VMCPUID             idVCpu;
-#if HC_ARCH_BITS == 64
     uint32_t            u32Padding;
-#endif
 } GVMMEMTHASHENTRY;
 AssertCompileSize(GVMMEMTHASHENTRY, sizeof(void *) * 2);
 

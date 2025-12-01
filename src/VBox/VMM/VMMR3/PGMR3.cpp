@@ -907,15 +907,7 @@ VMMR3DECL(int) PGMR3Init(PVM pVM)
      * RAM Mapping
      */
 #ifndef VBOX_WITH_ONLY_PGM_NEM_MODE
-# if HC_ARCH_BITS == 32
-#  ifdef RT_OS_DARWIN
-    rc = CFGMR3QueryU32Def(pCfgPGM, "MaxRing3Chunks", &pVM->pgm.s.ChunkR3Map.cMax, _1G / GMM_CHUNK_SIZE * 3);
-#  else
-    rc = CFGMR3QueryU32Def(pCfgPGM, "MaxRing3Chunks", &pVM->pgm.s.ChunkR3Map.cMax, _1G / GMM_CHUNK_SIZE);
-#  endif
-# else
     rc = CFGMR3QueryU32Def(pCfgPGM, "MaxRing3Chunks", &pVM->pgm.s.ChunkR3Map.cMax, UINT32_MAX);
-# endif
     AssertLogRelRCReturn(rc, rc);
     for (uint32_t i = 0; i < RT_ELEMENTS(pVM->pgm.s.ChunkR3Map.Tlb.aEntries); i++)
         pVM->pgm.s.ChunkR3Map.Tlb.aEntries[i].idChunk = NIL_GMM_CHUNKID;
@@ -1249,7 +1241,7 @@ static int pgmR3InitPaging(PVM pVM)
     }
 
     LogFlow(("pgmR3InitPaging: returns successfully\n"));
-#if HC_ARCH_BITS == 64 && 0
+#if 0
     LogRel(("PGM: HCPhysInterPD=%RHp HCPhysInterPaePDPT=%RHp HCPhysInterPaePML4=%RHp\n",
             pVM->pgm.s.HCPhysInterPD, pVM->pgm.s.HCPhysInterPaePDPT, pVM->pgm.s.HCPhysInterPaePML4));
     LogRel(("PGM: apInterPTs={%RHp,%RHp} apInterPaePTs={%RHp,%RHp} apInterPaePDs={%RHp,%RHp,%RHp,%RHp} pInterPaePDPT64=%RHp\n",

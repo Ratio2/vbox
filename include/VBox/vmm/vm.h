@@ -208,18 +208,6 @@ typedef struct VMCPU
 #else
     VMTARGET                enmTarget;
 #endif
-
-#if HC_ARCH_BITS != 64
-    /** Align the structures below bit on a 64-byte boundary and make sure it starts
-     * at the same offset in both 64-bit and 32-bit builds.
-     *
-     * @remarks The alignments of the members that are larger than 48 bytes should be
-     *          64-byte for cache line reasons. structs containing small amounts of
-     *          data could be lumped together at the end with a < 64 byte padding
-     *          following it (to grow into and align the struct size).
-     */
-    uint8_t                 abAlignment1[64 - 6 * (HC_ARCH_BITS == 32 ? 4 : 8) - 8 - 4 - 4];
-#endif
     /** @} */
 
     /** HM part. */
@@ -1450,7 +1438,7 @@ typedef struct VM
     uint8_t                     cMaxEmtHashCollisions;
 
     /** Padding - the unions must be aligned on a 64 bytes boundary. */
-    uint8_t                     abAlignment3[HC_ARCH_BITS == 64 ? 23 : 51];
+    uint8_t                     abAlignment3[23];
 
     /** CPUM part. */
     union

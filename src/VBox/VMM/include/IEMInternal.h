@@ -548,9 +548,6 @@ typedef struct IEMTLBENTRY
     uint64_t                GCPhys;
     /** Pointer to the ring-3 mapping. */
     R3PTRTYPE(uint8_t *)    pbMappingR3;
-#if HC_ARCH_BITS == 32
-    uint32_t                u32Padding1;
-#endif
 } IEMTLBENTRY;
 AssertCompileSize(IEMTLBENTRY, 32);
 /** Pointer to an IEM TLB entry. */

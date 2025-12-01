@@ -419,15 +419,7 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
                 /* Dump the resume register frame on the stack. */
                 PRTHCUINTPTR const pBP = (PRTHCUINTPTR)&pVCpu->vmm.s.abAssertStack[  pVCpu->vmm.s.AssertJmpBuf.UnwindBp
                                                                                    - pVCpu->vmm.s.AssertJmpBuf.UnwindSp];
-# if HC_ARCH_BITS == 32
-                pHlp->pfnPrintf(pHlp,
-                                "eax=volatile ebx=%08x ecx=volatile edx=volatile esi=%08x edi=%08x\n"
-                                "eip=%08x esp=%08x ebp=%08x efl=%08x\n"
-                                ,
-                                pBP[-3], pBP[-2], pBP[-1],
-                                pBP[1], pVCpu->vmm.s.AssertJmpBuf.SavedEbp - 8, pBP[0], pBP[-4]);
-# else
-#  ifdef RT_OS_WINDOWS
+# ifdef RT_OS_WINDOWS
                 pHlp->pfnPrintf(pHlp,
                                 "rax=volatile         rbx=%016RX64 rcx=volatile         rdx=volatile\n"
                                 "rsi=%016RX64 rdi=%016RX64  r8=volatile          r9=volatile        \n"
@@ -440,7 +432,7 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
                                 pBP[-4], pBP[-3],
                                 pBP[-2], pBP[-1],
                                 pBP[1], pVCpu->vmm.s.AssertJmpBuf.UnwindRetSp, pBP[0], pBP[-8]);
-#  else
+# else
                 pHlp->pfnPrintf(pHlp,
                                 "rax=volatile         rbx=%016RX64 rcx=volatile         rdx=volatile\n"
                                 "rsi=volatile         rdi=volatile          r8=volatile          r9=volatile        \n"
@@ -452,7 +444,6 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
                                 pBP[-4], pBP[-3],
                                 pBP[-2], pBP[-1],
                                 pBP[1], pVCpu->vmm.s.AssertJmpBuf.UnwindRetSp, pBP[0], pBP[-6]);
-#  endif
 # endif
 
                 /* Callstack. */
@@ -469,35 +460,17 @@ VMMR3DECL(void) VMMR3FatalDump(PVM pVM, PVMCPU pVCpu, int rcErr)
                                     "!!\n"
                                     "!! Call Stack:\n"
                                     "!!\n");
-# if HC_ARCH_BITS == 32
-                    pHlp->pfnPrintf(pHlp, "EBP      Ret EBP  Ret CS:EIP    Arg0     Arg1     Arg2     Arg3     CS:EIP        Symbol [line]\n");
-# else
                     pHlp->pfnPrintf(pHlp, "RBP              Ret RBP          Ret RIP          RIP              Symbol [line]\n");
-# endif
                     for (PCDBGFSTACKFRAME pFrame = pFirstFrame;
                          pFrame;
                          pFrame = DBGFR3StackWalkNext(pFrame))
                     {
-# if HC_ARCH_BITS == 32
-                        pHlp->pfnPrintf(pHlp,
-                                        "%RHv %RHv %04RX32:%RHv %RHv %RHv %RHv %RHv",
-                                        (RTHCUINTPTR)pFrame->AddrFrame.off,
-                                        (RTHCUINTPTR)pFrame->AddrReturnFrame.off,
-                                        (RTHCUINTPTR)pFrame->AddrReturnPC.Sel,
-                                        (RTHCUINTPTR)pFrame->AddrReturnPC.off,
-                                        pFrame->Args.au32[0],
-                                        pFrame->Args.au32[1],
-                                        pFrame->Args.au32[2],
-                                        pFrame->Args.au32[3]);
-                        pHlp->pfnPrintf(pHlp, " %RTsel:%08RHv", pFrame->AddrPC.Sel, pFrame->AddrPC.off);
-# else
                         pHlp->pfnPrintf(pHlp,
                                         "%RHv %RHv %RHv %RHv",
                                         (RTHCUINTPTR)pFrame->AddrFrame.off,
                                         (RTHCUINTPTR)pFrame->AddrReturnFrame.off,
                                         (RTHCUINTPTR)pFrame->AddrReturnPC.off,
                                         (RTHCUINTPTR)pFrame->AddrPC.off);
-# endif
                         if (pFrame->pSymPC)
                         {
                             RTGCINTPTR offDisp = pFrame->AddrPC.FlatPtr - pFrame->pSymPC->Value;

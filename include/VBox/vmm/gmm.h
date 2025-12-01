@@ -90,11 +90,7 @@ RT_C_DECLS_BEGIN
  * the guest page frame number used internally in GMMPAGE.
  *
  * @note    Note this corresponds to GMM_PAGE_PFN_LAST. */
-#if HC_ARCH_BITS == 64
-# define GMM_GCPHYS_LAST            UINT64_C(0x00000fffffff0000)    /* 2^44 (16TB) - 0x10000 */
-#else
-# define GMM_GCPHYS_LAST            UINT64_C(0x0000000fffff0000)    /* 2^36 (64GB) - 0x10000 */
-#endif
+#define GMM_GCPHYS_LAST             UINT64_C(0x00000fffffff0000)    /* 2^44 (16TB) - 0x10000 */
 
 /**
  * Over-commitment policy.
@@ -259,11 +255,7 @@ typedef GMMPAGEDESC *PGMMPAGEDESC;
 
 /** GMMPAGEDESC::HCPhysGCPhys value that indicates that the page is unsharable.
  * @note    This corresponds to GMM_PAGE_PFN_UNSHAREABLE. */
-#if HC_ARCH_BITS == 64
-# define GMM_GCPHYS_UNSHAREABLE     UINT64_C(0x00000fffffff1000)
-#else
-# define GMM_GCPHYS_UNSHAREABLE     UINT64_C(0x0000000fffff1000)
-#endif
+#define GMM_GCPHYS_UNSHAREABLE      UINT64_C(0x00000fffffff1000)
 
 
 /**
@@ -689,7 +681,7 @@ typedef GMMUNREGISTERSHAREDMODULEREQ *PGMMUNREGISTERSHAREDMODULEREQ;
 
 VMMR0_INT_DECL(int) GMMR0UnregisterSharedModuleReq(PGVM pGVM, VMCPUID idCpu, PGMMUNREGISTERSHAREDMODULEREQ pReq);
 
-#if defined(VBOX_STRICT) && HC_ARCH_BITS == 64
+#if defined(VBOX_STRICT)
 /**
  * Request buffer for GMMR0FindDuplicatePageReq / VMMR0_DO_GMM_FIND_DUPLICATE_PAGE.
  * @see GMMR0FindDuplicatePage.
@@ -707,7 +699,7 @@ typedef struct GMMFINDDUPLICATEPAGEREQ
 typedef GMMFINDDUPLICATEPAGEREQ *PGMMFINDDUPLICATEPAGEREQ;
 
 VMMR0_INT_DECL(int) GMMR0FindDuplicatePageReq(PGVM pGVM, PGMMFINDDUPLICATEPAGEREQ pReq);
-#endif /* VBOX_STRICT && HC_ARCH_BITS == 64 */
+#endif /* VBOX_STRICT */
 
 
 /**
@@ -779,7 +771,7 @@ VMMR3_INT_DECL(int)  GMMR3UnregisterSharedModule(PVM pVM, PGMMUNREGISTERSHAREDMO
 VMMR3_INT_DECL(int)  GMMR3CheckSharedModules(PVM pVM);
 VMMR3_INT_DECL(int)  GMMR3ResetSharedModules(PVM pVM);
 
-# if defined(VBOX_STRICT) && HC_ARCH_BITS == 64
+# if defined(VBOX_STRICT)
 VMMR3_INT_DECL(bool) GMMR3IsDuplicatePage(PVM pVM, uint32_t idPage);
 # endif
 

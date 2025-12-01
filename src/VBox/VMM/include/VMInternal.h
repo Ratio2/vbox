@@ -209,7 +209,7 @@ typedef struct VMINTUSERPERVM
     /** Number of free request packets. */
     volatile uint32_t               cReqFree;
     /** Array of pointers to lists of free request packets. Atomic. */
-    volatile PVMREQ                 apReqFree[16 - (HC_ARCH_BITS == 32 ? 5 : 4)];
+    volatile PVMREQ                 apReqFree[16 - 4];
 
     /** The reference count of the UVM handle. */
     volatile uint32_t               cUvmRefs;
@@ -218,9 +218,6 @@ typedef struct VMINTUSERPERVM
     volatile uint32_t               cActiveEmts;
 
 # ifdef VBOX_WITH_STATISTICS
-#  if HC_ARCH_BITS == 32
-    uint32_t                        uPadding;
-#  endif
     /** Number of VMR3ReqAlloc returning a new packet. */
     STAMCOUNTER                     StatReqAllocNew;
     /** Number of VMR3ReqAlloc causing races. */
@@ -376,7 +373,7 @@ typedef struct VMINTUSERPERVMCPU
      *  already. */
     bool volatile                   fBeenThruVmDestroy;
     /** Align the next bit. */
-    bool                            afAlignment[HC_ARCH_BITS == 32 ? 2 : 6];
+    bool                            afAlignment[6];
 
     /** @name Generic Halt data
      * @{

@@ -151,11 +151,7 @@ typedef struct GVMHANDLE
 typedef GVMHANDLE *PGVMHANDLE;
 
 /** Number of GVM handles (including the NIL handle). */
-#if HC_ARCH_BITS == 64
-# define GVMM_MAX_HANDLES   8192
-#else
-# define GVMM_MAX_HANDLES   128
-#endif
+#define GVMM_MAX_HANDLES   8192
 
 /**
  * Per host CPU GVMM data.

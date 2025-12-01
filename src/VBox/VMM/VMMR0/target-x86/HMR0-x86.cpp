@@ -1832,19 +1832,10 @@ VMMR0_INT_DECL(void) hmR0DumpDescriptor(PCX86DESCHC pDesc, RTSEL Sel, const char
         ADD_STR(psz, "Present ");
     else
         ADD_STR(psz, "Not-Present ");
-# if HC_ARCH_BITS == 64
     if (pDesc->Gen.u1Long)
         ADD_STR(psz, "64-bit ");
     else
         ADD_STR(psz, "Comp ");
-# else
-    if (pDesc->Gen.u1Granularity)
-        ADD_STR(psz, "Page ");
-    if (pDesc->Gen.u1DefBig)
-        ADD_STR(psz, "32-bit ");
-    else
-        ADD_STR(psz, "16-bit ");
-# endif
 # undef ADD_STR
     *psz = '\0';
 
@@ -1853,16 +1844,9 @@ VMMR0_INT_DECL(void) hmR0DumpDescriptor(PCX86DESCHC pDesc, RTSEL Sel, const char
      */
 #ifdef LOG_ENABLED
     uint32_t u32Limit = X86DESC_LIMIT_G(pDesc);
-
-# if HC_ARCH_BITS == 64
     uint64_t const u64Base  = X86DESC64_BASE(pDesc);
     Log(("  %s { %#04x - %#RX64 %#RX64 - base=%#RX64 limit=%#08x dpl=%d } %s\n", pszSel,
          Sel, pDesc->au64[0], pDesc->au64[1], u64Base, u32Limit, pDesc->Gen.u2Dpl, szMsg));
-# else
-    uint32_t const u32Base  = X86DESC_BASE(pDesc);
-    Log(("  %s { %#04x - %#08x %#08x - base=%#08x limit=%#08x dpl=%d } %s\n", pszSel,
-         Sel, pDesc->au32[0], pDesc->au32[1], u32Base, u32Limit, pDesc->Gen.u2Dpl, szMsg));
-# endif
 #else
     NOREF(Sel); NOREF(pszSel);
 #endif
