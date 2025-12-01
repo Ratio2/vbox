@@ -425,10 +425,8 @@ DISDECL(size_t) DISFormatYasmEx(PCDISSTATE pDis, char *pszBuf, size_t cchBuf, ui
      */
     if (fFlags & DIS_FMT_FLAGS_ADDR_LEFT)
     {
-#if HC_ARCH_BITS == 64 || GC_ARCH_BITS == 64
         if (pDis->uInstrAddr >= _4G)
             PUT_NUM(9, "%08x`", (uint32_t)(pDis->uInstrAddr >> 32));
-#endif
         PUT_NUM(8, "%08x", (uint32_t)pDis->uInstrAddr);
         PUT_C(' ');
     }
@@ -1318,10 +1316,8 @@ DISDECL(size_t) DISFormatYasmEx(PCDISSTATE pDis, char *pszBuf, size_t cchBuf, ui
         if (fFlags & DIS_FMT_FLAGS_ADDR_RIGHT)
         {
             PUT_C(' ');
-#if HC_ARCH_BITS == 64 || GC_ARCH_BITS == 64
             if (pDis->uInstrAddr >= _4G)
                 PUT_NUM(9, "%08x`", (uint32_t)(pDis->uInstrAddr >> 32));
-#endif
             PUT_NUM(8, "%08x", (uint32_t)pDis->uInstrAddr);
         }
 
