@@ -2218,9 +2218,6 @@ else
  $(error VBox: KBUILD_TARGET_ARCH=$(KBUILD_TARGET_ARCH))
 endif
 
-VBOX_GC_ARCH_BITS_DEFS := GC_ARCH_BITS=64
-ARCH_BITS_DEFS += $(VBOX_GC_ARCH_BITS_DEFS)
-
 #
 # Add the output dir(s) to the dynamic loader search path.
 #
