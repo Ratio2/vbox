@@ -73,8 +73,7 @@ VBOXMOD_DEFS = \
 	IN_SUP_R0 \
 	VBOX \
 	RT_WITH_VBOX \
-	VBOX_WITH_HARDENING \
-	VBOX_WITH_64_BITS_GUESTS # <-- must be consistent with Config.kmk!
+	VBOX_WITH_HARDENING
 VBOXMOD_CFLAGS = -include $(VBOXNETFLT_DIR)include/VBox/SUPDrvMangling.h -fno-pie -Wno-declaration-after-statement
 
 include $(obj)/Makefile-footer.gmk
