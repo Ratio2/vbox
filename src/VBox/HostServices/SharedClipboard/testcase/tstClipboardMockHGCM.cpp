@@ -29,9 +29,8 @@
 /*********************************************************************************************************************************
 *   Header Files                                                                                                                 *
 *********************************************************************************************************************************/
-#include "../VBoxSharedClipboardSvc-internal.h"
-
 #include <VBox/HostServices/VBoxClipboardSvc.h>
+#include <VBox/HostServices/VBoxSharedClipboardSvc.h>
 #include <VBox/VBoxGuestLib.h>
 #ifdef RT_OS_LINUX
 # include <VBox/GuestHost/SharedClipboard-x11.h>

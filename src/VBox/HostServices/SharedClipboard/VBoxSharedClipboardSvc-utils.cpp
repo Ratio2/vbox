@@ -38,5 +38,3 @@
 #include <iprt/errcore.h>
 #include <iprt/path.h>
 
-#include "VBoxSharedClipboardSvc-internal.h"
-

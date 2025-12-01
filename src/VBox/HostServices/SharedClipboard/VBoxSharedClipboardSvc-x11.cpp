@@ -41,6 +41,7 @@
 #include <VBox/GuestHost/SharedClipboard.h>
 #include <VBox/GuestHost/SharedClipboard-x11.h>
 #include <VBox/HostServices/VBoxClipboardSvc.h>
+#include <VBox/HostServices/VBoxSharedClipboardSvc.h>
 #include <iprt/errcore.h>
 
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
@@ -50,7 +51,6 @@
 # endif
 #endif
 
-#include "VBoxSharedClipboardSvc-internal.h"
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
 # include "VBoxSharedClipboardSvc-transfers.h"
 #endif

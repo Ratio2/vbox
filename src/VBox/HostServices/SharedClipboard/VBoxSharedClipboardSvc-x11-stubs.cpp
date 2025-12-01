@@ -31,6 +31,7 @@
 *********************************************************************************************************************************/
 #define LOG_GROUP LOG_GROUP_SHARED_CLIPBOARD
 #include <VBox/HostServices/VBoxClipboardSvc.h>
+#include <VBox/HostServices/VBoxSharedClipboardSvc.h>
 
 #include <iprt/alloc.h>
 #include <iprt/asm.h>        /* For atomic operations */
@@ -43,8 +44,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
-
-#include "VBoxSharedClipboardSvc-internal.h"
 
 
 /*

@@ -25,9 +25,8 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-#include "../VBoxSharedClipboardSvc-internal.h"
-
 #include <VBox/HostServices/VBoxClipboardSvc.h>
+#include <VBox/HostServices/VBoxSharedClipboardSvc.h>
 
 #include <iprt/assert.h>
 #include <iprt/string.h>

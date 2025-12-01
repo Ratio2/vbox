@@ -214,6 +214,7 @@
 #include <VBox/GuestHost/clipboard-helper.h>
 #include <VBox/HostServices/Service.h>
 #include <VBox/HostServices/VBoxClipboardSvc.h>
+#include <VBox/HostServices/VBoxSharedClipboardSvc.h>
 #include <VBox/HostServices/VBoxClipboardExt.h>
 
 #include <VBox/AssertGuest.h>
@@ -227,7 +228,6 @@
 #include <iprt/critsect.h>
 #include <iprt/rand.h>
 
-#include "VBoxSharedClipboardSvc-internal.h"
 #ifdef VBOX_WITH_SHARED_CLIPBOARD_TRANSFERS
 # include "VBoxSharedClipboardSvc-transfers.h"
 #endif
