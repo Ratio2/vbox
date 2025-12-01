@@ -96,6 +96,7 @@ VBOX_HDRS_R3_ONLY := \
 	VBox/HostServices/Service.h \
 	VBox/HostServices/TstHGCMMock.h \
 	VBox/HostServices/TstHGCMMockUtils.h \
+	VBox/HostServices/VBoxSharedClipboardSvc.h \
 	iprt/win/% \
 	iprt/alloca.h \
 	iprt/tcp.h \
