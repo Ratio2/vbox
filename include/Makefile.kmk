@@ -39,6 +39,7 @@ VBOX_HDRS_CPP_FEATURES := \
 	VBox/vmm/pdmaudiohostenuminline.h \
 	VBox/HostServices/GuestControlSvc.h \
 	VBox/HostServices/DragAndDropSvc.h \
+	VBox/HostServices/VBoxSharedClipboardSvc.h \
 	VBox/HostServices/Service.h \
 	VBox/GuestHost/GuestControl.h \
 	VBox/GuestHost/DragAndDrop.h \
