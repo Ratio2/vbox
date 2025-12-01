@@ -2847,11 +2847,7 @@ typedef struct PGMMODEDATAGST
 
 #if defined(VBOX_VMM_TARGET_X86) || defined(VBOX_VMM_TARGET_AGNOSTIC)
 /** The length of g_aPgmGuestModeData. */
-# if VBOX_WITH_64_BITS_GUESTS
-#  define PGM_GUEST_MODE_DATA_ARRAY_SIZE     (PGM_TYPE_AMD64 + 1)
-# else
-#  define PGM_GUEST_MODE_DATA_ARRAY_SIZE     (PGM_TYPE_PAE + 1)
-# endif
+# define PGM_GUEST_MODE_DATA_ARRAY_SIZE      (PGM_TYPE_AMD64 + 1)
 #elif defined(VBOX_VMM_TARGET_ARMV8)
 # define PGM_GUEST_MODE_DATA_ARRAY_SIZE      (512 + 2) /** @todo Find a better way to express that. */
 #else
