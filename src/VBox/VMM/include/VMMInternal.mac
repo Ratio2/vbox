@@ -33,15 +33,6 @@ struc VMMR0JMPBUF
         ;
         ; traditional jmp_buf
         ;
-%ifdef RT_ARCH_X86
-        .ebx                    resd 1
-        .esi                    resd 1
-        .edi                    resd 1
-        .ebp                    resd 1
-        .esp                    resd 1
-        .eip                    resd 1
-        .eflags                 resd 1
-%endif
 %ifdef RT_ARCH_AMD64
         .rbx                    resq 1
  %ifdef RT_OS_WINDOWS

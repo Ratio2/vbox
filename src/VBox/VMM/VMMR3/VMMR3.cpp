@@ -2391,22 +2391,6 @@ VMMR3_INT_DECL(void) VMMR3InitR0StackUnwindState(PUVM pUVM, VMCPUID idCpu, struc
     pState->uPc                        = *(uint64_t const *)&pVCpu->vmm.s.abAssertStack[off];
     pState->u.x86.auRegs[X86_GREG_xSP] = pVCpu->vmm.s.AssertJmpBuf.UnwindRetSp;
 
-#elif defined(RT_ARCH_X86)
-    /* This code must match the vmmR0CallRing3LongJmp stack frame setup in VMMR0JmpA-x86.asm exactly. */
-    uintptr_t off = 0;
-    pState->u.x86.uRFlags              = *(uint32_t const *)&pVCpu->vmm.s.abAssertStack[off];
-    off += 4;
-    pState->u.x86.auRegs[X86_GREG_xBX] = *(uint32_t const *)&pVCpu->vmm.s.abAssertStack[off];
-    off += 4;
-    pState->u.x86.auRegs[X86_GREG_xSI] = *(uint32_t const *)&pVCpu->vmm.s.abAssertStack[off];
-    off += 4;
-    pState->u.x86.auRegs[X86_GREG_xDI] = *(uint32_t const *)&pVCpu->vmm.s.abAssertStack[off];
-    off += 4;
-    pState->u.x86.auRegs[X86_GREG_xBP] = *(uint32_t const *)&pVCpu->vmm.s.abAssertStack[off];
-    off += 4;
-    pState->uPc                        = *(uint32_t const *)&pVCpu->vmm.s.abAssertStack[off];
-    pState->u.x86.auRegs[X86_GREG_xSP] = pVCpu->vmm.s.AssertJmpBuf.UnwindRetSp;
-
 #elif defined(RT_ARCH_ARM64)
     /** @todo PORTME: arm ring-0  */
 
