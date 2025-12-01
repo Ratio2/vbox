@@ -178,7 +178,8 @@ ifneq ($(KBUILD_TARGET_ARCH),amd64)
  	VBox/vmm/dbgfcorefmt.h \
  	VBox/vmm/gvm.h \
  	VBox/vmm/uvm.h \
- 	VBox/vmm/vm.h
+ 	VBox/vmm/vm.h \
+ 	VBox/vmm/vmcc.h
 endif
 # ARM only headers.
 ifn1of ($(KBUILD_TARGET_ARCH), arm32 arm64)
