@@ -57,9 +57,6 @@
 #if (defined(IN_RING0) || defined(IN_RING3)) && HC_ARCH_BITS != ARCH_BITS
 # error "(defined(IN_RING0) || defined(IN_RING3)) && HC_ARCH_BITS != ARCH_BITS"
 #endif
-#if defined(IN_RC) && GC_ARCH_BITS != 64 && GC_ARCH_BITS != ARCH_BITS
-# error "defined(IN_RC) && GC_ARCH_BITS != ARCH_BITS"
-#endif
 
 
 /*
@@ -108,11 +105,7 @@ AssertCompileSize(RTR0UINTPTR, 4);
 /*AssertCompileSize(RTR3UINT, 4);*/
 AssertCompileSize(RTR3INTPTR, 4);
 AssertCompileSize(RTR3UINTPTR, 4);
-# if GC_ARCH_BITS == 64
 AssertCompileSize(RTUINTPTR, 8);
-# else
-AssertCompileSize(RTUINTPTR, 4);
-# endif
 
 # if defined(IN_RING3) || defined(IN_RING0)
 /*AssertCompileSize(RTCCINTREG, 4);*/
@@ -127,8 +120,6 @@ AssertCompileSize(RTHCPHYS, 8);
 /*
  * Check basic guest context types.
  */
-#if GC_ARCH_BITS == 64
-
 AssertCompileSize(RTGCINT, 8);
 AssertCompileSize(RTGCUINT, 8);
 AssertCompileSize(RTGCINTPTR, 8);
@@ -142,21 +133,6 @@ AssertCompileSize(RTGCUINTREG, 8);
 AssertCompileSize(RTCCUINTREG, 4);
 # endif
 
-#else
-
-AssertCompileSize(RTGCINT, 4);
-AssertCompileSize(RTGCUINT, 4);
-AssertCompileSize(RTGCINTPTR, 4);
-AssertCompileSize(RTGCUINTPTR, 4);
-/*AssertCompileSize(RTGCINTREG, 4);*/
-AssertCompileSize(RTGCUINTREG, 4);
-
-# ifdef IN_RC
-/*AssertCompileSize(RTCCINTREG, 4);*/
-AssertCompileSize(RTCCUINTREG, 4);
-# endif
-
-#endif
 
 AssertCompileSize(RTGCPHYS64, 8);
 AssertCompileSize(RTGCPHYS32, 4);

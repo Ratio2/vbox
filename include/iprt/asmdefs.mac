@@ -930,16 +930,6 @@ ENDPROC_RAW NAME(%1)
  %endif
 %endif
 
-;; @def GC_ARCH_BITS
-; Defines the guest architechture bit count.
-%ifndef GC_ARCH_BITS
- %ifdef IN_RC
-  %define GC_ARCH_BITS ARCH_BITS
- %else
-  %define GC_ARCH_BITS 32
- %endif
-%endif
-
 
 
 ;; @def RTHCPTR_DEF
@@ -1049,39 +1039,23 @@ ENDPROC_RAW NAME(%1)
 
 ;; @def RTGCPTR_DEF
 ; The pesudo-instruction used to declare an initialized pointer variable in the guest context.
-%if GC_ARCH_BITS == 64
- %define RTGCPTR_DEF    dq
-%else
- %define RTGCPTR_DEF    dd
-%endif
+%define RTGCPTR_DEF     dq
 
 ;; @def RTGCPTR_RES
 ; The pesudo-instruction used to declare (=reserve space for) an uninitialized pointer
 ; variable of the guest context.
-%if GC_ARCH_BITS == 64
- %define RTGCPTR_RES    resq
-%else
- %define RTGCPTR_RES    resd
-%endif
+%define RTGCPTR_RES     resq
 
 %define RTGCPTR32_RES   resd
 %define RTGCPTR64_RES   resq
 
 ;; @def RTGCPTR_PRE
 ; The memory operand prefix used for a pointer in the guest context.
-%if GC_ARCH_BITS == 64
- %define RTGCPTR_PRE    qword
-%else
- %define RTGCPTR_PRE    dword
-%endif
+%define RTGCPTR_PRE     qword
 
 ;; @def RTGCPTR_CB
 ; The size in bytes of a pointer in the guest context.
-%if GC_ARCH_BITS == 64
- %define RTGCPTR_CB     8
-%else
- %define RTGCPTR_CB     4
-%endif
+%define RTGCPTR_CB      8
 
 
 ;; @def RTRCPTR_DEF

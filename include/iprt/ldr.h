@@ -763,11 +763,7 @@ RTDECL(int) RTLdrEnumSymbols(RTLDRMOD hLdrMod, unsigned fFlags, const void *pvBi
 
 /** Special symbol for forwarder symbols, since they cannot be resolved with
  * the current API. */
-#if (HC_ARCH_BITS == 64 || GC_ARCH_BITS == 64)
-# define RTLDR_ENUM_SYMBOL_FWD_ADDRESS          UINT64_C(0xff4242fffd4242fd)
-#else
-# define RTLDR_ENUM_SYMBOL_FWD_ADDRESS          UINT32_C(0xff4242fd)
-#endif
+#define RTLDR_ENUM_SYMBOL_FWD_ADDRESS           UINT64_C(0xff4242fffd4242fd)
 
 
 /**

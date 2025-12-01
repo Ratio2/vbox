@@ -1800,53 +1800,43 @@ typedef const struct RTTIMESPEC RT_FAR *PCRTTIMESPEC;
  */
 
 /** Signed integer which can contain both GC and HC pointers. */
-#if (HC_ARCH_BITS == 32 && GC_ARCH_BITS == 32) || (HC_ARCH_BITS == 16 || GC_ARCH_BITS == 16)
+#if HC_ARCH_BITS == 16
 typedef int32_t                 RTINTPTR;
-#elif (HC_ARCH_BITS == 64 || GC_ARCH_BITS == 64)
-typedef int64_t                 RTINTPTR;
 #else
-#  error Unsupported HC_ARCH_BITS and/or GC_ARCH_BITS values.
+typedef int64_t                 RTINTPTR;
 #endif
 /** Pointer to signed integer which can contain both GC and HC pointers. */
 typedef RTINTPTR        RT_FAR *PRTINTPTR;
 /** Pointer const to signed integer which can contain both GC and HC pointers. */
 typedef const RTINTPTR  RT_FAR *PCRTINTPTR;
 /** The maximum value the RTINTPTR type can hold. */
-#if (HC_ARCH_BITS == 32 && GC_ARCH_BITS == 32) || (HC_ARCH_BITS == 16 || GC_ARCH_BITS == 16)
-# define RTINTPTR_MAX   INT32_MAX
-#elif (HC_ARCH_BITS == 64 || GC_ARCH_BITS == 64)
-# define RTINTPTR_MAX   INT64_MAX
+#if HC_ARCH_BITS == 16
+# define RTINTPTR_MAX           INT32_MAX
 #else
-#  error Unsupported HC_ARCH_BITS and/or GC_ARCH_BITS values.
+# define RTINTPTR_MAX           INT64_MAX
 #endif
 /** The minimum value the RTINTPTR type can hold. */
-#if (HC_ARCH_BITS == 32 && GC_ARCH_BITS == 32) || (HC_ARCH_BITS == 16 || GC_ARCH_BITS == 16)
+#if HC_ARCH_BITS == 16
 # define RTINTPTR_MIN           INT32_MIN
-#elif (HC_ARCH_BITS == 64 || GC_ARCH_BITS == 64)
-# define RTINTPTR_MIN           INT64_MIN
 #else
-#  error Unsupported HC_ARCH_BITS and/or GC_ARCH_BITS values.
+# define RTINTPTR_MIN           INT64_MIN
 #endif
 
 /** Unsigned integer which can contain both GC and HC pointers. */
-#if (HC_ARCH_BITS == 32 && GC_ARCH_BITS == 32) || (HC_ARCH_BITS == 16 || GC_ARCH_BITS == 16)
+#if HC_ARCH_BITS == 16
 typedef uint32_t                RTUINTPTR;
-#elif (HC_ARCH_BITS == 64 || GC_ARCH_BITS == 64)
-typedef uint64_t                RTUINTPTR;
 #else
-#  error Unsupported HC_ARCH_BITS and/or GC_ARCH_BITS values.
+typedef uint64_t                RTUINTPTR;
 #endif
 /** Pointer to unsigned integer which can contain both GC and HC pointers. */
 typedef RTUINTPTR       RT_FAR *PRTUINTPTR;
 /** Pointer const to unsigned integer which can contain both GC and HC pointers. */
 typedef const RTUINTPTR RT_FAR *PCRTUINTPTR;
 /** The maximum value the RTUINTPTR type can hold. */
-#if (HC_ARCH_BITS == 32 && GC_ARCH_BITS == 32) || (HC_ARCH_BITS == 16 || GC_ARCH_BITS == 16)
+#if HC_ARCH_BITS == 16
 # define RTUINTPTR_MAX          UINT32_MAX
-#elif (HC_ARCH_BITS == 64 || GC_ARCH_BITS == 64)
-# define RTUINTPTR_MAX          UINT64_MAX
 #else
-#  error Unsupported HC_ARCH_BITS and/or GC_ARCH_BITS values.
+# define RTUINTPTR_MAX          UINT64_MAX
 #endif
 
 /** Signed integer. */
@@ -2278,11 +2268,8 @@ typedef const RTR0UINTREG RT_FAR *PCRTR0UINTREG;
 
 /** Natural signed integer in the GC.
  * @deprecated silly type. */
-#if GC_ARCH_BITS == 32
-typedef int32_t                 RTGCINT;
-#elif GC_ARCH_BITS == 64 /** @todo this isn't right, natural int is 32-bit, see RTHCINT. */
+/** @todo this isn't right, natural int is 32-bit, see RTHCINT. */
 typedef int64_t                 RTGCINT;
-#endif
 /** Pointer to natural signed integer in GC.
  * @deprecated silly type. */
 typedef RTGCINT RT_FAR         *PRTGCINT;
@@ -2292,11 +2279,8 @@ typedef const RTGCINT   RT_FAR *PCRTGCINT;
 
 /** Natural unsigned integer in the GC.
  * @deprecated silly type. */
-#if GC_ARCH_BITS == 32
-typedef uint32_t                RTGCUINT;
-#elif GC_ARCH_BITS == 64 /** @todo this isn't right, natural int is 32-bit, see RTHCUINT. */
+/** @todo this isn't right, natural int is 32-bit, see RTHCUINT. */
 typedef uint64_t                RTGCUINT;
-#endif
 /** Pointer to natural unsigned integer in GC.
  * @deprecated silly type. */
 typedef RTGCUINT        RT_FAR *PRTGCUINT;
@@ -2305,24 +2289,14 @@ typedef RTGCUINT        RT_FAR *PRTGCUINT;
 typedef const RTGCUINT  RT_FAR *PCRTGCUINT;
 
 /** Signed integer which can contain a GC pointer. */
-#if GC_ARCH_BITS == 32
-typedef int32_t                 RTGCINTPTR;
-#elif GC_ARCH_BITS == 64
 typedef int64_t                 RTGCINTPTR;
-#endif
 /** Pointer to signed integer which can contain a GC pointer. */
 typedef RTGCINTPTR      RT_FAR *PRTGCINTPTR;
 /** Pointer to const signed integer which can contain a GC pointer. */
 typedef const RTGCINTPTR RT_FAR *PCRTGCINTPTR;
 
 /** Unsigned integer which can contain a GC pointer. */
-#if GC_ARCH_BITS == 32
-typedef uint32_t                RTGCUINTPTR;
-#elif GC_ARCH_BITS == 64
 typedef uint64_t                RTGCUINTPTR;
-#else
-#  error Unsupported GC_ARCH_BITS value.
-#endif
 /** Pointer to unsigned integer which can contain a GC pointer. */
 typedef RTGCUINTPTR     RT_FAR *PRTGCUINTPTR;
 /** Pointer to unsigned integer which can contain a GC pointer. */
@@ -2425,21 +2399,11 @@ typedef const RTGCPTR64 RT_FAR *PCRTGCPTR64;
  * NIL GC pointer.  */
 /** @def RTGCPTR_MAX
  * Max RTGCPTR value. */
-#if GC_ARCH_BITS == 64 || defined(DOXYGEN_RUNNING)
 typedef RTGCPTR64               RTGCPTR;
 typedef PRTGCPTR64              PRTGCPTR;
 typedef PCRTGCPTR64             PCRTGCPTR;
 # define NIL_RTGCPTR            NIL_RTGCPTR64
 # define RTGCPTR_MAX            UINT64_MAX
-#elif GC_ARCH_BITS == 32
-typedef RTGCPTR32               RTGCPTR;
-typedef PRTGCPTR32              PRTGCPTR;
-typedef PCRTGCPTR32             PCRTGCPTR;
-# define NIL_RTGCPTR            NIL_RTGCPTR32
-# define RTGCPTR_MAX            UINT32_MAX
-#else
-# error "Unsupported GC_ARCH_BITS!"
-#endif
 
 /** Unsigned integer register in the guest context. */
 typedef uint32_t                RTGCUINTREG32;
@@ -2454,13 +2418,7 @@ typedef RTGCUINTREG64   RT_FAR *PRTGCUINTREG64;
 /** Pointer to a const unsigned integer register in the guest context. */
 typedef const RTGCUINTREG64 RT_FAR *PCRTGCUINTREG64;
 
-#if GC_ARCH_BITS == 64
 typedef RTGCUINTREG64           RTGCUINTREG;
-#elif GC_ARCH_BITS == 32
-typedef RTGCUINTREG32           RTGCUINTREG;
-#else
-# error "Unsupported GC_ARCH_BITS!"
-#endif
 /** Pointer to an unsigned integer register in the guest context. */
 typedef RTGCUINTREG     RT_FAR *PRTGCUINTREG;
 /** Pointer to a const unsigned integer register in the guest context. */

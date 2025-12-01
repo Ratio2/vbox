@@ -490,17 +490,6 @@
 # endif
 #endif
 
-/** @def GC_ARCH_BITS
- * Defines the guest architecture bit count.
- */
-#if !defined(GC_ARCH_BITS) || defined(DOXYGEN_RUNNING)
-# if defined(VBOX_WITH_64_BITS_GUESTS) || defined(DOXYGEN_RUNNING)
-#  define GC_ARCH_BITS  64
-# else
-#  define GC_ARCH_BITS  32
-# endif
-#endif
-
 /** @def R3_ARCH_BITS
  * Defines the host ring-3 architecture bit count.
  */

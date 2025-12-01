@@ -340,15 +340,9 @@ static void testRuntimeExtensions(RTTEST hTest, char *pszBuf)
     CHECK42("%RGu", (RTGCUINT)1, "1");
     CHECK42("%RGu", (RTGCUINT)3000000000U, "3000000000");
 
-#if GC_ARCH_BITS == 32
-    CHECK42("%RGv", (RTGCUINTPTR)0, "00000000");
-    CHECK42("%RGv", ~(RTGCUINTPTR)0, "ffffffff");
-    CHECK42("%RGv", (RTGCUINTPTR)0x84342134, "84342134");
-#else
     CHECK42("%RGv", (RTGCUINTPTR)0, "0000000000000000");
     CHECK42("%RGv", ~(RTGCUINTPTR)0, "ffffffffffffffff");
     CHECK42("%RGv", (RTGCUINTPTR)0x84342134, "0000000084342134");
-#endif
 
     CHECK42("%RGx", (RTGCUINT)0x234, "234");
     CHECK42("%RGx", (RTGCUINT)0xffffffff, "ffffffff");
@@ -595,15 +589,9 @@ static void testRuntimeExtensions(RTTEST hTest, char *pszBuf)
     CHECK42("%RTproc", (RTPROCESS)0xffffff, "00ffffff");
     CHECK42("%RTproc", (RTPROCESS)0x43455443, "43455443");
 
-#if (HC_ARCH_BITS == 64 || GC_ARCH_BITS == 64)
     CHECK42("%RTptr", (RTUINTPTR)0, "0000000000000000");
     CHECK42("%RTptr", ~(RTUINTPTR)0, "ffffffffffffffff");
     CHECK42("%RTptr", (RTUINTPTR)(uintptr_t)0x84342134, "0000000084342134");
-#else
-    CHECK42("%RTptr", (RTUINTPTR)0, "00000000");
-    CHECK42("%RTptr", ~(RTUINTPTR)0, "ffffffff");
-    CHECK42("%RTptr", (RTUINTPTR)(uintptr_t)0x84342134, "84342134");
-#endif
 
 #if ARCH_BITS == 64
     AssertCompileSize(RTCCUINTREG, 8);
