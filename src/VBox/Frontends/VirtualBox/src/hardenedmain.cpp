@@ -51,8 +51,8 @@ static int MyStrCmp(const char *psz1, const char *psz2)
 /**
  * Option w/ value matching.
  *
- * @returns -1 on mismatch, 0 on exact match, 1 if there is a separator ('=' or
- *          ':') following in the original string.
+ * @returns -1 on mismatch, 1 on exact match, 0 if there is a value separator
+ *          ('=' or ':') following in the string.
  */
 static int MyStrMatchOptWithValue(const char *pszString, const char *pszOpt)
 {
@@ -63,11 +63,11 @@ static int MyStrMatchOptWithValue(const char *pszString, const char *pszOpt)
         if (ch1 != ch2)
         {
             if (!ch2)
-                return ch1 == ':' || ch1 == '=' ? 1 : -1;
+                return ch1 == ':' || ch1 == '=' ? 0 : -1;
             return -1;
         }
         if (!ch1)
-            return 0;
+            return 1;
     }
 }
 
@@ -95,8 +95,7 @@ int main(int argc, char **argv, char **envp)
         {
             cOptionsLeft -= fStartVM == false;
             fStartVM = true;
-            if (iMatch == 0)
-                i++;
+            i += iMatch;
         }
         else if (   !MyStrCmp(argv[i], "--separate")
                  || !MyStrCmp(argv[i], "-separate"))
