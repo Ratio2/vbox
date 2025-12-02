@@ -809,7 +809,7 @@ RTDECL(int) RTThreadCreate(PRTTHREAD pThread, PFNRTTHREAD pfnThread, void *pvUse
     else
         rc = VERR_NO_TMP_MEMORY;
     LogFlow(("RTThreadCreate: Failed to create thread, rc=%Rrc\n", rc));
-    AssertReleaseRC(rc);
+    AssertRC(rc);
     return rc;
 }
 RT_EXPORT_SYMBOL(RTThreadCreate);
