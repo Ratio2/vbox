@@ -90,8 +90,8 @@ int main(int argc, char **argv, char **envp)
     for (int i = 1; i < argc && cOptionsLeft > 0; ++i)
     {
         int iMatch;
-        if (   (iMatch = MyStrCmp(argv[i], "--startvm")) >= 0
-            || (iMatch = MyStrCmp(argv[i], "-startvm"))  >= 0)
+        if (   (iMatch = MyStrMatchOptWithValue(argv[i], "--startvm")) >= 0
+            || (iMatch = MyStrMatchOptWithValue(argv[i], "-startvm"))  >= 0)
         {
             cOptionsLeft -= fStartVM == false;
             fStartVM = true;
