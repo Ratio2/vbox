@@ -34,21 +34,7 @@
 
 /* GUI includes: */
 #include "UICommon.h"
-#include "UIConverter.h"
-#include "UIFilmContainer.h"
-#include "UIGlobalSession.h"
 #include "UIRecordingVideoFrameSizeEditor.h"
-#include "UIRecordingFilePathEditor.h"
-#include "UIRecordingVideoBitrateEditor.h"
-#include "UIRecordingVideoFrameRateEditor.h"
-
-/* COM includes: */
-#include "CSystemProperties.h"
-
-/* Defines: */
-#define VIDEO_CAPTURE_BIT_RATE_MIN 32
-#define VIDEO_CAPTURE_BIT_RATE_MAX 2048
-
 
 UIRecordingVideoFrameSizeEditor::UIRecordingVideoFrameSizeEditor(QWidget *pParent /* = 0 */, bool fShowInBasicMode /* = false */)
     : UIEditor(pParent, fShowInBasicMode /* show in basic mode */)

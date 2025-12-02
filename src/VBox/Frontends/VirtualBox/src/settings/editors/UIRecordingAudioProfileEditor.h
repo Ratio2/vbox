@@ -33,10 +33,6 @@
 
 /* GUI includes: */
 #include "UIEditor.h"
-#include "UISettingsDefs.h"
-
-/* COM includes: */
-#include "KRecordingCodecDeadline.h"
 
 /* Forward declarations: */
 class QGridLayout;

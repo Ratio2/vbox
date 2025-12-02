@@ -28,15 +28,11 @@
 /* Qt includes: */
 #include <QCheckBox>
 #include <QComboBox>
-#include <QHBoxLayout>
 #include <QGridLayout>
 #include <QLabel>
-#include <QSpinBox>
 #include <QVBoxLayout>
 
 /* GUI includes: */
-#include "QIAdvancedSlider.h"
-#include "UICommon.h"
 #include "UIConverter.h"
 #include "UIFilmContainer.h"
 #include "UIGlobalSession.h"
@@ -48,12 +44,7 @@
 #include "UIRecordingVideoFrameSizeEditor.h"
 
 /* COM includes: */
-#include "CSystemProperties.h"
-
-/* Defines: */
-#define VIDEO_CAPTURE_BIT_RATE_MIN 32
-#define VIDEO_CAPTURE_BIT_RATE_MAX 2048
-
+#include "KRecordingFeature.h"
 
 UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     : UIEditor(pParent, true /* show in basic mode */)

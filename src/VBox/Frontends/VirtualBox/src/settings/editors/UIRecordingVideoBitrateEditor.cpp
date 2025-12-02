@@ -188,7 +188,6 @@ void UIRecordingVideoBitrateEditor::prepareWidgets()
                     pLayoutRecordingBitRate->addLayout(pLayoutRecordingBitRateScale);
                 }
             }
-
             m_pLayout->addWidget(m_pWidgetBitRateSettings, 0, 1);
         }
         /* Prepare recording bit rate spinbox: */
