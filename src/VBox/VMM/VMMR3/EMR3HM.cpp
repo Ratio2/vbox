@@ -266,7 +266,6 @@ static int emR3HmExecuteIOInstruction(PVM pVM, PVMCPU pVCpu)
     else
     {
         RT_UNTRUSTED_VALIDATED_FENCE();
-        CPUM_IMPORT_EXTRN_RET(pVCpu, IEM_CPUMCTX_EXTRN_MUST_MASK);
         rcStrict = EMHistoryExec(pVCpu, &pVCpu->em.s.aExitRecords[idxContinueExitRec], 0);
         LogFlow(("emR3HmExecuteIOInstruction: %Rrc (EMHistoryExec)\n", VBOXSTRICTRC_VAL(rcStrict)));
         STAM_COUNTER_INC(&pVCpu->em.s.StatIoRestarted);

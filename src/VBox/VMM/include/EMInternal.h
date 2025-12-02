@@ -259,15 +259,22 @@ typedef struct EMCPU
     bool                    fExitOptimizationEnabledR0 : 1;
     /** Whether exit optimizations are enabled for ring-0 when preemption is disabled. */
     bool                    fExitOptimizationEnabledR0PreemptDisabled : 1;
+    /** Whether exit optimizations may use the recompiler (ring-3 only) . */
+    bool                    fExitOptimizationRecompilerEnabled : 1;
     /** Explicit padding. */
     bool                    fPadding2;
-    /** Max number of instructions to execute. */
-    uint16_t                cHistoryExecMaxInstructions;
-    /** Min number of instructions to execute while probing. */
-    uint16_t                cHistoryProbeMinInstructions;
-    /** Max number of instructions to execute without an exit before giving up probe. */
-    uint16_t                cHistoryProbeMaxInstructionsWithoutExit;
-    uint16_t                uPadding3;
+    /** Interpreter: Max number of instructions to execute. */
+    uint16_t                cHistoryIntprExecMaxInstructions;
+    /** Interpreter: Max number of instructions to execute without an exit before
+     *  giving up probe. */
+    uint16_t                cHistoryIntprProbeMaxInstructionsWithoutExit;
+    /** Recompiler: Max number of instructions to execute without an exit before
+     *  giving up probe. */
+    uint16_t                cHistoryRecompProbeMaxInstructionsWithoutExit;
+    /** Recompiler: Max number of instructions to execute. */
+    uint32_t                cHistoryRecompExecMaxInstructions;
+    uint32_t                uPadding3;
+
     /** Number of exit records in use. */
     uint32_t                cExitRecordUsed;
     /** Profiling the EMHistoryExec when executing (not probing). */
@@ -276,7 +283,6 @@ typedef struct EMCPU
     STAMCOUNTER             StatHistoryExecSavedExits;
     /** Number of instructions executed by EMHistoryExec. */
     STAMCOUNTER             StatHistoryExecInstructions;
-    uint64_t                uPadding4;
     /** Number of instructions executed by EMHistoryExec when probing. */
     STAMCOUNTER             StatHistoryProbeInstructions;
     /** Number of times probing resulted in EMEXITACTION_NORMAL_PROBED. */
@@ -285,6 +291,8 @@ typedef struct EMCPU
     STAMCOUNTER             StatHistoryProbedExecWithMax;
     /** Number of times probing resulted in ring-3 continuation. */
     STAMCOUNTER             StatHistoryProbedToRing3;
+    /** Number of instructions executed by EMHistoryExec when probing. */
+    STAMCOUNTER             aStatHistoryExecRetReasons[8];
     /** Profiling the EMHistoryExec when probing.*/
     STAMPROFILE             StatHistoryProbe;
     /** Hit statistics for each lookup step. */

@@ -1116,15 +1116,14 @@ VMM_INT_DECL(VBOXSTRICTRC) IEMExecLots(PVMCPUCC pVCpu, uint32_t cMaxInstructions
  * @returns Strict VBox status code.
  * @param   pVCpu               The cross context virtual CPU structure.
  * @param   fWillExit           To be defined.
- * @param   cMinInstructions    Minimum number of instructions to execute before checking for FFs.
  * @param   cMaxInstructions    Maximum number of instructions to execute.
  * @param   cMaxInstructionsWithoutExits
  *                              The max number of instructions without exits.
  * @param   pStats              Where to return statistics.
+ * @sa      IEMExecRecompilerForExits, EMExecuteExec
  */
-VMM_INT_DECL(VBOXSTRICTRC)
-IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMinInstructions, uint32_t cMaxInstructions,
-                uint32_t cMaxInstructionsWithoutExits, PIEMEXECFOREXITSTATS pStats)
+VMM_INT_DECL(VBOXSTRICTRC) IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMaxInstructions,
+                                           uint32_t cMaxInstructionsWithoutExits, PIEMEXECFOREXITSTATS pStats)
 {
     NOREF(fWillExit); /** @todo define flexible exit crits */
 
@@ -1134,7 +1133,7 @@ IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMinInstructions, u
     pStats->cInstructions    = 0;
     pStats->cExits           = 0;
     pStats->cMaxExitDistance = 0;
-    pStats->cReserved        = 0;
+    pStats->enmReturnReason  = kIemExecForExitRetReason_Normal;
 
     /*
      * Initial decoder init w/ prefetch, then setup setjmp.
@@ -1200,6 +1199,7 @@ IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMinInstructions, u
                         else
                         {
                             rcStrict = iemExecStatusCodeFiddling(pVCpu, rcStrict);
+                            pStats->enmReturnReason = kIemExecForExitRetReason_ForcedFlag;
                             break;
                         }
                     }
@@ -1213,13 +1213,12 @@ IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMinInstructions, u
                                                       | VMCPU_FF_PGM_SYNC_CR3_NON_GLOBAL
                                                       | VMCPU_FF_TLB_FLUSH
                                                       | VMCPU_FF_UNHALT );
-                        if (RT_LIKELY(   (   iemExecLoopTargetCheckMaskedCpuFFs(pVCpu, fCpu)
-                                          && !VM_FF_IS_ANY_SET(pVM, VM_FF_ALL_MASK) )
-                                      || pStats->cInstructions < cMinInstructions))
+                        if (RT_LIKELY(   iemExecLoopTargetCheckMaskedCpuFFs(pVCpu, fCpu)
+                                      && !VM_FF_IS_ANY_SET(pVM, VM_FF_ALL_MASK) ))
                         {
-                            if (pStats->cInstructions < cMaxInstructions)
+                            if (cInstructionSinceLastExit <= cMaxInstructionsWithoutExits)
                             {
-                                if (cInstructionSinceLastExit <= cMaxInstructionsWithoutExits)
+                                if (pStats->cInstructions < cMaxInstructions)
                                 {
 #ifdef IN_RING0
                                     if (   !fCheckPreemptionPending
@@ -1232,11 +1231,18 @@ IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMinInstructions, u
                                     }
 #ifdef IN_RING0
                                     rcStrict = VINF_EM_RAW_INTERRUPT;
+                                    pStats->enmReturnReason = kIemExecForExitRetReason_HostInterrupt;
                                     break;
 #endif
                                 }
+                                else
+                                    pStats->enmReturnReason = kIemExecForExitRetReason_LimitMaxInstructions;
                             }
+                            else
+                                pStats->enmReturnReason = kIemExecForExitRetReason_LimitMaxDistance;
                         }
+                        else
+                            pStats->enmReturnReason = kIemExecForExitRetReason_ForcedFlag;
                         Assert(!(fCpu & VMCPU_FF_IEM));
                     }
                     Assert(ICORE(pVCpu).cActiveMappings == 0);
@@ -1252,6 +1258,7 @@ IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMinInstructions, u
             if (ICORE(pVCpu).cActiveMappings > 0)
                 iemMemRollback(pVCpu);
             pVCpu->iem.s.cLongJumps++;
+            pStats->enmReturnReason = kIemExecForExitRetReason_LongJump;
         }
         IEM_CATCH_LONGJMP_END(pVCpu);
 

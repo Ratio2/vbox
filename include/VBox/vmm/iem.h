@@ -158,18 +158,33 @@ VMM_INT_DECL(VBOXSTRICTRC)  IEMExecOneBypassWithPrefetchedByPC(PVMCPUCC pVCpu, u
 VMM_INT_DECL(VBOXSTRICTRC)  IEMExecOneIgnoreLock(PVMCPUCC pVCpu);
 VMM_INT_DECL(VBOXSTRICTRC)  IEMExecLots(PVMCPUCC pVCpu, uint32_t cMaxInstructions, uint32_t cPollRate, uint32_t *pcInstructions);
 VMM_INT_DECL(VBOXSTRICTRC)  IEMExecRecompiler(PVMCC pVM, PVMCPUCC pVCpu, bool fWasHalted);
+typedef enum IEMEXECFOREXITRETREASON
+{
+    kIemExecForExitRetReason_Invalid = 0,
+    kIemExecForExitRetReason_Normal,
+    kIemExecForExitRetReason_LimitMaxDistance,
+    kIemExecForExitRetReason_LimitMaxInstructions,
+    kIemExecForExitRetReason_ForcedFlag,
+    kIemExecForExitRetReason_Timer,
+    kIemExecForExitRetReason_HostInterrupt,
+    kIemExecForExitRetReason_LongJump,
+    kIemExecForExitRetReason_End
+} IEMEXECFOREXITRETREASON;
+
 /** Statistics returned by IEMExecForExits. */
 typedef struct IEMEXECFOREXITSTATS
 {
-    uint32_t cInstructions;
-    uint32_t cExits;
-    uint32_t cMaxExitDistance;
-    uint32_t cReserved;
+    uint32_t                cInstructions;
+    uint32_t                cExits;
+    uint32_t                cMaxExitDistance;
+    IEMEXECFOREXITRETREASON enmReturnReason;
 } IEMEXECFOREXITSTATS;
 /** Pointer to statistics returned by IEMExecForExits. */
 typedef IEMEXECFOREXITSTATS *PIEMEXECFOREXITSTATS;
-VMM_INT_DECL(VBOXSTRICTRC)  IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMinInstructions, uint32_t cMaxInstructions,
+VMM_INT_DECL(VBOXSTRICTRC)  IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMaxInstructions,
                                             uint32_t cMaxInstructionsWithoutExits, PIEMEXECFOREXITSTATS pStats);
+VMM_INT_DECL(VBOXSTRICTRC)  IEMExecRecompilerForExits(PVMCC pVM, PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMaxInstructions,
+                                                      uint32_t cMaxInstructionsWithoutExits, PIEMEXECFOREXITSTATS pStats);
 
 VMM_INT_DECL(VBOXSTRICTRC)  IEMInjectTrpmEvent(PVMCPUCC pVCpu);
 VMM_INT_DECL(VBOXSTRICTRC)  IEMInjectTrap(PVMCPUCC pVCpu, uint8_t u8TrapNo, TRPMEVENT enmType, uint16_t uErrCode, RTGCPTR uCr2,

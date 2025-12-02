@@ -3950,7 +3950,7 @@ VMM_INT_DECL(VBOXSTRICTRC) IEMExecRecompiler(PVMCC pVM, PVMCPUCC pVCpu, bool fWa
                 pVCpu->iem.s.cInstructions += IRECM(pVCpu).idxTbCurInstr;
 # endif
 
-#ifdef IEMNATIVE_WITH_SIMD_FP_NATIVE_EMITTERS
+# ifdef IEMNATIVE_WITH_SIMD_FP_NATIVE_EMITTERS
                 /* Restore FPCR/MXCSR if the TB modified it. */
                 if (IRECM(pVCpu).uRegFpCtrl != IEMNATIVE_SIMD_FP_CTRL_REG_NOT_MODIFIED)
                 {
@@ -3958,9 +3958,9 @@ VMM_INT_DECL(VBOXSTRICTRC) IEMExecRecompiler(PVMCC pVM, PVMCPUCC pVCpu, bool fWa
                     /* Reset for the next round saving us an unconditional instruction on next TB entry. */
                     IRECM(pVCpu).uRegFpCtrl = IEMNATIVE_SIMD_FP_CTRL_REG_NOT_MODIFIED;
                 }
-#endif
+# endif
             }
-#endif
+#endif /* VBOX_WITH_IEM_NATIVE_RECOMPILER */
 
 #if 0 /** @todo do we need to clean up anything?  If not, we can drop the pTb = NULL some lines up and change the scope. */
             /* If pTb isn't NULL we're in iemTbExec. */
@@ -3983,3 +3983,251 @@ VMM_INT_DECL(VBOXSTRICTRC) IEMExecRecompiler(PVMCC pVM, PVMCPUCC pVCpu, bool fWa
     }
 }
 
+#ifdef IN_RING3
+
+/**
+ * Helper for IEMExecRecompilerForExits.
+ */
+DECL_FORCE_INLINE(VBOXSTRICTRC)
+iemExecRecompilerForExitsRet(VBOXSTRICTRC rcStrict, PIEMEXECFOREXITSTATS pStats, uint32_t cInstructions, uint32_t cExits,
+                             uint32_t cMaxExitDistance,  IEMEXECFOREXITRETREASON enmRetReason = kIemExecForExitRetReason_Normal)
+{
+    pStats->cInstructions    = cInstructions;
+    pStats->cExits           = cExits;
+    pStats->cMaxExitDistance = cMaxExitDistance;
+    pStats->enmReturnReason  = enmRetReason;
+    return rcStrict;
+}
+
+
+/**
+ * Interface used by EMExecuteExec, does exit statistics and limits.
+ *
+ * @returns Strict VBox status code.
+ * @param   pVM                             The cross context VM structure.
+ * @param   pVCpu                           The cross context virtual CPU structure.
+ * @param   fWillExit                       Flags indicating to IEM what will cause exits, TBD.
+ * @param   cMaxInstructions                Maximum number of instructions to execute.
+ * @param   cMaxInstructionsWithoutExits    The max number of instructions
+ *                                          without exits.
+ * @param   pStats                          Where to return statistics.
+ * @sa      IEMExecForExits, EMExecuteExec
+ */
+VMM_INT_DECL(VBOXSTRICTRC) IEMExecRecompilerForExits(PVMCC pVM, PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMaxInstructions,
+                                                     uint32_t cMaxInstructionsWithoutExits, PIEMEXECFOREXITSTATS pStats)
+
+{
+    RT_NOREF_PV(fWillExit);
+
+    /*
+     * Initialize return stats.
+     */
+    pStats->cInstructions    = 0;
+    pStats->cExits           = 0;
+    pStats->cMaxExitDistance = 0;
+    pStats->enmReturnReason  = kIemExecForExitRetReason_Normal;
+
+    /*
+     * There shouldn't be any TRPM event pending, but check to be sure.
+     */
+    AssertReturn(!TRPMHasTrap(pVCpu), iemExecInjectPendingTrap(pVCpu));
+
+    /*
+     * Init the execution environment.
+     */
+# if 1 /** @todo this seems like a good idea, however if we ever share memory
+       * directly with other threads on the host, it isn't necessarily... */
+    if (pVM->cCpus == 1)
+        iemInitExec(pVCpu, IEM_F_X86_DISREGARD_LOCK /*fExecOpts*/);
+    else
+# endif
+        iemInitExec(pVCpu, 0 /*fExecOpts*/);
+
+    if (RT_LIKELY(IRECM(pVCpu).msRecompilerPollNow != 0))
+    { }
+    else
+    {
+        /* Do polling after halt and the first time we get here. */
+# ifdef IEM_WITH_ADAPTIVE_TIMER_POLLING
+        uint64_t       nsNow      = 0;
+        uint32_t const cItersTillPoll = iemPollTimersCalcDefaultCountdown(TMTimerPollBoolWithNanoTS(pVM, pVCpu, &nsNow));
+        IRECM(pVCpu).cTbsTillNextTimerPollPrev = cItersTillPoll;
+        IRECM(pVCpu).cTbsTillNextTimerPoll     = cItersTillPoll;
+# else
+        uint64_t const nsNow = TMVirtualGetNoCheck(pVM);
+# endif
+        IRECM(pVCpu).nsRecompilerPollNow = nsNow;
+        IRECM(pVCpu).msRecompilerPollNow = (uint32_t)(nsNow / RT_NS_1MS);
+    }
+    IRECM(pVCpu).ppTbLookupEntryR3 = &IRECM(pVCpu).pTbLookupEntryDummyR3;
+
+    /*
+     * Run-loop.
+     *
+     * If we're using setjmp/longjmp we combine all the catching here to avoid
+     * having to call setjmp for each block we're executing.
+     */
+    uint32_t          cInstructionsBefore    = pVCpu->iem.s.cInstructions;
+    uint32_t          uInstruction           = 0;
+    uint32_t          cOldPotentialExits     = ICORE(pVCpu).cPotentialExits;
+    uint32_t          cExits                 = 0;
+    uint32_t          uInstructionAtLastExit = 0;
+    uint32_t          cMaxExitDistance       = 0;
+    PIEMTBCACHE const pTbCache               = IRECM(pVCpu).pTbCacheR3;
+    for (;;)
+    {
+        VBOXSTRICTRC rcStrict;
+        IEM_TRY_SETJMP(pVCpu, rcStrict)
+        {
+            for (;;)
+            {
+                /* Translate PC to physical address, we'll need this for both lookup and compilation. */
+                RTGCPHYS const GCPhysPc        = iemGetPcWithPhysAndCode(pVCpu);
+                if (RT_LIKELY(ICORE(pVCpu).pbInstrBuf != NULL))
+                {
+                    uint32_t const fExtraFlags = iemGetTbFlagsForCurrentPc(pVCpu);
+                    PIEMTB const   pTb         = iemTbCacheLookup(pVCpu, pTbCache, GCPhysPc, fExtraFlags);
+                    if (pTb)
+                    {
+                        rcStrict = iemTbExec(pVCpu, pTb);
+# if defined(IEMNATIVE_WITH_INSTRUCTION_COUNTING) && defined(VBOX_WITH_IEM_NATIVE_RECOMPILER)
+                        if (   cInstructionsBefore == pVCpu->iem.s.cInstructions
+                            && (pTb->fFlags & IEMTB_F_TYPE_MASK) == IEMTB_F_TYPE_NATIVE) /* This isn't entirely correct. */
+                            pVCpu->iem.s.cInstructions += pTb->cInstructions;
+# endif
+                    }
+                    else
+                        rcStrict = iemThreadedCompile(pVM, pVCpu, GCPhysPc, fExtraFlags);
+                }
+                else
+                {
+                    /* This can only happen if the current PC cannot be translated into a
+                       host pointer, which means we're in MMIO or unmapped memory... */
+# if defined(VBOX_STRICT) && defined(IN_RING3)
+                    rcStrict = DBGFSTOP(pVM);
+                    if (rcStrict != VINF_SUCCESS && rcStrict != VERR_DBGF_NOT_ATTACHED)
+                        return iemExecRecompilerForExitsRet(rcStrict, pStats, uInstruction, cExits, cMaxExitDistance);
+# endif
+                    rcStrict = IEMExecLots(pVCpu, 128, 511, NULL);
+                }
+
+                /* Update the instruction counter. */
+                uint32_t const cInstructionAfter = pVCpu->iem.s.cInstructions;
+                uInstruction       += cInstructionAfter - cInstructionsBefore;
+                cInstructionsBefore = cInstructionAfter;
+
+                /* Process exit count changes. */
+                uint32_t const cSinceLastExit     = uInstruction - uInstructionAtLastExit;
+                uint32_t const cNewPotentialExits = ICORE(pVCpu).cPotentialExits;
+                if (cOldPotentialExits != cNewPotentialExits)
+                {
+                    cExits += cNewPotentialExits - cOldPotentialExits;
+                    cOldPotentialExits = cNewPotentialExits;
+
+                    if (cMaxExitDistance < cSinceLastExit)
+                        cMaxExitDistance = cSinceLastExit;
+                    uInstructionAtLastExit = uInstruction;
+                }
+
+                if (rcStrict == VINF_SUCCESS)
+                {
+                    Assert(ICORE(pVCpu).cActiveMappings == 0);
+
+                    /* Note! This IRQ/FF check is repeated in iemPollTimers, iemThreadedFunc_BltIn_CheckIrq
+                             and emitted by iemNativeRecompFunc_BltIn_CheckIrq. */
+                    uint64_t fCpu = pVCpu->fLocalForcedActions;
+                    fCpu &= VMCPU_FF_ALL_MASK & ~(  VMCPU_FF_PGM_SYNC_CR3
+                                                  | VMCPU_FF_PGM_SYNC_CR3_NON_GLOBAL
+                                                  | VMCPU_FF_TLB_FLUSH
+                                                  | VMCPU_FF_UNHALT );
+                    /** @todo this isn't even close to the NMI/IRQ conditions in EM. */
+                    if (RT_LIKELY(   (   !fCpu
+                                      || (   !(fCpu & ~(VMCPU_FF_INTERRUPT_APIC | VMCPU_FF_INTERRUPT_PIC))
+                                          && (   !pVCpu->cpum.GstCtx.rflags.Bits.u1IF
+                                              || CPUMIsInInterruptShadow(&pVCpu->cpum.GstCtx) )) )
+                                  && !VM_FF_IS_ANY_SET(pVM, VM_FF_ALL_MASK) ))
+                    {
+                        /* Once in a while we need to poll timers here. */
+                        if ((int32_t)--IRECM(pVCpu).cTbsTillNextTimerPoll > 0)
+                        { /* likely */ }
+                        else
+                        {
+                            int rc = iemPollTimers(pVM, pVCpu);
+                            if (rc != VINF_SUCCESS)
+                                return iemExecRecompilerForExitsRet(VINF_SUCCESS, pStats,uInstruction, cExits, cMaxExitDistance,
+                                                                    kIemExecForExitRetReason_Timer);
+                        }
+
+                        /* Check execution limits before continuing. */
+                        if (cSinceLastExit <= cMaxInstructionsWithoutExits)
+                        {
+                            if (uInstruction   <= cMaxInstructions)
+                            { /* likely */ }
+                            else
+                                return iemExecRecompilerForExitsRet(rcStrict, pStats, uInstruction, cExits, cMaxExitDistance,
+                                                                    kIemExecForExitRetReason_LimitMaxInstructions);
+                        }
+                        else
+                            return iemExecRecompilerForExitsRet(rcStrict, pStats, uInstruction, cExits, cMaxExitDistance,
+                                                                kIemExecForExitRetReason_LimitMaxDistance);
+                    }
+                    else
+                        return iemExecRecompilerForExitsRet(VINF_SUCCESS, pStats, uInstruction, cExits, cMaxExitDistance,
+                                                            kIemExecForExitRetReason_ForcedFlag);
+                }
+                else
+                    return iemExecRecompilerForExitsRet(rcStrict, pStats, uInstruction, cExits, cMaxExitDistance);
+            }
+        }
+        IEM_CATCH_LONGJMP_BEGIN(pVCpu, rcStrict);
+        {
+            Assert(rcStrict != VINF_IEM_REEXEC_BREAK);
+            pVCpu->iem.s.cLongJumps++;
+# ifdef VBOX_WITH_IEM_NATIVE_RECOMPILER_LONGJMP
+            IRECM(pVCpu).pvTbFramePointerR3 = NULL;
+# endif
+            if (ICORE(pVCpu).cActiveMappings > 0)
+                iemMemRollback(pVCpu);
+
+# ifdef VBOX_WITH_IEM_NATIVE_RECOMPILER
+            PIEMTB const pTb = IRECM(pVCpu).pCurTbR3;
+            if (pTb && (pTb->fFlags & IEMTB_F_TYPE_MASK) == IEMTB_F_TYPE_NATIVE)
+            {
+                STAM_REL_COUNTER_INC(&pVCpu->iem.s.StatNativeTbExitLongJump);
+#  ifdef IEMNATIVE_WITH_INSTRUCTION_COUNTING
+                Assert(IRECM(pVCpu).idxTbCurInstr < pTb->cInstructions);
+                pVCpu->iem.s.cInstructions += IRECM(pVCpu).idxTbCurInstr;
+#  else
+                pVCpu->iem.s.cInstructions += (pTb->cInstructions + 1) / 2; /* whatever */
+#  endif
+
+#  ifdef IEMNATIVE_WITH_SIMD_FP_NATIVE_EMITTERS
+                /* Restore FPCR/MXCSR if the TB modified it. */
+                if (IRECM(pVCpu).uRegFpCtrl != IEMNATIVE_SIMD_FP_CTRL_REG_NOT_MODIFIED)
+                {
+                    iemNativeFpCtrlRegRestore(IRECM(pVCpu).uRegFpCtrl);
+                    /* Reset for the next round saving us an unconditional instruction on next TB entry. */
+                    IRECM(pVCpu).uRegFpCtrl = IEMNATIVE_SIMD_FP_CTRL_REG_NOT_MODIFIED;
+                }
+#  endif
+            }
+# endif /* VBOX_WITH_IEM_NATIVE_RECOMPILER */
+            IRECM(pVCpu).pCurTbR3 = NULL;
+
+            uInstruction += pVCpu->iem.s.cInstructions - cInstructionsBefore;
+
+            uint32_t const cNewPotentialExits = ICORE(pVCpu).cPotentialExits;
+            if (cOldPotentialExits != cNewPotentialExits)
+            {
+                cExits            += cOldPotentialExits - cNewPotentialExits;
+                cMaxExitDistance   = RT_MAX(cMaxExitDistance, uInstruction - uInstructionAtLastExit);
+            }
+
+            return iemExecRecompilerForExitsRet(rcStrict, pStats, uInstruction, cExits, cMaxExitDistance,
+                                                kIemExecForExitRetReason_LongJump);
+        }
+        IEM_CATCH_LONGJMP_END(pVCpu);
+    }
+}
+
+#endif  /* IN_RING3 */

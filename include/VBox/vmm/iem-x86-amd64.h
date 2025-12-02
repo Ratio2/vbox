@@ -192,6 +192,16 @@ typedef uint8_t IEMMODE;
 # define IEM_CPUMCTX_EXTRN_SVM_VMRUN_MASK          IEM_CPUMCTX_EXTRN_SVM_VMEXIT_MASK
 #endif
 
+/** The CPUMCTX_EXTRN_XXX mask required to be cleared when recompiling anything.
+ * IEM will ASSUME the caller of IEM APIs has ensured these are already present. */
+#define IEM_CPUMCTX_EXTRN_RECOMPILER_MASK         (  IEM_CPUMCTX_EXTRN_XCPT_MASK \
+                                                   | CPUMCTX_EXTRN_DS \
+                                                   | CPUMCTX_EXTRN_ES \
+                                                   | CPUMCTX_EXTRN_FS \
+                                                   | CPUMCTX_EXTRN_GS \
+                                                   | CPUMCTX_EXTRN_GDTR \
+                                                   | CPUMCTX_EXTRN_LDTR )
+
 /** @name Given Instruction Interpreters
  * @{ */
 VMM_INT_DECL(VBOXSTRICTRC)  IEMExecStringIoWrite(PVMCPUCC pVCpu, uint8_t cbValue, IEMMODE enmAddrMode,

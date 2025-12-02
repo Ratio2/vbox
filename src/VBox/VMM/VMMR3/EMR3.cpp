@@ -140,7 +140,7 @@ VMMR3_INT_DECL(int) EMR3Init(PVM pVM)
      * try optimize these using IEM if there are other exits close by.  This
      * overrides the context specific settings. */
     bool fExitOptimizationEnabled = true;
-    rc = CFGMR3QueryBoolDef(pCfgEM, "ExitOptimizationEnabled", &fExitOptimizationEnabled, true);
+    rc = CFGMR3QueryBoolDef(pCfgEM, "ExitOptimizationEnabled", &fExitOptimizationEnabled, fExitOptimizationEnabled);
     AssertLogRelRCReturn(rc, rc);
 
     /** @cfgm{/EM/ExitOptimizationEnabledR0, bool, true}
@@ -148,7 +148,7 @@ VMMR3_INT_DECL(int) EMR3Init(PVM pVM)
      * the /EM/ExitOptimizationEnabledR0PreemptDisabled setting.  Depending on preemption
      * capabilities of the host kernel, this optimization may be unavailable. */
     bool fExitOptimizationEnabledR0 = true;
-    rc = CFGMR3QueryBoolDef(pCfgEM, "ExitOptimizationEnabledR0", &fExitOptimizationEnabledR0, true);
+    rc = CFGMR3QueryBoolDef(pCfgEM, "ExitOptimizationEnabledR0", &fExitOptimizationEnabledR0, fExitOptimizationEnabledR0);
     AssertLogRelRCReturn(rc, rc);
     fExitOptimizationEnabledR0 &= fExitOptimizationEnabled;
 
@@ -156,50 +156,86 @@ VMMR3_INT_DECL(int) EMR3Init(PVM pVM)
      * Whether to optimize exits in ring-0 when preemption is disable (or preemption
      * hooks are in effect). */
     /** @todo change the default to true here */
-    bool fExitOptimizationEnabledR0PreemptDisabled = true;
-    rc = CFGMR3QueryBoolDef(pCfgEM, "ExitOptimizationEnabledR0PreemptDisabled", &fExitOptimizationEnabledR0PreemptDisabled, false);
+    bool fExitOptimizationEnabledR0PreemptDisabled = false;
+    rc = CFGMR3QueryBoolDef(pCfgEM, "ExitOptimizationEnabledR0PreemptDisabled",
+                            &fExitOptimizationEnabledR0PreemptDisabled, fExitOptimizationEnabledR0PreemptDisabled);
     AssertLogRelRCReturn(rc, rc);
     fExitOptimizationEnabledR0PreemptDisabled &= fExitOptimizationEnabledR0;
 
-    /** @cfgm{/EM/HistoryExecMaxInstructions, integer, 16, 65535, 8192}
-     * Maximum number of instruction to let EMHistoryExec execute in one go. */
-    uint16_t cHistoryExecMaxInstructions = 8192;
-    rc = CFGMR3QueryU16Def(pCfgEM, "HistoryExecMaxInstructions", &cHistoryExecMaxInstructions, cHistoryExecMaxInstructions);
+    /** @cfgm{/EM/ExitOptimizationRecompilerEnabled, bool, true}
+     * Whether to execute using the recompiler when it is available. */
+    bool fExitOptimizationRecompilerEnabled = true;
+    rc = CFGMR3QueryBoolDef(pCfgEM, "ExitOptimizationRecompilerEnabled",
+                            &fExitOptimizationRecompilerEnabled, fExitOptimizationRecompilerEnabled);
     AssertLogRelRCReturn(rc, rc);
-    if (cHistoryExecMaxInstructions < 16)
-        return VMSetError(pVM, VERR_OUT_OF_RANGE, RT_SRC_POS, "/EM/HistoryExecMaxInstructions value is too small, min 16");
 
-    /** @cfgm{/EM/HistoryProbeMaxInstructionsWithoutExit, integer, 2, 65535, 24 for HM, 32 for NEM}
-     * Maximum number of instruction between exits during probing. */
-    uint16_t cHistoryProbeMaxInstructionsWithoutExit = 24;
+    /* #ifdef reduction constants: */
 #ifdef RT_OS_WINDOWS
-    if (VM_IS_NEM_ENABLED(pVM))
-        cHistoryProbeMaxInstructionsWithoutExit = 32;
+    bool const fWindowsNem = VM_IS_NEM_ENABLED(pVM);
+#else
+    bool const fWindowsNem = false;
 #endif
-    rc = CFGMR3QueryU16Def(pCfgEM, "HistoryProbeMaxInstructionsWithoutExit", &cHistoryProbeMaxInstructionsWithoutExit,
-                           cHistoryProbeMaxInstructionsWithoutExit);
-    AssertLogRelRCReturn(rc, rc);
-    if (cHistoryProbeMaxInstructionsWithoutExit < 2)
-        return VMSetError(pVM, VERR_OUT_OF_RANGE, RT_SRC_POS,
-                          "/EM/HistoryProbeMaxInstructionsWithoutExit value is too small, min 16");
+#ifdef VBOX_WITH_IEM_NATIVE_RECOMPILER
+    unsigned const cNativeRecompFactor = 3;
+#else
+    unsigned const cNativeRecompFactor = 1;
+#endif
 
-    /** @cfgm{/EM/HistoryProbMinInstructions, integer, 0, 65535, depends}
-     * The default is (/EM/HistoryProbeMaxInstructionsWithoutExit + 1) * 3. */
-    uint16_t cHistoryProbeMinInstructions = cHistoryProbeMaxInstructionsWithoutExit < 0x5554
-                                          ? (cHistoryProbeMaxInstructionsWithoutExit + 1) * 3 : 0xffff;
-    rc = CFGMR3QueryU16Def(pCfgEM, "HistoryProbMinInstructions", &cHistoryProbeMinInstructions,
-                           cHistoryProbeMinInstructions);
+    /** @cfgm{/EM/HistoryIntprExecMaxInstructions, integer, 16, 65535, 8192/12288 for HM/NEM}
+     * Maximum number of instruction to let EMHistoryExec execute in one go when
+     * using the interpreter. */
+    uint16_t cHistoryIntprExecMaxInstructions = !fWindowsNem ? 8192 : 12288;
+    rc = CFGMR3QueryU16Def(pCfgEM, "HistoryIntprExecMaxInstructions",
+                           &cHistoryIntprExecMaxInstructions, cHistoryIntprExecMaxInstructions);
     AssertLogRelRCReturn(rc, rc);
+    if (cHistoryIntprExecMaxInstructions < 16)
+        return VMSetError(pVM, VERR_OUT_OF_RANGE, RT_SRC_POS, "/EM/HistoryIntprExecMaxInstructions value is too small, min 16");
+
+    /** @cfgm{/EM/HistoryIntprProbeMaxInstructionsWithoutExit, integer, 2, 65535, 24/32 for HM/NEM-win}
+     * Maximum number of instruction between exits during probing when using the
+     * interpreter. */
+    uint16_t cHistoryIntprProbeMaxInstructionsWithoutExit = !fWindowsNem ? 24 : 32;
+    rc = CFGMR3QueryU16Def(pCfgEM, "HistoryIntprProbeMaxInstructionsWithoutExit",
+                           &cHistoryIntprProbeMaxInstructionsWithoutExit, cHistoryIntprProbeMaxInstructionsWithoutExit);
+    AssertLogRelRCReturn(rc, rc);
+    if (cHistoryIntprProbeMaxInstructionsWithoutExit < 2)
+        return VMSetError(pVM, VERR_OUT_OF_RANGE, RT_SRC_POS,
+                          "/EM/HistoryIntprProbeMaxInstructionsWithoutExit value is too small, min 2");
+
+    /** @cfgm{/EM/HistoryRecompExecMaxInstructions, integer, 32, 8388608,
+     *        32768/65536/65536/131072 for HM/HM-recomp/NEM-win/NEM-win-recomp}
+     * Maximum number of instruction to let EMHistoryExec execute in one go when
+     * using the recompiler. */
+    uint32_t cHistoryRecompExecMaxInstructions = (!fWindowsNem ? 32768 : 65536) * cNativeRecompFactor;
+    rc = CFGMR3QueryU32Def(pCfgEM, "HistoryRecompExecMaxInstructions",
+                           &cHistoryRecompExecMaxInstructions, cHistoryRecompExecMaxInstructions);
+    AssertLogRelRCReturn(rc, rc);
+    if (cHistoryRecompExecMaxInstructions < 32 || cHistoryRecompExecMaxInstructions > _8M)
+        return VMSetError(pVM, VERR_OUT_OF_RANGE, RT_SRC_POS,
+                          "/EM/HistoryRecompExecMaxInstructions value it out of range (min 32, max 4194304)");
+
+    /** @cfgm{/EM/HistoryRecompProbeMaxInstructionsWithoutExit, integer, 2, 65535,
+     *        64/128/256/512 for HM/HM-recomp/NEM-win/NEM-win-recomp}
+     * Maximum number of instruction between exits during probing when using the recompiler. */
+    uint16_t cHistoryRecompProbeMaxInstructionsWithoutExit = (!fWindowsNem ? 64 : 128) * cNativeRecompFactor;
+    rc = CFGMR3QueryU16Def(pCfgEM, "HistoryRecompProbeMaxInstructionsWithoutExit",
+                           &cHistoryRecompProbeMaxInstructionsWithoutExit, cHistoryRecompProbeMaxInstructionsWithoutExit);
+    AssertLogRelRCReturn(rc, rc);
+    if (cHistoryRecompProbeMaxInstructionsWithoutExit < 2)
+        return VMSetError(pVM, VERR_OUT_OF_RANGE, RT_SRC_POS,
+                          "/EM/HistoryRecompProbeMaxInstructionsWithoutExit value is too small, min 16");
 
     for (VMCPUID idCpu = 0; idCpu < pVM->cCpus; idCpu++)
     {
         PVMCPU pVCpu = pVM->apCpusR3[idCpu];
-        pVCpu->em.s.fExitOptimizationEnabled                  = fExitOptimizationEnabled;
-        pVCpu->em.s.fExitOptimizationEnabledR0                = fExitOptimizationEnabledR0;
-        pVCpu->em.s.fExitOptimizationEnabledR0PreemptDisabled = fExitOptimizationEnabledR0PreemptDisabled;
-        pVCpu->em.s.cHistoryExecMaxInstructions               = cHistoryExecMaxInstructions;
-        pVCpu->em.s.cHistoryProbeMinInstructions              = cHistoryProbeMinInstructions;
-        pVCpu->em.s.cHistoryProbeMaxInstructionsWithoutExit   = cHistoryProbeMaxInstructionsWithoutExit;
+        pVCpu->em.s.fExitOptimizationEnabled                        = fExitOptimizationEnabled;
+        pVCpu->em.s.fExitOptimizationEnabledR0                      = fExitOptimizationEnabledR0;
+        pVCpu->em.s.fExitOptimizationEnabledR0PreemptDisabled       = fExitOptimizationEnabledR0PreemptDisabled;
+        pVCpu->em.s.fExitOptimizationRecompilerEnabled              = fExitOptimizationRecompilerEnabled;
+        pVCpu->em.s.cHistoryIntprExecMaxInstructions                = cHistoryIntprExecMaxInstructions;
+        pVCpu->em.s.cHistoryIntprProbeMaxInstructionsWithoutExit    = cHistoryIntprProbeMaxInstructionsWithoutExit;
+        pVCpu->em.s.cHistoryRecompExecMaxInstructions               = cHistoryRecompExecMaxInstructions;
+        pVCpu->em.s.cHistoryRecompProbeMaxInstructionsWithoutExit   = cHistoryRecompProbeMaxInstructionsWithoutExit;
     }
 
 #ifdef VBOX_WITH_IEM_RECOMPILER
@@ -304,6 +340,13 @@ VMMR3_INT_DECL(int) EMR3Init(PVM pVM)
         EM_REG_PROFILE(&pVCpu->em.s.StatHistoryExec,              "/EM/CPU%u/ExitOpt/Exec",              "Profiling normal EMHistoryExec operation.");
         EM_REG_COUNTER(&pVCpu->em.s.StatHistoryExecSavedExits,    "/EM/CPU%u/ExitOpt/ExecSavedExit",     "Net number of saved exits.");
         EM_REG_COUNTER(&pVCpu->em.s.StatHistoryExecInstructions,  "/EM/CPU%u/ExitOpt/ExecInstructions",  "Number of instructions executed during normal operation.");
+        EM_REG_COUNTER(&pVCpu->em.s.aStatHistoryExecRetReasons[kIemExecForExitRetReason_Normal],                "/EM/CPU%u/ExitOpt/ExecRetReasonNormal",            "Return Reason: Normal return (possible with non-zero status)");
+        EM_REG_COUNTER(&pVCpu->em.s.aStatHistoryExecRetReasons[kIemExecForExitRetReason_LimitMaxDistance],      "/EM/CPU%u/ExitOpt/ExecRetReasonMaxDistance",       "Return Reason: Maximum exit dinstance");
+        EM_REG_COUNTER(&pVCpu->em.s.aStatHistoryExecRetReasons[kIemExecForExitRetReason_LimitMaxInstructions],  "/EM/CPU%u/ExitOpt/ExecRetReasonMaxInstructions",   "Return Reason: Maximum number of instructions executed");
+        EM_REG_COUNTER(&pVCpu->em.s.aStatHistoryExecRetReasons[kIemExecForExitRetReason_ForcedFlag],            "/EM/CPU%u/ExitOpt/ExecRetReasonForcedFlag",        "Return Reason: Forced action flag(s)");
+        EM_REG_COUNTER(&pVCpu->em.s.aStatHistoryExecRetReasons[kIemExecForExitRetReason_Timer],                 "/EM/CPU%u/ExitOpt/ExecRetReasonTimer",             "Return Reason: Timer pending");
+        EM_REG_COUNTER(&pVCpu->em.s.aStatHistoryExecRetReasons[kIemExecForExitRetReason_HostInterrupt],         "/EM/CPU%u/ExitOpt/ExecRetReasonHostInterrupt",     "Return Reason: Host interrupt");
+        EM_REG_COUNTER(&pVCpu->em.s.aStatHistoryExecRetReasons[kIemExecForExitRetReason_LongJump],              "/EM/CPU%u/ExitOpt/ExecRetReasonLongJump",          "Return Reason: Long-jumped / threw status code");
         EM_REG_PROFILE(&pVCpu->em.s.StatHistoryProbe,             "/EM/CPU%u/ExitOpt/Probe",             "Profiling EMHistoryExec when probing.");
         EM_REG_COUNTER(&pVCpu->em.s.StatHistoryProbeInstructions, "/EM/CPU%u/ExitOpt/ProbeInstructions", "Number of instructions executed during probing.");
         EM_REG_COUNTER(&pVCpu->em.s.StatHistoryProbedNormal,      "/EM/CPU%u/ExitOpt/ProbedNormal",      "Number of EMEXITACTION_NORMAL_PROBED results.");

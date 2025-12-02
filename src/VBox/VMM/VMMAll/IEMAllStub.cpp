@@ -44,12 +44,11 @@
 *   Internal Functions                                                                                                           *
 *********************************************************************************************************************************/
 
-VMM_INT_DECL(VBOXSTRICTRC)
-IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMinInstructions, uint32_t cMaxInstructions,
-                uint32_t cMaxInstructionsWithoutExits, PIEMEXECFOREXITSTATS pStats)
+VMM_INT_DECL(VBOXSTRICTRC) IEMExecForExits(PVMCPUCC pVCpu, uint32_t fWillExit, uint32_t cMaxInstructions,
+                                           uint32_t cMaxInstructionsWithoutExits, PIEMEXECFOREXITSTATS pStats)
 {
     AssertReleaseFailed();
-    RT_NOREF(pVCpu, fWillExit, cMinInstructions, cMaxInstructions, cMaxInstructionsWithoutExits);
+    RT_NOREF(pVCpu, fWillExit, cMaxInstructions, cMaxInstructionsWithoutExits);
     RT_ZERO(*pStats);
     return VERR_NOT_IMPLEMENTED;
 }

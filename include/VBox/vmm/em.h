@@ -221,7 +221,9 @@ typedef struct EMEXITREC
     uint16_t            uFlagsAndType;
     /** The action to take (EMEXITACTION). */
     uint8_t             enmAction;
-    uint8_t             abUnused[3];
+    /** Number of exec probe attempts. */
+    uint8_t             cProbeAttempts;
+    uint8_t             abUnused[2];
     /** Maximum number of instructions to execute without hitting an exit. */
     uint16_t            cMaxInstructionsWithoutExit;
     /** The exit number (EMCPU::iNextExit) at which it was last updated. */
