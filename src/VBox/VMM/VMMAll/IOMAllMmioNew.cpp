@@ -147,7 +147,7 @@ static VBOXSTRICTRC iomMmioDoComplicatedWrite(PVM pVM, PVMCPU pVCpu, CTX_SUFF(PI
     AssertReturn(   (pRegEntry->fFlags & IOMMMIO_FLAGS_WRITE_MODE) != IOMMMIO_FLAGS_WRITE_PASSTHRU
                  && (pRegEntry->fFlags & IOMMMIO_FLAGS_WRITE_MODE) <= IOMMMIO_FLAGS_WRITE_DWORD_QWORD_READ_MISSING,
                  VERR_IOM_MMIO_IPE_1);
-    AssertReturn(cbValue != 0 && cbValue <= 16, VERR_IOM_MMIO_IPE_2);
+    AssertReturn(cbValue != 0 && cbValue <= 64, VERR_IOM_MMIO_IPE_2);
     RTGCPHYS const GCPhysStart  = GCPhys; NOREF(GCPhysStart);
     bool const     fReadMissing = (pRegEntry->fFlags & IOMMMIO_FLAGS_WRITE_MODE) == IOMMMIO_FLAGS_WRITE_DWORD_READ_MISSING
                                || (pRegEntry->fFlags & IOMMMIO_FLAGS_WRITE_MODE) == IOMMMIO_FLAGS_WRITE_DWORD_QWORD_READ_MISSING;
@@ -414,7 +414,7 @@ static VBOXSTRICTRC iomMMIODoComplicatedRead(PVM pVM, CTX_SUFF(PIOMMMIOENTRY) pR
     AssertReturn(   (pRegEntry->fFlags & IOMMMIO_FLAGS_READ_MODE) == IOMMMIO_FLAGS_READ_DWORD
                  || (pRegEntry->fFlags & IOMMMIO_FLAGS_READ_MODE) == IOMMMIO_FLAGS_READ_DWORD_QWORD,
                  VERR_IOM_MMIO_IPE_1);
-    AssertReturn(cbValue != 0 && cbValue <= 16, VERR_IOM_MMIO_IPE_2);
+    AssertReturn(cbValue != 0 && cbValue <= 64, VERR_IOM_MMIO_IPE_2);
 #ifdef LOG_ENABLED
     RTGCPHYS const GCPhysStart = GCPhys;
 #endif
@@ -1008,8 +1008,15 @@ DECLCALLBACK(VBOXSTRICTRC) iomMmioHandlerNew(PVMCC pVM, PVMCPUCC pVCpu, RTGCPHYS
          */
 #ifdef IN_RING3
         AssertMsg(   rcStrict == VINF_SUCCESS
-                  || rcStrict == VINF_EM_DBG_STEP, ("%Rrc -  Access type %d - %RGp - %s\n",
-                                             VBOXSTRICTRC_VAL(rcStrict), enmAccessType, GCPhysFault, pRegEntry->pszDesc));
+                  || rcStrict == VINF_EM_DBG_STEP
+                  || rcStrict == VINF_EM_DBG_STOP
+                  || rcStrict == VINF_EM_DBG_EVENT
+                  || rcStrict == VINF_EM_DBG_BREAKPOINT
+                  || rcStrict == VINF_EM_OFF
+                  || rcStrict == VINF_EM_SUSPEND
+                  || rcStrict == VINF_EM_RESET
+                  , ("%Rrc -  Access type %d - %RGp - %s\n",
+                     VBOXSTRICTRC_VAL(rcStrict), enmAccessType, GCPhysFault, pRegEntry->pszDesc));
 #else
         AssertMsg(   rcStrict == VINF_SUCCESS
                   || rcStrict == rcToRing3

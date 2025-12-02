@@ -83,7 +83,13 @@
 #ifdef IN_RING3
 # define PGM_HANDLER_PHYS_IS_VALID_STATUS(a_rcStrict, a_fWrite) \
     (   (a_rcStrict) == VINF_SUCCESS \
-     || (a_rcStrict) == VINF_PGM_HANDLER_DO_DEFAULT)
+     || (a_rcStrict) == VINF_PGM_HANDLER_DO_DEFAULT \
+     || (a_rcStrict) == VINF_EM_DBG_STOP \
+     || (a_rcStrict) == VINF_EM_DBG_EVENT \
+     || (a_rcStrict) == VINF_EM_DBG_BREAKPOINT \
+     || (a_rcStrict) == VINF_EM_OFF \
+     || (a_rcStrict) == VINF_EM_SUSPEND \
+     || (a_rcStrict) == VINF_EM_RESET)
 #elif defined(IN_RING0)
 #define PGM_HANDLER_PHYS_IS_VALID_STATUS(a_rcStrict, a_fWrite) \
     (   (a_rcStrict) == VINF_SUCCESS \
@@ -3991,14 +3997,14 @@ static VBOXSTRICTRC pgmPhysReadHandler(PVMCC pVM, PPGMPAGE pPage, RTGCPHYS GCPhy
  *          code in ring-3.  Use PGM_PHYS_RW_IS_SUCCESS to check.
  * @retval  VINF_SUCCESS in all context - read completed.
  *
- * @retval  VINF_EM_OFF in RC and R0 - read completed.
- * @retval  VINF_EM_SUSPEND in RC and R0 - read completed.
- * @retval  VINF_EM_RESET in RC and R0 - read completed.
- * @retval  VINF_EM_HALT in RC and R0 - read completed.
+ * @retval  VINF_EM_OFF - read completed.
+ * @retval  VINF_EM_SUSPEND - read completed.
+ * @retval  VINF_EM_RESET - read completed.
+ * @retval  VINF_EM_HALT - read completed.
  * @retval  VINF_SELM_SYNC_GDT in RC only - read completed.
  *
- * @retval  VINF_EM_DBG_STOP in RC and R0 - read completed.
- * @retval  VINF_EM_DBG_BREAKPOINT in RC and R0 - read completed.
+ * @retval  VINF_EM_DBG_STOP - read completed.
+ * @retval  VINF_EM_DBG_BREAKPOINT - read completed.
  * @retval  VINF_EM_RAW_EMULATE_INSTR in RC and R0 only.
  *
  * @retval  VINF_IOM_R3_MMIO_READ in RC and R0.
@@ -4388,15 +4394,15 @@ static VBOXSTRICTRC pgmPhysWriteHandler(PVMCC pVM, PPGMPAGE pPage, RTGCPHYS GCPh
  *          code in ring-3.  Use PGM_PHYS_RW_IS_SUCCESS to check.
  * @retval  VINF_SUCCESS in all context - write completed.
  *
- * @retval  VINF_EM_OFF in RC and R0 - write completed.
- * @retval  VINF_EM_SUSPEND in RC and R0 - write completed.
- * @retval  VINF_EM_RESET in RC and R0 - write completed.
- * @retval  VINF_EM_HALT in RC and R0 - write completed.
+ * @retval  VINF_EM_OFF - write completed.
+ * @retval  VINF_EM_SUSPEND - write completed.
+ * @retval  VINF_EM_RESET - write completed.
+ * @retval  VINF_EM_HALT - write completed.
  * @retval  VINF_SELM_SYNC_GDT in RC only - write completed.
  *
- * @retval  VINF_EM_DBG_STOP in RC and R0 - write completed.
- * @retval  VINF_EM_DBG_BREAKPOINT in RC and R0 - write completed.
- * @retval  VINF_EM_RAW_EMULATE_INSTR in RC and R0 only.
+ * @retval  VINF_EM_DBG_STOP - write completed.
+ * @retval  VINF_EM_DBG_BREAKPOINT - write completed.
+ * @retval  VINF_EM_RAW_EMULATE_INSTR only.
  *
  * @retval  VINF_IOM_R3_MMIO_WRITE in RC and R0.
  * @retval  VINF_IOM_R3_MMIO_READ_WRITE in RC and R0.
