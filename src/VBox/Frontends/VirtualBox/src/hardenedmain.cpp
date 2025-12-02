@@ -48,6 +48,28 @@ static int MyStrCmp(const char *psz1, const char *psz2)
     }
 }
 
+/**
+ * Option w/ value matching.
+ *
+ * @returns -1 on mismatch, 0 on exact match, 1 if there is a separator ('=' or
+ *          ':') following in the original string.
+ */
+static int MyStrMatchOptWithValue(const char *pszString, const char *pszOpt)
+{
+    for (;;)
+    {
+        char ch1 = *pszString++;
+        char ch2 = *pszOpt++;
+        if (ch1 != ch2)
+        {
+            if (!ch2)
+                return ch1 == ':' || ch1 == '=' ? 1 : -1;
+            return -1;
+        }
+        if (!ch1)
+            return 0;
+    }
+}
 
 int main(int argc, char **argv, char **envp)
 {
@@ -67,12 +89,14 @@ int main(int argc, char **argv, char **envp)
     bool     fDriverless      = false;
     for (int i = 1; i < argc && cOptionsLeft > 0; ++i)
     {
-        if (   !MyStrCmp(argv[i], "--startvm")
-            || !MyStrCmp(argv[i], "-startvm"))
+        int iMatch;
+        if (   (iMatch = MyStrCmp(argv[i], "--startvm")) >= 0
+            || (iMatch = MyStrCmp(argv[i], "-startvm"))  >= 0)
         {
             cOptionsLeft -= fStartVM == false;
             fStartVM = true;
-            i++;
+            if (iMatch == 0)
+                i++;
         }
         else if (   !MyStrCmp(argv[i], "--separate")
                  || !MyStrCmp(argv[i], "-separate"))
