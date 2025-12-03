@@ -5729,6 +5729,7 @@ static DECLCALLBACK(int) nvmeR3IoReqQueryBuf(PPDMIMEDIAEXPORT pInterface, PDMMED
         {
             pIoReq->fMapped = true;
             *pcbBuf = pIoReq->cbPrp;
+            Assert(*pcbBuf <= PDMDevHlpPhysGetPageSize(pDevIns));
         }
         else
             rc = VERR_NOT_SUPPORTED;
@@ -7093,6 +7094,20 @@ static DECLCALLBACK(int) nvmeR3Construct(PPDMDEVINS pDevIns, int iInstance, PCFG
     bool            fMsiXSupported = false;
     int             rc;
     LogFlow(("nvmeR3Construct:\n"));
+
+    /*
+     * Initialize state sufficiently for the destructor to run cleanly.
+     */
+    RTListInit(&pThisCC->LstWrkThrds);
+    for (unsigned i = 0; i < RT_ELEMENTS(pThisCC->aQueuesComp); i++)
+        pThisCC->aQueuesComp[i].hMtx = NIL_RTSEMFASTMUTEX;
+
+    /*
+     * Check PGM page size ASSUMPTION in nvmeR3IoReqQueryBuf and
+     * HcCtrlCfg_w (pThis->uMpsSet must be set to 12).
+     */
+    uint32_t const cbPage = PDMDevHlpPhysGetPageSize(pDevIns);
+    AssertLogRelMsgReturn(cbPage == _4K, ("NVMe: cbPage=%#x, expected %#x!\n", cbPage, _4K), VERR_INTERNAL_ERROR);
 
     /*
      * Validate and read configuration.
