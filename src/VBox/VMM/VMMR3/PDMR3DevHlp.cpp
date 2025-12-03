@@ -1029,13 +1029,13 @@ static DECLCALLBACK(int) pdmR3DevHlp_PhysWrite(PPDMDEVINS pDevIns, RTGCPHYS GCPh
 }
 
 
-/** @interface_method_impl{PDMDEVHLPR3,pfnPhysGetPageSize} */
-static DECLCALLBACK(uint32_t) pdmR3DevHlp_PhysGetPageSize(PPDMDEVINS pDevIns)
+/** @interface_method_impl{PDMDEVHLPR3,pfnPhysGetPageShift} */
+static DECLCALLBACK(unsigned) pdmR3DevHlp_PhysGetPageShift(PPDMDEVINS pDevIns)
 {
     PDMDEV_ASSERT_DEVINS(pDevIns); RT_NOREF(pDevIns);
-    LogFlow(("pdmR3DevHlp_PhysGCPhys2CCPtr: caller='%s'/%d: returns GUEST_MIN_PAGE_SIZE/%#x\n",
-             pDevIns->pReg->szName, pDevIns->iInstance, GUEST_MIN_PAGE_SIZE));
-    return GUEST_MIN_PAGE_SIZE;
+    LogFlow(("pdmR3DevHlp_PhysGCPhys2CCPtr: caller='%s'/%d: returns GUEST_MIN_PAGE_SHIFT/%#x\n",
+             pDevIns->pReg->szName, pDevIns->iInstance, GUEST_MIN_PAGE_SHIFT));
+    return GUEST_MIN_PAGE_SHIFT;
 }
 
 
@@ -5185,7 +5185,7 @@ const PDMDEVHLPR3 g_pdmR3DevHlpTrusted =
     CFGMR3ValidateConfig,
     pdmR3DevHlp_PhysRead,
     pdmR3DevHlp_PhysWrite,
-    pdmR3DevHlp_PhysGetPageSize,
+    pdmR3DevHlp_PhysGetPageShift,
     pdmR3DevHlp_PhysGCPhys2CCPtr,
     pdmR3DevHlp_PhysGCPhys2CCPtrReadOnly,
     pdmR3DevHlp_PhysReleasePageMappingLock,
@@ -5588,7 +5588,7 @@ const PDMDEVHLPR3 g_pdmR3DevHlpTracing =
     CFGMR3ValidateConfig,
     pdmR3DevHlpTracing_PhysRead,
     pdmR3DevHlpTracing_PhysWrite,
-    pdmR3DevHlp_PhysGetPageSize,
+    pdmR3DevHlp_PhysGetPageShift,
     pdmR3DevHlp_PhysGCPhys2CCPtr,
     pdmR3DevHlp_PhysGCPhys2CCPtrReadOnly,
     pdmR3DevHlp_PhysReleasePageMappingLock,
@@ -6319,7 +6319,7 @@ const PDMDEVHLPR3 g_pdmR3DevHlpUnTrusted =
     CFGMR3ValidateConfig,
     pdmR3DevHlp_PhysRead,
     pdmR3DevHlp_PhysWrite,
-    pdmR3DevHlp_PhysGetPageSize,
+    pdmR3DevHlp_PhysGetPageShift,
     pdmR3DevHlp_PhysGCPhys2CCPtr,
     pdmR3DevHlp_PhysGCPhys2CCPtrReadOnly,
     pdmR3DevHlp_PhysReleasePageMappingLock,

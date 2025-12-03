@@ -3118,16 +3118,17 @@ typedef struct PDMDEVHLPR3
     DECLR3CALLBACKMEMBER(int, pfnPhysWrite,(PPDMDEVINS pDevIns, RTGCPHYS GCPhys, const void *pvBuf, size_t cbWrite, uint32_t fFlags));
 
     /**
-     * Gets the guest page size used by: pfnPhysGCPhys2CCPtr,
-     * pfnPhysGCPhys2CCPtrReadOnly, pfnPhysGCPtr2GCPhys, pfnPCIPhysGCPhys2CCPtr,
-     * pfnPCIPhysGCPhys2CCPtrReadOnly, pfnPCIPhysBulkGCPhys2CCPtr and
-     * pfnPCIPhysBulkGCPhys2CCPtrReadOnly.
+     * Gets the guest page size as a power of 2.
      *
-     * @returns guest page size in bytes.
+     * This is used implicitly by pfnPhysGCPhys2CCPtr, pfnPhysGCPhys2CCPtrReadOnly,
+     * pfnPhysGCPtr2GCPhys, pfnPCIPhysGCPhys2CCPtr, pfnPCIPhysGCPhys2CCPtrReadOnly,
+     * pfnPCIPhysBulkGCPhys2CCPtr and pfnPCIPhysBulkGCPhys2CCPtrReadOnly.
+     *
+     * @returns guest page size as a shift count.
      * @param   pDevIns             The device instance.
      * @since   7.2.6
      */
-    DECLR3CALLBACKMEMBER(uint32_t, pfnPhysGetPageSize,(PPDMDEVINS pDevIns));
+    DECLR3CALLBACKMEMBER(unsigned, pfnPhysGetPageShift,(PPDMDEVINS pDevIns));
 
     /**
      * Requests the mapping of a guest page into ring-3.
@@ -3135,7 +3136,7 @@ typedef struct PDMDEVHLPR3
      * When you're done with the page, call pfnPhysReleasePageMappingLock() ASAP to
      * release it.
      *
-     * Use pfnPhysGetPageSize() to get the guest page size.
+     * Use pfnPhysGetPageShift() to get the guest page size.
      *
      * This API will assume your intention is to write to the page, and will
      * therefore replace shared and zero pages. If you do not intend to modify the
@@ -3171,7 +3172,7 @@ typedef struct PDMDEVHLPR3
      * When you're done with the page, call pfnPhysReleasePageMappingLock() ASAP to
      * release it.
      *
-     * Use pfnPhysGetPageSize() to get the guest page size.
+     * Use pfnPhysGetPageShift() to get the guest page size.
      *
      * @returns VBox status code.
      * @retval  VINF_SUCCESS on success.
@@ -3217,7 +3218,7 @@ typedef struct PDMDEVHLPR3
      * therefore replace shared and zero pages. If you do not intend to modify the
      * pages, use the pfnPhysBulkGCPhys2CCPtrReadOnly() API.
      *
-     * Use pfnPhysGetPageSize() to get the guest page size.
+     * Use pfnPhysGetPageShift() to get the guest page size.
      *
      * @returns VBox status code.
      * @retval  VINF_SUCCESS on success.
@@ -3253,7 +3254,7 @@ typedef struct PDMDEVHLPR3
      * When you're done with the pages, call pfnPhysBulkReleasePageMappingLocks()
      * ASAP to release them.
      *
-     * Use pfnPhysGetPageSize() to get the guest page size.
+     * Use pfnPhysGetPageShift() to get the guest page size.
      *
      * @returns VBox status code.
      * @retval  VINF_SUCCESS on success.
@@ -3321,7 +3322,7 @@ typedef struct PDMDEVHLPR3
     /**
      * Convert a guest virtual address to a guest physical address.
      *
-     * Use pfnPhysGetPageSize() to get the guest page size.
+     * Use pfnPhysGetPageShift() to get the guest page size.
      *
      * @returns VBox status code.
      * @param   pDevIns             The device instance.
@@ -7308,11 +7309,27 @@ DECLINLINE(int) PDMDevHlpPhysWriteUser(PPDMDEVINS pDevIns, RTGCPHYS GCPhys, cons
 #ifdef IN_RING3
 
 /**
- * @copydoc PDMDEVHLPR3::pfnPhysGetPageSize
+ * @copydoc PDMDEVHLPR3::pfnPhysGetPageShift
+ */
+DECLINLINE(unsigned) PDMDevHlpPhysGetPageShift(PPDMDEVINS pDevIns)
+{
+    return pDevIns->CTX_SUFF(pHlp)->pfnPhysGetPageShift(pDevIns);
+}
+
+/**
+ * Gets the page size in bytes.
  */
 DECLINLINE(uint32_t) PDMDevHlpPhysGetPageSize(PPDMDEVINS pDevIns)
 {
-    return pDevIns->CTX_SUFF(pHlp)->pfnPhysGetPageSize(pDevIns);
+    return RT_BIT_32(pDevIns->CTX_SUFF(pHlp)->pfnPhysGetPageShift(pDevIns));
+}
+
+/**
+ * Gets the page offset mask.
+ */
+DECLINLINE(RTGCPHYS) PDMDevHlpPhysGetPageOffsetMask(PPDMDEVINS pDevIns)
+{
+    return (RTGCPHYS)(RT_BIT_32(pDevIns->CTX_SUFF(pHlp)->pfnPhysGetPageShift(pDevIns)) - 1U);
 }
 
 /**
