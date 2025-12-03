@@ -729,6 +729,7 @@ VMMR3DECL(int) PGMR3PhysBulkGCPhys2CCPtrExternal(PVM pVM, uint32_t cPages, PCRTG
             if (RT_FAILURE(rc))
                 break;
             cNextYield = 128;
+            continue;
         }
 
         /*
