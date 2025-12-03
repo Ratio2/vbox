@@ -2392,7 +2392,7 @@ typedef const PDMRTCHLP *PCPDMRTCHLP;
 /** @} */
 
 /** Current PDMDEVHLPR3 version number. */
-#define PDM_DEVHLPR3_VERSION                PDM_VERSION_MAKE_PP(0xffe7, 68, 0)
+#define PDM_DEVHLPR3_VERSION                PDM_VERSION_MAKE_PP(0xffe7, 69, 0)
 
 /**
  * PDM Device API.
@@ -3118,10 +3118,24 @@ typedef struct PDMDEVHLPR3
     DECLR3CALLBACKMEMBER(int, pfnPhysWrite,(PPDMDEVINS pDevIns, RTGCPHYS GCPhys, const void *pvBuf, size_t cbWrite, uint32_t fFlags));
 
     /**
+     * Gets the guest page size used by: pfnPhysGCPhys2CCPtr,
+     * pfnPhysGCPhys2CCPtrReadOnly, pfnPhysGCPtr2GCPhys, pfnPCIPhysGCPhys2CCPtr,
+     * pfnPCIPhysGCPhys2CCPtrReadOnly, pfnPCIPhysBulkGCPhys2CCPtr and
+     * pfnPCIPhysBulkGCPhys2CCPtrReadOnly.
+     *
+     * @returns guest page size in bytes.
+     * @param   pDevIns             The device instance.
+     * @since   7.2.6
+     */
+    DECLR3CALLBACKMEMBER(uint32_t, pfnPhysGetPageSize,(PPDMDEVINS pDevIns));
+
+    /**
      * Requests the mapping of a guest page into ring-3.
      *
      * When you're done with the page, call pfnPhysReleasePageMappingLock() ASAP to
      * release it.
+     *
+     * Use pfnPhysGetPageSize() to get the guest page size.
      *
      * This API will assume your intention is to write to the page, and will
      * therefore replace shared and zero pages. If you do not intend to modify the
@@ -3156,6 +3170,8 @@ typedef struct PDMDEVHLPR3
      *
      * When you're done with the page, call pfnPhysReleasePageMappingLock() ASAP to
      * release it.
+     *
+     * Use pfnPhysGetPageSize() to get the guest page size.
      *
      * @returns VBox status code.
      * @retval  VINF_SUCCESS on success.
@@ -3192,6 +3208,95 @@ typedef struct PDMDEVHLPR3
     DECLR3CALLBACKMEMBER(void, pfnPhysReleasePageMappingLock,(PPDMDEVINS pDevIns, PPGMPAGEMAPLOCK pLock));
 
     /**
+     * Requests the mapping of multiple guest page into ring-3.
+     *
+     * When you're done with the pages, call pfnPhysBulkReleasePageMappingLocks()
+     * ASAP to release them.
+     *
+     * This API will assume your intention is to write to the pages, and will
+     * therefore replace shared and zero pages. If you do not intend to modify the
+     * pages, use the pfnPhysBulkGCPhys2CCPtrReadOnly() API.
+     *
+     * Use pfnPhysGetPageSize() to get the guest page size.
+     *
+     * @returns VBox status code.
+     * @retval  VINF_SUCCESS on success.
+     * @retval  VERR_PGM_PHYS_PAGE_RESERVED if any of the pages has no physical
+     *          backing or if any of the pages the page has any active access
+     *          handlers. The caller must fall back on using PGMR3PhysWriteExternal.
+     * @retval  VERR_PGM_INVALID_GC_PHYSICAL_ADDRESS if @a paGCPhysPages contains
+     *          an invalid physical address.
+     *
+     * @param   pDevIns             The device instance.
+     * @param   cPages              Number of pages to lock.
+     * @param   paGCPhysPages       The guest physical address of the pages that
+     *                              should be mapped (@a cPages entries).
+     * @param   fFlags              Flags reserved for future use, MBZ.
+     * @param   papvPages           Where to store the ring-3 mapping addresses
+     *                              corresponding to @a paGCPhysPages.
+     * @param   paLocks             Where to store the locking information that
+     *                              pfnPhysBulkReleasePageMappingLock needs (@a cPages
+     *                              in length).
+     *
+     * @remark  Avoid calling this API from within critical sections (other than the
+     *          PGM one) because of the deadlock risk when we have to delegating the
+     *          task to an EMT.
+     * @thread  Any.
+     * @since   6.0.6
+     */
+    DECLR3CALLBACKMEMBER(int, pfnPhysBulkGCPhys2CCPtr,(PPDMDEVINS pDevIns, uint32_t cPages, PCRTGCPHYS paGCPhysPages,
+                                                       uint32_t fFlags, void **papvPages, PPGMPAGEMAPLOCK paLocks));
+
+    /**
+     * Requests the mapping of multiple guest page into ring-3, for reading only.
+     *
+     * When you're done with the pages, call pfnPhysBulkReleasePageMappingLocks()
+     * ASAP to release them.
+     *
+     * Use pfnPhysGetPageSize() to get the guest page size.
+     *
+     * @returns VBox status code.
+     * @retval  VINF_SUCCESS on success.
+     * @retval  VERR_PGM_PHYS_PAGE_RESERVED if any of the pages has no physical
+     *          backing or if any of the pages the page has an active ALL access
+     *          handler. The caller must fall back on using PGMR3PhysWriteExternal.
+     * @retval  VERR_PGM_INVALID_GC_PHYSICAL_ADDRESS if @a paGCPhysPages contains
+     *          an invalid physical address.
+     *
+     * @param   pDevIns             The device instance.
+     * @param   cPages              Number of pages to lock.
+     * @param   paGCPhysPages       The guest physical address of the pages that
+     *                              should be mapped (@a cPages entries).
+     * @param   fFlags              Flags reserved for future use, MBZ.
+     * @param   papvPages           Where to store the ring-3 mapping addresses
+     *                              corresponding to @a paGCPhysPages.
+     * @param   paLocks             Where to store the lock information that
+     *                              pfnPhysReleasePageMappingLock needs (@a cPages
+     *                              in length).
+     *
+     * @remark  Avoid calling this API from within critical sections.
+     * @thread  Any.
+     * @since   6.0.6
+     */
+    DECLR3CALLBACKMEMBER(int, pfnPhysBulkGCPhys2CCPtrReadOnly,(PPDMDEVINS pDevIns, uint32_t cPages, PCRTGCPHYS paGCPhysPages,
+                                                               uint32_t fFlags, void const **papvPages, PPGMPAGEMAPLOCK paLocks));
+
+    /**
+     * Release the mappings of multiple guest pages.
+     *
+     * This is the counter part of pfnPhysBulkGCPhys2CCPtr and
+     * pfnPhysBulkGCPhys2CCPtrReadOnly.
+     *
+     * @param   pDevIns             The device instance.
+     * @param   cPages              Number of pages to unlock.
+     * @param   paLocks             The lock structures initialized by the mapping
+     *                              function (@a cPages in length).
+     * @thread  Any.
+     * @since   6.0.6
+     */
+    DECLR3CALLBACKMEMBER(void, pfnPhysBulkReleasePageMappingLocks,(PPDMDEVINS pDevIns, uint32_t cPages, PPGMPAGEMAPLOCK paLocks));
+
+    /**
      * Read guest physical memory by virtual address.
      *
      * @param   pDevIns             The device instance.
@@ -3215,6 +3320,8 @@ typedef struct PDMDEVHLPR3
 
     /**
      * Convert a guest virtual address to a guest physical address.
+     *
+     * Use pfnPhysGetPageSize() to get the guest page size.
      *
      * @returns VBox status code.
      * @param   pDevIns             The device instance.
@@ -4499,91 +4606,6 @@ typedef struct PDMDEVHLPR3
      * @param   pDevIns             The device instance.
      */
     DECLR3CALLBACKMEMBER(VMRESUMEREASON, pfnVMGetResumeReason,(PPDMDEVINS pDevIns));
-
-    /**
-     * Requests the mapping of multiple guest page into ring-3.
-     *
-     * When you're done with the pages, call pfnPhysBulkReleasePageMappingLocks()
-     * ASAP to release them.
-     *
-     * This API will assume your intention is to write to the pages, and will
-     * therefore replace shared and zero pages. If you do not intend to modify the
-     * pages, use the pfnPhysBulkGCPhys2CCPtrReadOnly() API.
-     *
-     * @returns VBox status code.
-     * @retval  VINF_SUCCESS on success.
-     * @retval  VERR_PGM_PHYS_PAGE_RESERVED if any of the pages has no physical
-     *          backing or if any of the pages the page has any active access
-     *          handlers. The caller must fall back on using PGMR3PhysWriteExternal.
-     * @retval  VERR_PGM_INVALID_GC_PHYSICAL_ADDRESS if @a paGCPhysPages contains
-     *          an invalid physical address.
-     *
-     * @param   pDevIns             The device instance.
-     * @param   cPages              Number of pages to lock.
-     * @param   paGCPhysPages       The guest physical address of the pages that
-     *                              should be mapped (@a cPages entries).
-     * @param   fFlags              Flags reserved for future use, MBZ.
-     * @param   papvPages           Where to store the ring-3 mapping addresses
-     *                              corresponding to @a paGCPhysPages.
-     * @param   paLocks             Where to store the locking information that
-     *                              pfnPhysBulkReleasePageMappingLock needs (@a cPages
-     *                              in length).
-     *
-     * @remark  Avoid calling this API from within critical sections (other than the
-     *          PGM one) because of the deadlock risk when we have to delegating the
-     *          task to an EMT.
-     * @thread  Any.
-     * @since   6.0.6
-     */
-    DECLR3CALLBACKMEMBER(int, pfnPhysBulkGCPhys2CCPtr,(PPDMDEVINS pDevIns, uint32_t cPages, PCRTGCPHYS paGCPhysPages,
-                                                       uint32_t fFlags, void **papvPages, PPGMPAGEMAPLOCK paLocks));
-
-    /**
-     * Requests the mapping of multiple guest page into ring-3, for reading only.
-     *
-     * When you're done with the pages, call pfnPhysBulkReleasePageMappingLocks()
-     * ASAP to release them.
-     *
-     * @returns VBox status code.
-     * @retval  VINF_SUCCESS on success.
-     * @retval  VERR_PGM_PHYS_PAGE_RESERVED if any of the pages has no physical
-     *          backing or if any of the pages the page has an active ALL access
-     *          handler. The caller must fall back on using PGMR3PhysWriteExternal.
-     * @retval  VERR_PGM_INVALID_GC_PHYSICAL_ADDRESS if @a paGCPhysPages contains
-     *          an invalid physical address.
-     *
-     * @param   pDevIns             The device instance.
-     * @param   cPages              Number of pages to lock.
-     * @param   paGCPhysPages       The guest physical address of the pages that
-     *                              should be mapped (@a cPages entries).
-     * @param   fFlags              Flags reserved for future use, MBZ.
-     * @param   papvPages           Where to store the ring-3 mapping addresses
-     *                              corresponding to @a paGCPhysPages.
-     * @param   paLocks             Where to store the lock information that
-     *                              pfnPhysReleasePageMappingLock needs (@a cPages
-     *                              in length).
-     *
-     * @remark  Avoid calling this API from within critical sections.
-     * @thread  Any.
-     * @since   6.0.6
-     */
-    DECLR3CALLBACKMEMBER(int, pfnPhysBulkGCPhys2CCPtrReadOnly,(PPDMDEVINS pDevIns, uint32_t cPages, PCRTGCPHYS paGCPhysPages,
-                                                               uint32_t fFlags, void const **papvPages, PPGMPAGEMAPLOCK paLocks));
-
-    /**
-     * Release the mappings of multiple guest pages.
-     *
-     * This is the counter part of pfnPhysBulkGCPhys2CCPtr and
-     * pfnPhysBulkGCPhys2CCPtrReadOnly.
-     *
-     * @param   pDevIns             The device instance.
-     * @param   cPages              Number of pages to unlock.
-     * @param   paLocks             The lock structures initialized by the mapping
-     *                              function (@a cPages in length).
-     * @thread  Any.
-     * @since   6.0.6
-     */
-    DECLR3CALLBACKMEMBER(void, pfnPhysBulkReleasePageMappingLocks,(PPDMDEVINS pDevIns, uint32_t cPages, PPGMPAGEMAPLOCK paLocks));
 
     /**
      * Returns the architecture used for the guest.
@@ -7284,6 +7306,14 @@ DECLINLINE(int) PDMDevHlpPhysWriteUser(PPDMDEVINS pDevIns, RTGCPHYS GCPhys, cons
 }
 
 #ifdef IN_RING3
+
+/**
+ * @copydoc PDMDEVHLPR3::pfnPhysGetPageSize
+ */
+DECLINLINE(uint32_t) PDMDevHlpPhysGetPageSize(PPDMDEVINS pDevIns)
+{
+    return pDevIns->CTX_SUFF(pHlp)->pfnPhysGetPageSize(pDevIns);
+}
 
 /**
  * @copydoc PDMDEVHLPR3::pfnPhysGCPhys2CCPtr
