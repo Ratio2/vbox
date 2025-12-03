@@ -75,6 +75,9 @@
 # define RT_ARCH_SPARC64
 # define RT_ARCH_ARM32
 # define RT_ARCH_ARM64
+# define RT_ISA_X86
+# define RT_ISA_SPARC
+# define RT_ISA_ARM
 # define IN_RING0
 # define IN_RING3
 # define IN_RC
@@ -235,6 +238,32 @@
 #else
 # error "RT_ARCH_VAL: port me"
 #endif
+
+
+/** @def RT_ISA_X86
+ * Indicates that we're compiling for the X86 instruction set architecture
+ * (RT_ARCH_AMD64, RT_ARCH_X86).
+ */
+
+/** @def RT_ISA_SPARC
+ * Indicates that we're compiling for the SPARC instruction set architecture
+ * (RT_ARCH_SPARC64, RT_ARCH_SPARC).
+ */
+
+/** @def RT_ISA_ARM
+ * Indicates that we're compiling for the ARM instruction set architecture
+ * (RT_ARCH_ARM64, RT_ARCH_ARM32).
+ */
+#if defined(RT_ARCH_X86) || defined(RT_ARCH_AMD64)
+# define RT_ISA_X86
+#elif defined(RT_ARCH_SPARC) || defined(RT_ARCH_SPARC64)
+# define RT_ISA_SPARC
+#elif defined(RT_ARCH_ARM32) || defined(RT_ARCH_ARM64)
+# define RT_ISA_ARM
+#else
+# error "RT_ISA_XXX: port me"
+#endif
+
 
 /** @def RT_IN_ASSEMBLER
  * Define when the source is being preprocessed for the assembler rather than
