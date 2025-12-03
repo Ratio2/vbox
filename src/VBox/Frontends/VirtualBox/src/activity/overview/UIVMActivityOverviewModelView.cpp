@@ -57,25 +57,6 @@
 #include "KMetricType.h"
 
 
-/** QITableViewRow extension used as Activity Overview table-view cell. */
-class UIVMActivityOverviewCell : public QITableViewCell
-{
-
-    Q_OBJECT;
-
-public:
-
-    UIVMActivityOverviewCell(QITableViewRow *pRow);
-    virtual QString text() const RT_OVERRIDE RT_FINAL;
-    int columnLength(int iColumnIndex) const;
-    void setText(const QString &strText);
-
-private:
-
-    QString m_strText;
-};
-
-
 /** QITableViewRow extension used as Activity Overview table-view row. */
 class UIVMActivityOverviewRow : public QITableViewRow
 {
@@ -109,7 +90,7 @@ protected:
     QString  m_strMachineName;
     quint64  m_uTotalRAM;
 
-    QMap<int, UIVMActivityOverviewCell*>  m_cells;
+    QMap<int, QITableViewCell*>  m_cells;
 
 private:
 
@@ -195,31 +176,6 @@ private:
 
 
 /*********************************************************************************************************************************
-*   UIVMActivityOverviewCell implementation.                                                                                     *
-*********************************************************************************************************************************/
-
-UIVMActivityOverviewCell::UIVMActivityOverviewCell(QITableViewRow *pRow)
-    : QITableViewCell(pRow)
-{
-}
-
-QString UIVMActivityOverviewCell::text() const
-{
-    return m_strText;
-}
-
-int UIVMActivityOverviewCell::columnLength(int /*iColumnIndex*/) const
-{
-    return 0;
-}
-
-void UIVMActivityOverviewCell::setText(const QString &strText)
-{
-    m_strText = strText;
-}
-
-
-/*********************************************************************************************************************************
 *   UIVMActivityOverviewRow implementation.                                                                                      *
 *********************************************************************************************************************************/
 
@@ -270,9 +226,7 @@ void UIVMActivityOverviewRow::updateCellText(int iIndex, const QString &strText)
 {
     QITableViewCell *pCell = childItem(iIndex);
     AssertPtrReturnVoid(pCell);
-    UIVMActivityOverviewCell *pOurCell = qobject_cast<UIVMActivityOverviewCell*>(pCell);
-    AssertPtrReturnVoid(pOurCell);
-    pOurCell->setText(strText);
+    pCell->setText(strText);
 }
 
 void UIVMActivityOverviewRow::createCells()
@@ -287,7 +241,7 @@ void UIVMActivityOverviewRow::createCells()
         if (i == (int) VMActivityOverviewColumn_VMExits)
             continue;
 #endif
-        m_cells[i] = new UIVMActivityOverviewCell(this);
+        m_cells[i] = new QITableViewCell(this);
     }
 
     /* Update name cell: */

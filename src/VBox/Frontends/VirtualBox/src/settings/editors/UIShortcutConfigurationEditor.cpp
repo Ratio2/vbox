@@ -58,31 +58,6 @@ enum TableColumnIndex
 };
 
 
-/** QITableViewCell subclass for shortcut configuration editor. */
-class UIShortcutTableViewCell : public QITableViewCell
-{
-    Q_OBJECT;
-
-public:
-
-    /** Constructs table cell on the basis of passed arguments.
-      * @param  pParent  Brings the row this cell belongs too.
-      * @param  strText  Brings the text describing this cell. */
-    UIShortcutTableViewCell(QITableViewRow *pParent, const QString &strText)
-        : QITableViewCell(pParent)
-        , m_strText(strText)
-    {}
-
-    /** Returns the cell text. */
-    virtual QString text() const RT_OVERRIDE { return m_strText; }
-
-private:
-
-    /** Holds the cell text. */
-    QString  m_strText;
-};
-
-
 /** QITableViewRow subclass for shortcut configuration editor. */
 class UIShortcutTableViewRow : public QITableViewRow, public UIShortcutConfigurationItem
 {
@@ -164,8 +139,8 @@ private:
     {
         if (m_cells.first || m_cells.second)
             destroyCells();
-        m_cells = qMakePair(new UIShortcutTableViewCell(this, description()),
-                            new UIShortcutTableViewCell(this, currentSequence()));
+        m_cells = qMakePair(new QITableViewCell(this, description()),
+                            new QITableViewCell(this, currentSequence()));
     }
 
     /** Destroys cells. */
@@ -179,7 +154,7 @@ private:
     }
 
     /** Holds the cell instances. */
-    QPair<UIShortcutTableViewCell*, UIShortcutTableViewCell*>  m_cells;
+    QPair<QITableViewCell*, QITableViewCell*>  m_cells;
 };
 
 /** Shortcut configuration editor row list. */
