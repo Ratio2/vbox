@@ -1,4 +1,3 @@
-
 /* $Id$ */
 /** @file
  * PDM - Pluggable Device and Driver Manager, Device Helpers.
