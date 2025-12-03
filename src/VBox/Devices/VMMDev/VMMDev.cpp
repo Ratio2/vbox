@@ -5046,6 +5046,13 @@ static DECLCALLBACK(int) vmmdevConstruct(PPDMDEVINS pDevIns, int iInstance, PCFG
     /** @todo image-to-load-filename? */
 #endif
 
+    /*
+     * Check PGM page size assumption.
+     */
+    uint32_t const cbPage = PDMDevHlpPhysGetPageSize(pDevIns);
+    AssertLogRelMsgReturn(cbPage == VMMDEV_PAGE_SIZE, ("VMMDev: cbPage=%#x, expected %#x!\n", cbPage, VMMDEV_PAGE_SIZE),
+                          VERR_INTERNAL_ERROR);
+
 #ifdef VBOX_WITH_HGCM
     /*
      * Heap budgets for HGCM requestor categories.  Take the available host
