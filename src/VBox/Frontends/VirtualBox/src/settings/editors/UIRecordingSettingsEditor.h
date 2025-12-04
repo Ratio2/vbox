@@ -46,6 +46,7 @@ class QLabel;
 class QWidget;
 class UIRecordingAudioProfileEditor;
 class UIRecordingFilePathEditor;
+class UIRecordingModeEditor;
 class UIRecordingScreenSelectorEditor;
 class UIRecordingVideoBitrateEditor;
 class UIRecordingVideoFrameRateEditor;
@@ -141,9 +142,6 @@ private:
     /** Prepares connections. */
     void prepareConnections();
 
-    /** Populates mode combo-box. */
-    void populateComboMode();
-
     /** Updates widget visibility. */
     void updateWidgetVisibility();
     /** Updates widget availability. */
@@ -191,10 +189,7 @@ private:
         QCheckBox          *m_pCheckboxFeature;
         /** Holds the settings layout instance. */
         QGridLayout        *m_pLayoutSettings;
-        /** Holds the mode label instance. */
-        QLabel             *m_pLabelMode;
-        /** Holds the mode combo instance. */
-        QComboBox          *m_pComboMode;
+        UIRecordingModeEditor *m_pEditorMode;
         /** Holds the file path editor instance. */
         UIRecordingFilePathEditor *m_pEditorFilePath;
         /** Holds the frame size editor. */

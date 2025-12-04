@@ -40,6 +40,7 @@
 #include "UIRecordingScreenSelectorEditor.h"
 #include "UIRecordingSettingsEditor.h"
 #include "UIRecordingFilePathEditor.h"
+#include "UIRecordingModeEditor.h"
 #include "UIRecordingVideoBitrateEditor.h"
 #include "UIRecordingVideoFrameRateEditor.h"
 #include "UIRecordingVideoFrameSizeEditor.h"
@@ -57,8 +58,7 @@ UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     , m_iBitrate(0)
     , m_pCheckboxFeature(0)
     , m_pLayoutSettings(0)
-    , m_pLabelMode(0)
-    , m_pComboMode(0)
+    , m_pEditorMode(0)
     , m_pEditorFilePath(0)
     , m_pEditorFrameSize(0)
     , m_pEditorFrameRate(0)
@@ -109,14 +109,14 @@ void UIRecordingSettingsEditor::setMode(UISettingsDefs::RecordingMode enmMode)
     if (m_enmMode != enmMode)
     {
         m_enmMode = enmMode;
-        populateComboMode();
+        m_pEditorMode->setMode(enmMode);
         updateWidgetVisibility();
     }
 }
 
 UISettingsDefs::RecordingMode UIRecordingSettingsEditor::mode() const
 {
-    return m_pComboMode ? m_pComboMode->currentData().value<UISettingsDefs::RecordingMode>() : m_enmMode;
+    return m_pEditorMode ? m_pEditorMode->mode() : UISettingsDefs::RecordingMode_None;
 }
 
 void UIRecordingSettingsEditor::setFolder(const QString &strFolder)
@@ -237,15 +237,6 @@ void UIRecordingSettingsEditor::sltRetranslateUI()
     m_pCheckboxFeature->setText(tr("&Enable Recording"));
     m_pCheckboxFeature->setToolTip(tr("VirtualBox will record the virtual machine session as a video file"));
 
-    m_pLabelMode->setText(tr("Recording &Mode"));
-    for (int iIndex = 0; iIndex < m_pComboMode->count(); ++iIndex)
-    {
-        const UISettingsDefs::RecordingMode enmType =
-            m_pComboMode->itemData(iIndex).value<UISettingsDefs::RecordingMode>();
-        m_pComboMode->setItemText(iIndex, gpConverter->toString(enmType));
-    }
-    m_pComboMode->setToolTip(tr("Recording mode"));
-
     updateRecordingFileSizeHint();
     updateMinimumLayoutHint();
 }
@@ -336,25 +327,12 @@ void UIRecordingSettingsEditor::prepareWidgets()
             {
                 int iLayoutSettingsRow = 0;
                 m_pLayoutSettings->setContentsMargins(0, 0, 0, 0);
-
-                /* Prepare recording mode label: */
-                m_pLabelMode = new QLabel(pWidgetSettings);
-                if (m_pLabelMode)
+                /* Prepare recording mode editor: */
+                m_pEditorMode = new UIRecordingModeEditor(pWidgetSettings, false);
+                if (m_pEditorMode)
                 {
-                    m_pLabelMode->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-                    m_pLayoutSettings->addWidget(m_pLabelMode, iLayoutSettingsRow, 0);
-                }
-                /* Prepare recording mode combo: */
-                m_pComboMode = new QComboBox(pWidgetSettings);
-                if (m_pComboMode)
-                {
-                    if (m_pLabelMode)
-                        m_pLabelMode->setBuddy(m_pComboMode);
-                    m_pComboMode->addItem(QString(), QVariant::fromValue(UISettingsDefs::RecordingMode_VideoAudio));
-                    m_pComboMode->addItem(QString(), QVariant::fromValue(UISettingsDefs::RecordingMode_VideoOnly));
-                    m_pComboMode->addItem(QString(), QVariant::fromValue(UISettingsDefs::RecordingMode_AudioOnly));
-
-                    m_pLayoutSettings->addWidget(m_pComboMode, iLayoutSettingsRow, 1, 1, 3);
+                    addEditor(m_pEditorMode);
+                    m_pLayoutSettings->addWidget(m_pEditorMode, ++iLayoutSettingsRow, 0, 1, 4);
                 }
                 /* Prepare recording file path editor: */
                 m_pEditorFilePath = new UIRecordingFilePathEditor(pWidgetSettings, false);
@@ -413,7 +391,7 @@ void UIRecordingSettingsEditor::prepareConnections()
 {
     connect(m_pCheckboxFeature, &QCheckBox::toggled,
             this, &UIRecordingSettingsEditor::sltHandleFeatureToggled);
-    connect(m_pComboMode, &QComboBox::currentIndexChanged,
+    connect(m_pEditorMode, &UIRecordingModeEditor::sigModeChange,
             this, &UIRecordingSettingsEditor::sltHandleModeComboChange);
     connect(m_pEditorFrameSize, &UIRecordingVideoFrameSizeEditor::sigFrameSizeChanged,
             this, &UIRecordingSettingsEditor::sltHandleBitrateQualitySliderChange);
@@ -423,48 +401,6 @@ void UIRecordingSettingsEditor::prepareConnections()
             this, &UIRecordingSettingsEditor::sltHandleBitrateQualitySliderChange);
     connect(m_pEditorBitrate, &UIRecordingVideoBitrateEditor::sigBitrateChanged,
             this, &UIRecordingSettingsEditor::sltHandleBitrateChange);
-}
-
-void UIRecordingSettingsEditor::populateComboMode()
-{
-    if (m_pComboMode)
-    {
-        /* Clear combo first of all: */
-        m_pComboMode->clear();
-
-        /* Load currently supported recording features: */
-        const int iSupportedFlag = gpGlobalSession->supportedRecordingFeatures();
-        m_supportedValues.clear();
-        if (!iSupportedFlag)
-            m_supportedValues << UISettingsDefs::RecordingMode_None;
-        else
-        {
-            if (   (iSupportedFlag & KRecordingFeature_Video)
-                && (iSupportedFlag & KRecordingFeature_Audio))
-                m_supportedValues << UISettingsDefs::RecordingMode_VideoAudio;
-            if (iSupportedFlag & KRecordingFeature_Video)
-                m_supportedValues << UISettingsDefs::RecordingMode_VideoOnly;
-            if (iSupportedFlag & KRecordingFeature_Audio)
-                m_supportedValues << UISettingsDefs::RecordingMode_AudioOnly;
-        }
-
-        /* Make sure requested value if sane is present as well: */
-        if (   m_enmMode != UISettingsDefs::RecordingMode_Max
-            && !m_supportedValues.contains(m_enmMode))
-            m_supportedValues.prepend(m_enmMode);
-
-        /* Update combo with all the supported values: */
-        foreach (const UISettingsDefs::RecordingMode &enmType, m_supportedValues)
-            m_pComboMode->addItem(QString(), QVariant::fromValue(enmType));
-
-        /* Look for proper index to choose: */
-        const int iIndex = m_pComboMode->findData(QVariant::fromValue(m_enmMode));
-        if (iIndex != -1)
-            m_pComboMode->setCurrentIndex(iIndex);
-
-        /* Retranslate finally: */
-        sltRetranslateUI();
-    }
 }
 
 void UIRecordingSettingsEditor::updateWidgetVisibility()
@@ -479,14 +415,13 @@ void UIRecordingSettingsEditor::updateWidgetAvailability()
 {
     const bool fFeatureEnabled = m_pCheckboxFeature->isChecked();
     const UISettingsDefs::RecordingMode enmRecordingMode =
-        m_pComboMode->currentData().value<UISettingsDefs::RecordingMode>();
+        m_pEditorMode->mode();
     const bool fRecordVideo =    enmRecordingMode == UISettingsDefs::RecordingMode_VideoOnly
                               || enmRecordingMode == UISettingsDefs::RecordingMode_VideoAudio;
     const bool fRecordAudio =    enmRecordingMode == UISettingsDefs::RecordingMode_AudioOnly
                               || enmRecordingMode == UISettingsDefs::RecordingMode_VideoAudio;
 
-    m_pLabelMode->setEnabled(fFeatureEnabled && m_fOptionsAvailable);
-    m_pComboMode->setEnabled(fFeatureEnabled && m_fOptionsAvailable);
+    m_pEditorMode->setEnabled(fFeatureEnabled && m_fOptionsAvailable);
     m_pEditorFilePath->setEnabled(fFeatureEnabled && m_fOptionsAvailable);
     m_pEditorFrameSize->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
     m_pEditorFrameRate->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
@@ -506,9 +441,9 @@ void UIRecordingSettingsEditor::updateMinimumLayoutHint()
 {
     /* Layout all the editors (local and external), this will work fine after all of them became UIEditors: */
     int iMinimumLayoutHint = 0;
-    if (m_pLabelMode && !m_pLabelMode->isHidden())
-        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pLabelMode->minimumSizeHint().width());
     /* The following editors have own labels, but we want them to be properly layouted according to rest of stuff: */
+    if (m_pEditorMode && !m_pEditorMode->isHidden())
+        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorMode->minimumLabelHorizontalHint());
     if (m_pEditorFilePath && !m_pEditorFilePath->isHidden())
         iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorFilePath->minimumLabelHorizontalHint());
     if (m_pEditorFrameSize && !m_pEditorFrameSize->isHidden())
@@ -521,6 +456,8 @@ void UIRecordingSettingsEditor::updateMinimumLayoutHint()
         iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorAudioProfile->minimumLabelHorizontalHint());
     if (m_pEditorScreenSelector && !m_pEditorScreenSelector->isHidden())
         iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorScreenSelector->minimumLabelHorizontalHint());
+    if (m_pEditorMode)
+        m_pEditorMode->setMinimumLayoutIndent(iMinimumLayoutHint);
     if (m_pEditorFilePath)
         m_pEditorFilePath->setMinimumLayoutIndent(iMinimumLayoutHint);
     if (m_pEditorFrameRate)
