@@ -1188,6 +1188,7 @@ RuntimeBaseR3_SOURCES.linux = \
 	r3/posix/allocex-r3-posix.cpp \
 	r3/linux/RTThreadGetNativeState-linux.cpp \
 	r3/linux/fileaio-linux.cpp \
+	r3/linux/init-linux.cpp \
 	r3/linux/ioqueue-iouringfile-provider.cpp \
 	r3/linux/krnlmod-linux.cpp \
 	r3/linux/mp-linux.cpp \
