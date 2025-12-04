@@ -9043,7 +9043,6 @@ DECLINLINE(void *) ASMReadStackPointer(void) RT_NOTHROW_DEF
 # else
 #  error "port me"
 # endif
-    }
 #endif
 
     return pv;
