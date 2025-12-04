@@ -268,7 +268,7 @@ static void rtR3LnxSigSegvBusHandler(int iSignum, siginfo_t *pSigInfo, void *pvC
                 aszCmdline[cbRead] = '\0'; /* Terminate */
                 RTLogLoggerWeak(pLogger, NULL, "\nCommandLine: ");
 
-                uint32_t off = 0;
+                ssize_t off = 0;
                 while (off < cbRead)
                 {
                     RTLogLoggerWeak(pLogger, NULL, "%s\n", &aszCmdline[off]);
