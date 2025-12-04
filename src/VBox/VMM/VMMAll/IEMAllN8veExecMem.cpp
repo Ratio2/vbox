@@ -1880,7 +1880,7 @@ iemExecMemAllocatorInitAndRegisterUnwindInfoForChunk(PVMCPUCC pVCpu, PIEMEXECMEM
         = pSymFile->aPhdrs[i].p_paddr   = 0;
     pSymFile->aPhdrs[i].p_filesz         /* Size of segment in file. */
         = pSymFile->aPhdrs[i].p_memsz   = pExecMemAllocator->cbChunk - offSymFileInChunk;
-    pSymFile->aPhdrs[i].p_align         = HOST_PAGE_SIZE;
+    pSymFile->aPhdrs[i].p_align         = RTSystemGetPageSize(); //HOST_PAGE_SIZE;
     i++;
     /* The .dynamic segment. */
     pSymFile->aPhdrs[i].p_type          = PT_DYNAMIC;
