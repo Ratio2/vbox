@@ -9001,6 +9001,46 @@ DECLINLINE(uint64_t) ASMRotateRightU64(uint64_t u64, uint32_t cShift) RT_NOTHROW
 #endif
 }
 
+
+/**
+ * Read the current stack pointer register value
+ *
+ * @returns The current stack pointer register value.
+ */
+DECLINLINE(void *) ASMReadStackPointer() RT_NOTHROW_DEF
+{
+    void *pv = NULL;
+
+#if RT_INLINE_ASM_USES_INTRIN
+    AssertReleaseFailed();
+
+#elif RT_INLINE_ASM_GNU_STYLE && defined(RT_ARCH_AMD64)
+    __asm__ __volatile__("movq %%rsp, %0" : "=r" (pv));
+
+#elif RT_INLINE_ASM_GNU_STYLE && defined(RT_ARCH_X86)
+    __asm__ __volatile__("mov %%esp, %0": "=r" (pv));
+
+#elif defined(RT_ARCH_ARM64)
+    __asm__ __volatile__("Lstart_ASMReadStackPointer_%=:\n\t"
+                         "mov %0, sp\n\t"
+                         : "=r" (pv));
+
+#else
+    __asm
+    {
+# ifdef RT_ARCH_AMD64
+        mov [pv], rsp
+# elif defined(RT_ARCH_X86)
+        mov [pv], esp
+# else
+#  error "port me"
+# endif
+    }
+#endif
+
+    return pv;
+}
+
 /** @} */
 
 
