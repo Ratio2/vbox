@@ -59,6 +59,10 @@ VBOXMOD_OBJS += \
 	math/gcc/divdi3.o \
 	math/gcc/umoddi3.o
 endif
+ifeq ($(VBOX_KBUILD_TARGET_ARCH),arm64)
+VBOXMOD_OBJS += \
+	common/asm/ASMBitFirstClear-generic.o
+endif
 VBOXMOD_INCL = \
 	$(VBOXNETADP_DIR) \
 	$(VBOXNETADP_DIR)include \
