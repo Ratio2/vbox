@@ -719,6 +719,10 @@ protected:
 			PyObject **ppResult,
 			const char *szFormat,
 			va_list va);
+	nsresult InvokeNativeViaPolicyInternalF(const char *szMethodName,
+			PyObject **ppResult,
+			const char *szFormat,
+			...);
 	nsresult InvokeNativeGetViaPolicy(const char *szPropertyName,
 			PyObject **ppResult = NULL
 			);

@@ -601,6 +601,20 @@ nsresult PyG_Base::InvokeNativeViaPolicyInternal(
 	return nr;
 }
 
+nsresult PyG_Base::InvokeNativeViaPolicyInternalF(
+	const char *szMethodName,
+	PyObject **ppResult,
+	const char *szFormat,
+	...
+	)
+{
+	va_list va;
+	va_start(va, szFormat);
+	nsresult nr = InvokeNativeViaPolicyInternal(szMethodName, ppResult, szFormat, va);
+	va_end(va);
+	return nr;
+}
+
 nsresult PyG_Base::InvokeNativeViaPolicy(
 	const char *szMethodName,
 	PyObject **ppResult /* = NULL */,
@@ -635,7 +649,7 @@ nsresult PyG_Base::InvokeNativeGetViaPolicy(
 	strcpy(buf, "get_");
 	strncat(buf, szPropertyName, sizeof(buf)*sizeof(buf[0])-strlen(buf)-1);
 	buf[sizeof(buf)/sizeof(buf[0])-1] = '\0';
-	ret = InvokeNativeViaPolicyInternal(buf, ppResult, nsnull, nsnull);
+	ret = InvokeNativeViaPolicyInternalF(buf, ppResult, nsnull);
 	if (ret == NS_PYXPCOM_NO_SUCH_METHOD) {
 		// No method of that name - just try a property.
 		// Bit to a hack here to maintain the use of a policy.
