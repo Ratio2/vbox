@@ -112,6 +112,9 @@ typedef struct RTTHREADINT
     /** Actual stack size. */
     size_t                  cbStack;
 #ifdef IN_RING3
+    /** The best stack top we can get.
+     * This is not valid before rtThreadMain has been called by the new thread.  */
+    void                    *pvStackTop;
     /** The lock validator data. */
     RTLOCKVALPERTHREAD      LockValidator;
 #endif /* IN_RING3 */
@@ -292,6 +295,11 @@ DECLHIDDEN(bool) rtThreadPosixPriorityProxyStart(void);
 DECLHIDDEN(int)  rtThreadPosixPriorityProxyCall(PRTTHREADINT pTargetThread, PFNRT pfnFunction,
                                                 int cArgs, ...) RT_IPRT_CALLREQ_ATTR(2, 3, 4);
 # endif
+
+DECLINLINE(void *) rtThreadGetStackTop(PRTTHREADINT pThread)
+{
+    return pThread->pvStackTop;
+}
 #endif
 
 #ifdef IPRT_INCLUDED_asm_h

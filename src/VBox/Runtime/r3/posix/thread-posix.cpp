@@ -399,6 +399,9 @@ static void *rtThreadNativeMain(void *pvArgs)
 #endif
     Assert(Self == (pthread_t)(RTNATIVETHREAD)Self);
 
+    /* Set the stack top to the best value we can. */
+    pThread->pvStackTop = ASMReadStackPointer();
+
 #if defined(RT_OS_LINUX)
     /*
      * Set the TID.

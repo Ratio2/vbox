@@ -54,6 +54,7 @@
 #elif defined(RT_ARCH_ARM64)
 # include <iprt/asm-arm.h>
 #endif
+#include <iprt/asm.h>
 #include <iprt/assert.h>
 #include <iprt/cpuset.h>
 #include <iprt/err.h>
@@ -370,6 +371,9 @@ static DWORD __stdcall rtThreadNativeMain(void *pvArgs) RT_NOTHROW_DEF
 {
     DWORD           dwThreadId = GetCurrentThreadId();
     PRTTHREADINT    pThread = (PRTTHREADINT)pvArgs;
+
+    /* Set the stack top to the best value we can. */
+    pThread->pvStackTop = ASMReadStackPointer();
 
     if (!TlsSetValue(g_dwSelfTLS, pThread))
         AssertReleaseMsgFailed(("failed to set self TLS. lasterr=%d thread '%s'\n", GetLastError(), pThread->szName));
