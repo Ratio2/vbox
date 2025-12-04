@@ -9031,7 +9031,11 @@ DECLINLINE(void *) ASMReadStackPointer(void) RT_NOTHROW_DEF
 # ifdef RT_ARCH_AMD64
         mov [pv], rsp
 # elif defined(RT_ARCH_X86)
+#  if ARCH_BITS == 32
         mov [pv], esp
+#  else
+    AssertFailed();  /** @todo 16-bit */
+#  endif
 # else
 #  error "port me"
 # endif
