@@ -557,8 +557,6 @@ public:
         /* Sanity check: */
         QITableView *pTable = table();
         AssertPtrReturn(pTable, QList<QAccessibleInterface*>());
-        QAbstractItemModel *pModel = pTable->model();
-        AssertPtrReturn(pModel, QList<QAccessibleInterface*>());
 
         /* Get current cell: */
         QITableViewCell *pCurrentCell = pTable->currentCell();
