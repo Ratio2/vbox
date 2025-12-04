@@ -155,8 +155,18 @@ public:
                 /* Sanity check: */
                 QITableViewCell *pCell = cell();
                 AssertPtrReturn(pCell, QString());
+                QAbstractItemModel *pModel = model();
+                AssertPtrReturn(pModel, QString());
 
-                return pCell->text();
+                /* Acquire index of this item in it's parent: */
+                QAccessibleInterface *pParent = parent();
+                AssertPtrReturn(pParent, QString());
+                const int iIndex = pParent->indexOfChild(this);
+
+                /* Compose result in 'Header name: Data value' format: */
+                return QString("%1: %2")
+                    .arg(pModel->headerData(iIndex, Qt::Horizontal).toString())
+                    .arg(pCell->text());
             }
             default:
                 break;
@@ -327,8 +337,9 @@ public:
     }
 
     /** Returns a text for the passed @a enmTextRole. */
-    virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE
+    virtual QString text(QAccessible::Text /*enmTextRole*/) const RT_OVERRIDE
     {
+#if 0
         /* Return a text for the passed enmTextRole: */
         switch (enmTextRole)
         {
@@ -345,6 +356,7 @@ public:
             default:
                 break;
         }
+#endif
 
         /* Null-string by default: */
         return QString();
