@@ -44,9 +44,9 @@ class QComboBox;
 class QGridLayout;
 class QLabel;
 class QWidget;
-class UIFilmContainer;
 class UIRecordingAudioProfileEditor;
 class UIRecordingFilePathEditor;
+class UIRecordingScreenSelectorEditor;
 class UIRecordingVideoBitrateEditor;
 class UIRecordingVideoFrameRateEditor;
 class UIRecordingVideoFrameSizeEditor;
@@ -209,10 +209,8 @@ private:
         QWidget            *m_pWidgetAudioProfileSettings;
         /** Holds the size hint label instance. */
         QLabel             *m_pLabelSizeHint;
-        /** Holds the screens label instance. */
-        QLabel             *m_pLabelScreens;
-        /** Holds the screens scroller instance. */
-        UIFilmContainer    *m_pScrollerScreens;
+        /** Holds the screen selector editor instance. */
+        UIRecordingScreenSelectorEditor *m_pEditorScreenSelector;
     /** @} */
 };
 

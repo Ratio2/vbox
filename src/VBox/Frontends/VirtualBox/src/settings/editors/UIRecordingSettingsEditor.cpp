@@ -37,6 +37,7 @@
 #include "UIFilmContainer.h"
 #include "UIGlobalSession.h"
 #include "UIRecordingAudioProfileEditor.h"
+#include "UIRecordingScreenSelectorEditor.h"
 #include "UIRecordingSettingsEditor.h"
 #include "UIRecordingFilePathEditor.h"
 #include "UIRecordingVideoBitrateEditor.h"
@@ -65,8 +66,7 @@ UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     , m_pEditorAudioProfile(0)
     , m_pWidgetAudioProfileSettings(0)
     , m_pLabelSizeHint(0)
-    , m_pLabelScreens(0)
-    , m_pScrollerScreens(0)
+    , m_pEditorScreenSelector(0)
 {
     prepare();
 }
@@ -217,14 +217,14 @@ void UIRecordingSettingsEditor::setScreens(const QVector<bool> &screens)
     if (m_screens != screens)
     {
         m_screens = screens;
-        if (m_pScrollerScreens)
-            m_pScrollerScreens->setValue(m_screens);
+        if (m_pEditorScreenSelector)
+            m_pEditorScreenSelector->setScreens(m_screens);
     }
 }
 
 QVector<bool> UIRecordingSettingsEditor::screens() const
 {
-    return m_pScrollerScreens ? m_pScrollerScreens->value() : m_screens;
+    return m_pEditorScreenSelector ? m_pEditorScreenSelector->screens() : m_screens;
 }
 
 void UIRecordingSettingsEditor::handleFilterChange()
@@ -245,8 +245,6 @@ void UIRecordingSettingsEditor::sltRetranslateUI()
         m_pComboMode->setItemText(iIndex, gpConverter->toString(enmType));
     }
     m_pComboMode->setToolTip(tr("Recording mode"));
-
-    m_pLabelScreens->setText(tr("Scree&ns"));
 
     updateRecordingFileSizeHint();
     updateMinimumLayoutHint();
@@ -366,7 +364,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pLayoutSettings->addWidget(m_pEditorFilePath, ++iLayoutSettingsRow, 0, 1, 4);
                 }
                 /* Prepare recording frame size editor: */
-                m_pEditorFrameSize = new UIRecordingVideoFrameSizeEditor(pWidgetSettings, true);
+                m_pEditorFrameSize = new UIRecordingVideoFrameSizeEditor(pWidgetSettings, false);
                 if (m_pEditorFrameSize)
                 {
                     addEditor(m_pEditorFrameSize);
@@ -394,25 +392,15 @@ void UIRecordingSettingsEditor::prepareWidgets()
                 /* Prepare recording size hint label: */
                 m_pLabelSizeHint = new QLabel(pWidgetSettings);
                 if (m_pLabelSizeHint)
-                    m_pLayoutSettings->addWidget(m_pLabelSizeHint, 11, 1);
-
-                /* Prepare recording screens label: */
-                m_pLabelScreens = new QLabel(pWidgetSettings);
-                if (m_pLabelScreens)
+                    m_pLayoutSettings->addWidget(m_pLabelSizeHint, ++iLayoutSettingsRow, 1);
+                /* Prepare screen selector editor: */
+                m_pEditorScreenSelector = new UIRecordingScreenSelectorEditor(this, true);
+                if (m_pEditorScreenSelector)
                 {
-                    m_pLabelScreens->setAlignment(Qt::AlignRight | Qt::AlignTop);
-                    m_pLayoutSettings->addWidget(m_pLabelScreens, 12, 0);
-                }
-                /* Prepare recording screens scroller: */
-                m_pScrollerScreens = new UIFilmContainer(pWidgetSettings);
-                if (m_pScrollerScreens)
-                {
-                    if (m_pLabelScreens)
-                        m_pLabelScreens->setBuddy(m_pScrollerScreens);
-                    m_pLayoutSettings->addWidget(m_pScrollerScreens, 12, 1, 1, 3);
+                    addEditor(m_pEditorScreenSelector);
+                    m_pLayoutSettings->addWidget(m_pEditorScreenSelector, ++iLayoutSettingsRow, 0, 1, 4);
                 }
             }
-
             pLayout->addWidget(pWidgetSettings, 1, 1, 1, 2);
         }
     }
@@ -500,17 +488,12 @@ void UIRecordingSettingsEditor::updateWidgetAvailability()
     m_pLabelMode->setEnabled(fFeatureEnabled && m_fOptionsAvailable);
     m_pComboMode->setEnabled(fFeatureEnabled && m_fOptionsAvailable);
     m_pEditorFilePath->setEnabled(fFeatureEnabled && m_fOptionsAvailable);
-
     m_pEditorFrameSize->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
     m_pEditorFrameRate->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
     m_pEditorBitrate->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
-
     m_pEditorAudioProfile->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordAudio);
-
     m_pLabelSizeHint->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
-
-    m_pLabelScreens->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
-    m_pScrollerScreens->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
+    m_pEditorScreenSelector->setEnabled(fFeatureEnabled && m_fOptionsAvailable && fRecordVideo);
 }
 
 void UIRecordingSettingsEditor::updateRecordingFileSizeHint()
@@ -535,9 +518,9 @@ void UIRecordingSettingsEditor::updateMinimumLayoutHint()
     if (m_pEditorBitrate && !m_pEditorBitrate->isHidden())
         iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorBitrate->minimumLabelHorizontalHint());
     if (m_pEditorAudioProfile && !m_pEditorAudioProfile->isHidden())
-        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorBitrate->minimumLabelHorizontalHint());
-    if (m_pLabelScreens && !m_pLabelScreens->isHidden())
-        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pLabelScreens->minimumSizeHint().width());
+        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorAudioProfile->minimumLabelHorizontalHint());
+    if (m_pEditorScreenSelector && !m_pEditorScreenSelector->isHidden())
+        iMinimumLayoutHint = qMax(iMinimumLayoutHint, m_pEditorScreenSelector->minimumLabelHorizontalHint());
     if (m_pEditorFilePath)
         m_pEditorFilePath->setMinimumLayoutIndent(iMinimumLayoutHint);
     if (m_pEditorFrameRate)
@@ -548,6 +531,8 @@ void UIRecordingSettingsEditor::updateMinimumLayoutHint()
         m_pEditorBitrate->setMinimumLayoutIndent(iMinimumLayoutHint);
     if (m_pEditorAudioProfile)
         m_pEditorAudioProfile->setMinimumLayoutIndent(iMinimumLayoutHint);
+    if (m_pEditorScreenSelector)
+        m_pEditorScreenSelector->setMinimumLayoutIndent(iMinimumLayoutHint);
     if (m_pLayoutSettings)
         m_pLayoutSettings->setColumnMinimumWidth(0, iMinimumLayoutHint);
 }

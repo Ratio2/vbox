@@ -102,7 +102,6 @@ void UIRecordingAudioProfileEditor::prepare()
 {
     /* Prepare everything: */
     prepareWidgets();
-    prepareConnections();
 
     /* Apply language settings: */
     sltRetranslateUI();
@@ -178,8 +177,4 @@ void UIRecordingAudioProfileEditor::prepareWidgets()
             m_pLayout->addWidget(pWidgetContainer, 0, 1);
         }
     }
-}
-
-void UIRecordingAudioProfileEditor::prepareConnections()
-{
 }

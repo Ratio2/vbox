@@ -1,6 +1,6 @@
 /* $Id$ */
 /** @file
- * VBox Qt GUI - UIRecordingAudioProfileEditor class declaration.
+ * VBox Qt GUI - UIRecordingScreenSelectorEditor class declaration.
  */
 
 /*
@@ -25,8 +25,8 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-#ifndef FEQT_INCLUDED_SRC_settings_editors_UIRecordingAudioProfileEditor_h
-#define FEQT_INCLUDED_SRC_settings_editors_UIRecordingAudioProfileEditor_h
+#ifndef FEQT_INCLUDED_SRC_settings_editors_UIRecordingScreenSelectorEditor_h
+#define FEQT_INCLUDED_SRC_settings_editors_UIRecordingScreenSelectorEditor_h
 #ifndef RT_WITHOUT_PRAGMA_ONCE
 # pragma once
 #endif
@@ -37,22 +37,22 @@
 /* Forward declarations: */
 class QGridLayout;
 class QLabel;
-class QIAdvancedSlider;
+class UIFilmContainer;
 
 /** UIEditor sub-class used as a recording settings editor. */
-class SHARED_LIBRARY_STUFF UIRecordingAudioProfileEditor : public UIEditor
+class SHARED_LIBRARY_STUFF UIRecordingScreenSelectorEditor : public UIEditor
 {
     Q_OBJECT;
 
 public:
 
     /** Constructs editor passing @a pParent to the base-class. */
-    UIRecordingAudioProfileEditor(QWidget *pParent = 0, bool fShowInBasicMode = false);
+    UIRecordingScreenSelectorEditor(QWidget *pParent = 0, bool fShowInBasicMode = false);
 
-    /** Defines audio @a strProfile. */
-    void setAudioProfile(const QString &strProfile);
-    /** Returns audio profile. */
-    QString audioProfile() const;
+    /** Defines enabled @a screens. */
+    void setScreens(const QVector<bool> &screens);
+    /** Returns enabled screens. */
+    QVector<bool> screens() const;
 
     /** Returns minimum layout hint. */
     int minimumLabelHorizontalHint() const;
@@ -71,27 +71,14 @@ private:
     /** Prepares widgets. */
     void prepareWidgets();
 
-    /** @name Values
-     * @{ */
-        /** Holds the audio profile. */
-        QString                  m_strAudioProfile;
-    /** @} */
-
     /** @name Widgets
      * @{ */
-        /** Holds the main layout instance. */
-        QGridLayout      *m_pLayout;
-        /** Holds the audio profile label instance. */
-        QLabel             *m_pLabel;
-        /** Holds the audio profile slider instance. */
-        QIAdvancedSlider   *m_pSlider;
-        /** Holds the audio profile min label instance. */
-        QLabel             *m_pLabelMin;
-        /** Holds the audio profile med label instance. */
-        QLabel             *m_pLabelMed;
-        /** Holds the audio profile max label instance. */
-        QLabel             *m_pLabelMax;
+        /** Holds the screens label instance. */
+        QGridLayout     *m_pLayout;
+        QLabel          *m_pLabel;
+        /** Holds the screens scroller instance. */
+        UIFilmContainer *m_pScroller;
     /** @} */
 };
 
-#endif /* !FEQT_INCLUDED_SRC_settings_editors_UIRecordingAudioProfileEditor_h */
+#endif /* !FEQT_INCLUDED_SRC_settings_editors_UIRecordingScreenSelectorEditor_h */
