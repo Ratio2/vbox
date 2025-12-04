@@ -807,6 +807,8 @@ int produceCpuReport(void)
      */
     if (!g_pszCpuNameOverride)
         pszCpuName = g_aVariations[0].pszName;
+    if (!pszCpuName)
+        pszCpuName = ""; /* prevent crashing */
     const char * const pszCpuDesc = strlen(szDetectedCpuName) > strlen(pszCpuName) ? RTStrStrip(szDetectedCpuName)
                                   : g_cVariations == 1 ? g_aVariations[0].pszFullName : pszCpuName;
 
