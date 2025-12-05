@@ -384,10 +384,6 @@ ifeq ($(KBUILD_HOST),darwin)
   VBOX_WITH_NEW_XCODE := 1
  endif
 endif
-# Select new VC++ on Windows.
-if1of ($(KBUILD_TARGET).$(KBUILD_TARGET_ARCH) $(KBUILD_HOST).$(KBUILD_HOST_ARCH), win.arm64)
- VBOX_WITH_NEW_VCC = 1
-endif
 # Use this to disable control flow.
 #VBOX_WITHOUT_CONTROL_FLOW_GUARD = 1
 # Don't use the compiler CRT for statically linked modules, use IPRT with some
