@@ -31,20 +31,12 @@
 *********************************************************************************************************************************/
 #define LOG_GROUP LOG_GROUP_DIS
 #include <VBox/dis.h>
-#include <iprt/errcore.h>
 #include <iprt/assert.h>
+#include <iprt/errcore.h>
+#include <iprt/param.h>
 #include <iprt/string.h>
 #include "DisasmInternal.h"
 
-
-/*********************************************************************************************************************************
-*   Defined Constants And Macros                                                                                                 *
-*********************************************************************************************************************************/
-
-
-/*********************************************************************************************************************************
-*   Internal Functions                                                                                                           *
-*********************************************************************************************************************************/
 
 /**
  * @interface_method_impl{FNDISREADBYTES, The default byte reader callber.}
@@ -52,11 +44,7 @@
 static DECLCALLBACK(int) disReadBytesDefault(PDISSTATE pDis, uint8_t offInstr, uint8_t cbMinRead, uint8_t cbMaxRead)
 {
     uint8_t const  *pbSrc        = (uint8_t const *)(uintptr_t)pDis->uInstrAddr + offInstr;
-#ifdef IN_RING0
-    size_t  const   cbLeftOnPage = (uintptr_t)pbSrc & PAGE_OFFSET_MASK;
-#else
-    size_t  const   cbLeftOnPage = (uintptr_t)pbSrc & (uintptr_t)(_4K - 1); /* Minimum page size for safety. */
-#endif
+    size_t  const   cbLeftOnPage = (uintptr_t)pbSrc & (uintptr_t)RT_MIN_PAGE_OFFSET_MASK; /* Minimum page size for safety. */
     uint8_t         cbToRead     = cbLeftOnPage >= cbMaxRead
                                  ? cbMaxRead
                                  : cbLeftOnPage <= cbMinRead

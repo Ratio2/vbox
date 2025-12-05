@@ -146,6 +146,61 @@
 #endif
 
 /**
+ * The minimum page size for the architecture.
+ */
+#if defined(RT_ARCH_ARM64) || defined(RT_ARCH_X86) || defined(RT_ARCH_AMD64)
+# define RT_MIN_PAGE_SIZE           4096
+#else
+# define RT_MIN_PAGE_SIZE           PAGE_SIZE
+#endif
+
+/**
+ * The shift count corresponding to RT_MIN_PAGE_SIZE.
+ */
+#if defined(RT_ARCH_ARM64) || defined(RT_ARCH_X86) || defined(RT_ARCH_AMD64)
+# define RT_MIN_PAGE_SHIFT          12
+#else
+# define RT_MIN_PAGE_SHIFT          PAGE_SHIFT
+#endif
+
+/**
+ * The offset mask corresponding to RT_MIN_PAGE_SIZE.
+ */
+#if defined(RT_ARCH_ARM64) || defined(RT_ARCH_X86) || defined(RT_ARCH_AMD64)
+# define RT_MIN_PAGE_OFFSET_MASK    0xfff
+#else
+# define RT_MIN_PAGE_OFFSET_MASK    PAGE_OFFSET_MASK
+#endif
+
+
+/**
+ * The maximum regular page size for the architecture (excluding huge pages).
+ */
+#if defined(RT_ARCH_ARM64)
+# define RT_MAX_PAGE_SIZE           65536
+#else
+# define RT_MAX_PAGE_SIZE           PAGE_SIZE
+#endif
+
+/**
+ * The shift count corresponding to RT_MAX_PAGE_SIZE.
+ */
+#if defined(RT_ARCH_ARM64)
+# define RT_MAX_PAGE_SHIFT          16
+#else
+# define RT_MAX_PAGE_SHIFT          PAGE_SHIFT
+#endif
+
+/**
+ * The offset mask corresponding to RT_MAX_PAGE_SIZE.
+ */
+#if defined(RT_ARCH_ARM64)
+# define RT_MAX_PAGE_OFFSET_MASK    0xffff
+#else
+# define RT_MAX_PAGE_OFFSET_MASK    PAGE_OFFSET_MASK
+#endif
+
+/**
  * Page address mask for the uintptr_t sized pointers.
  *
  * Be careful when using this since it may be a size too big!
