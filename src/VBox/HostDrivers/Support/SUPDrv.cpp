@@ -7440,7 +7440,7 @@ static void supdrvIOCtl_ArmGetSysRegsOnCpu(PSUPARMGETSYSREGS pReq, uint32_t cons
     bool const fFeatEte = ((fDfr0 >> 4) & 0xfU) >= 1U; /* FEAT_ETE <-> ID_AA64DFR0_EL1.TraceVer >= 1 */
     if (fFeatEte)
         READ_SYS_REG_NAMED(2, 1, 7, 15, 6, TRCDEVARCH);
-# endif        
+# endif
 
     /*
      * Collections of other read-only registers.
