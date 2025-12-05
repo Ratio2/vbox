@@ -62,6 +62,16 @@
 *   Structures and Typedefs                                                                                                      *
 *********************************************************************************************************************************/
 
+/**
+ * Arguments for the iterate shared objects callback.
+ */
+typedef struct RTITSOARGS
+{
+    PRTLOGGER pLogger;
+    uintptr_t uXcptPC;
+} RTITSOARGS;
+typedef RTITSOARGS *PRTITSOARGS;
+typedef const RTITSOARGS *PCRTITSOARGS;
 
 
 /*********************************************************************************************************************************
@@ -81,14 +91,37 @@ static struct sigaction g_SigActionAbort; /**< The default action for SIGABRT. *
  */
 static int rtR3InitLnxIterateSharedObjects(struct dl_phdr_info *pDlInfo, size_t cbInfo, void *pvUser)
 {
-    PRTLOGGER pLogger = (PRTLOGGER)pvUser;
+    PCRTITSOARGS pArgs = (PCRTITSOARGS)pvUser;
+    PRTLOGGER pLogger = pArgs->pLogger;
+    uintptr_t const uXcptPC = pArgs->uXcptPC;
 
     AssertReturn(cbInfo >= sizeof(*pDlInfo), 0);
 
-    char chInd = ' ';
+    /* Iterate over the program headers and dump the executable segments. */
+    for (uint32_t i = 0; i < pDlInfo->dlpi_phnum; i++)
+    {
+#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_ARM64)
+        const Elf64_Phdr *pPHdr = &pDlInfo->dlpi_phdr[i];
+#elif defined(RT_ARCH_X86)
+        const Elf32_Phdr *pPHdr = &pDlInfo->dlpi_phdr[i];
+#else
+# error "Port me"
+#endif
+        uint32_t const fFlags = pPHdr->p_flags;
 
-    RTLogLoggerWeak(pLogger, NULL, "%p..%p%c  %s\n",
-                    pDlInfo->dlpi_addr, 0 /** @todo */, chInd, pDlInfo->dlpi_name);
+        if (fFlags & PF_X)
+        {
+            char chInd = ' ';
+            uintptr_t uAddrStart = pDlInfo->dlpi_addr;
+            uintptr_t uAddrEnd   = uAddrStart + (uintptr_t)pPHdr->p_vaddr + pPHdr->p_memsz - 1;
+
+            if (uXcptPC >= uAddrStart && uXcptPC <= uAddrEnd)
+                chInd = '*';
+
+            RTLogLoggerWeak(pLogger, NULL, "%p..%p%c  %s\n",
+                            uAddrStart, uAddrEnd, chInd, pDlInfo->dlpi_name);
+        }
+    }
 
     return 0;
 }
@@ -248,7 +281,10 @@ static void rtR3LnxSigSegvBusHandler(int iSignum, siginfo_t *pSigInfo, void *pvC
                         "\nLoaded Modules:\n"
                         "%-*s[*] Path\n", sizeof(void *) * 4 + 2 - 1, "Address range"
                         );
-        dl_iterate_phdr(rtR3InitLnxIterateSharedObjects, pLogger);
+        RTITSOARGS Args;
+        Args.pLogger = pLogger;
+        Args.uXcptPC = uXcptPC;
+        dl_iterate_phdr(rtR3InitLnxIterateSharedObjects, &Args);
 
         /** @todo Dump /proc/self/maps ? */
 
