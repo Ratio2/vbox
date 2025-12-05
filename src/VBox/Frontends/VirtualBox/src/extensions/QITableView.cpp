@@ -63,8 +63,12 @@ public:
     /** Returns the role. */
     virtual QAccessible::Role role() const RT_OVERRIDE
     {
-        /* Cell by default: */
-        return QAccessible::Cell;
+#ifdef VBOX_WS_MAC
+            // WORKAROUND: macOS doesn't respect QAccessible::Table/Cell roles.
+            return QAccessible::ListItem;
+#else
+            return QAccessible::Cell;
+#endif
     }
 
     /** Returns the parent. */
@@ -412,7 +416,12 @@ public:
 
     /** Constructs an accessibility interface passing @a pWidget to the base-class. */
     QIAccessibilityInterfaceForQITableView(QWidget *pWidget)
+#ifdef VBOX_WS_MAC
+        // WORKAROUND: macOS doesn't respect QAccessible::Table/Cell roles.
+        : QAccessibleWidget(pWidget, QAccessible::List)
+#else
         : QAccessibleWidget(pWidget, QAccessible::Table)
+#endif
     {}
 
     /** Returns a specialized accessibility interface @a enmType. */
