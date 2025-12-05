@@ -62,8 +62,8 @@ public:
     /** Returns the role. */
     virtual QAccessible::Role role() const RT_OVERRIDE
     {
-        /* ListItem in any case: */
-        return QAccessible::ListItem;
+        /* Cell in any case: */
+        return QAccessible::Cell;
     }
 
     /** Returns the parent. */
@@ -206,7 +206,7 @@ public:
 
     /** Constructs an accessibility interface passing @a pWidget to the base-class. */
     QIAccessibilityInterfaceForQITableWidget(QWidget *pWidget)
-        : QAccessibleWidget(pWidget, QAccessible::List)
+        : QAccessibleWidget(pWidget, QAccessible::Table)
     {}
 
     /** Returns a specialized accessibility interface @a enmType. */
