@@ -244,10 +244,13 @@ public:
         QITableWidget *pTable = table();
         AssertPtrReturn(pTable, 0);
 
-        /* Return the number of children: */
-        // Since Qt6 both horizontal and vertical table headers
-        // are treated as items as well, so we have to take them
-        // into account while calculating overall child count.
+        // Qt's qtablewidget class has no accessibility code, only parent-class has it.
+        // Parent qtableview class has a piece of accessibility code we do not like.
+        // It's located in currentChanged() method and sends us iIndex calculated on
+        // the basis of current model-index, instead of current qtablewidgetitem index.
+        // So qtableview enumerates all table-widget rows/columns as children,
+        // besides that, both horizontal and vertical table headers are treated as items
+        // as well, so we have to take them into account while addressing table items.
         return (pTable->rowCount() + 1) * (pTable->columnCount() + 1);
     }
 
@@ -260,10 +263,13 @@ public:
         AssertPtrReturn(pTable, 0);
         //printf("iIndex = %d\n", iIndex);
 
-        /* Return the child with the passed iIndex: */
-        // Since Qt6 both horizontal and vertical table headers
-        // are treated as items as well, so we have to take them
-        // into account while addressing actual table children.
+        // Qt's qtablewidget class has no accessibility code, only parent-class has it.
+        // Parent qtableview class has a piece of accessibility code we do not like.
+        // It's located in currentChanged() method and sends us iIndex calculated on
+        // the basis of current model-index, instead of current qtablewidgetitem index.
+        // So qtableview enumerates all table-widget rows/columns as children,
+        // besides that, both horizontal and vertical table headers are treated as items
+        // as well, so we have to take them into account while addressing table items.
         const int iRow = iIndex / (pTable->columnCount() + 1) - 1;
         const int iColumn = iIndex % (pTable->columnCount() + 1) - 1;
         return QAccessible::queryAccessibleInterface(pTable->childItem(iRow, iColumn));
