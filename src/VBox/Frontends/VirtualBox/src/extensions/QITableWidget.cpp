@@ -260,6 +260,21 @@ public:
         return QAccessible::queryAccessibleInterface(table()->childItem(iRow, iColumn));
     }
 
+    /** Returns the child located at the global @a x, @a y coordinate. */
+    virtual QAccessibleInterface *childAt(int x, int y) const RT_OVERRIDE
+    {
+        /* Sanity check: */
+        QITableWidget *pTable = table();
+        AssertPtrReturn(pTable, 0);
+
+        /* Map to table coordinates: */
+        const QPoint gpt(x, y);
+        const QPoint lpt = pTable->mapFromGlobal(gpt);
+
+        /* Return the child at the passed coordinates: */
+        return QAccessible::queryAccessibleInterface(QITableWidgetItem::toItem(pTable->itemAt(lpt)));
+    }
+
     /** Returns the index of the passed @a pChild. */
     virtual int indexOfChild(const QAccessibleInterface *pChild) const RT_OVERRIDE
     {
