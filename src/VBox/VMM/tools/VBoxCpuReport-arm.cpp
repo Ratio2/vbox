@@ -892,6 +892,7 @@ int produceCpuReport(void)
                    "        /*.enmVendor    = */ CPUMCPUVENDOR_%s,\n"
                    "        /*.enmMicroarch = */ kCpumMicroarch_%s,\n"
                    "        /*.fFlags       = */ %s,\n"
+                   "        /*.enmEntryType = */ CPUMDBENTRYTYPE_ARM,\n"
                    "    },\n"
                    "    /*.paSysRegCmnVals  = */ NULL_ALONE(g_aCmnSysRegVals_%s),\n"
                    "    /*.cSysRegCmnVals   = */ ZERO_ALONE(RT_ELEMENTS(g_aCmnSysRegVals_%s)),\n"

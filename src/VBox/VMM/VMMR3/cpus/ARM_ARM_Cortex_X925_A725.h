@@ -139,6 +139,7 @@ static CPUMDBENTRYARM const g_Entry_ARM_ARM_Cortex_X925_A725 =
         /*.enmVendor    = */ CPUMCPUVENDOR_ARM,
         /*.enmMicroarch = */ kCpumMicroarch_Arm_Chaberton,
         /*.fFlags       = */ 0,
+        /*.enmEntryType = */ CPUMDBENTRYTYPE_ARM,
     },
     /*.paSysRegCmnVals  = */ NULL_ALONE(g_aCmnSysRegVals_ARM_ARM_Cortex_X925_A725),
     /*.cSysRegCmnVals   = */ ZERO_ALONE(RT_ELEMENTS(g_aCmnSysRegVals_ARM_ARM_Cortex_X925_A725)),
