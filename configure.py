@@ -5,10 +5,12 @@ Configuration script for building VirtualBox.
 
 # -*- coding: utf-8 -*-
 # $Id$
+# pylint: disable=consider-using-f-string
 # pylint: disable=global-statement
 # pylint: disable=line-too-long
 # pylint: disable=too-many-lines
 # pylint: disable=unnecessary-semicolon
+# pylint: disable=import-error
 # pylint: disable=import-outside-toplevel
 # pylint: disable=invalid-name
 __copyright__ = \
@@ -35,19 +37,26 @@ SPDX-License-Identifier: GPL-3.0-only
 """
 
 import argparse
+import ctypes
 import datetime
 import glob
+import importlib;
 import io
 import os
 import platform
+import re
+import shlex
 import shutil
 import subprocess
+import sysconfig # Since Python 3.2.
 import sys
 import tempfile
 
 g_sScriptPath = os.path.abspath(os.path.dirname(__file__));
 g_sScriptName = os.path.basename(__file__);
 g_sOutPath    = os.path.join(g_sScriptPath, 'out');
+g_sDevPath    = os.path.join(g_sScriptPath, 'tools');
+g_sDevBinPath = None; # Determined at runtime.
 
 class Log(io.TextIOBase):
     """
@@ -106,7 +115,7 @@ class BuildTarget:
     UNKNOWN = "unknown";
 
 g_fDebug = False;             # Enables debug mode. Only for development.
-g_fNoFatal = False;           # Continue on fatal errors.
+g_fContOnErr = False;           # Continue on fatal errors.
 g_sEnvVarPrefix = 'VBOX_';
 g_sFileLog = 'configure.log'; # Log file path.
 g_cVerbosity = 0;
@@ -137,21 +146,53 @@ class BuildType:
     RELEASE = "release";
     PROFILE = "profile";
 
-def printError(sMessage):
+# Dictionary of path lists to prepend to something.
+# See command line arguments '--prepend-<something>-path'.
+# Note: The keys must match <something>, e.g. 'programfiles' (for parsing).
+g_asPathsPrepend = { 'programfiles' : [], 'ewdk'  : [], 'tools'  : [] };
+# Dictionary of path lists to append to something.
+# See command line arguments '--append-<something>-path'.
+# Note: The keys must match <something>, e.g. 'programfiles' (for parsing).
+g_asPathsAppend = { 'programfiles' : [], 'ewdk'  : [], 'tools'  : [] };
+
+
+def printError(sMessage, fLogOnly = False, fDontCount = False):
     """
     Prints an error message to stderr in red.
     """
+    _ = fLogOnly;
     print(f"*** Error: {sMessage}", file=sys.stderr);
-    globals()['g_cErrors'] += 1;
+    if not fDontCount:
+        globals()['g_cErrors'] += 1;
 
-def printVerbose(uVerbosity, sMessage):
+def printVerbose(uVerbosity, sMessage, fLogOnly = False):
     """
     Prints a verbose message if the global verbosity level is high enough.
     """
+    _ = fLogOnly;
     if g_cVerbosity >= uVerbosity:
         print(f"--- {sMessage}");
 
-def checkWhich(sCmdName, sToolDesc, sCustomPath = None, asVersionSwitches = None):
+def getLinuxGnuTypeFromPlatform():
+    """
+    Returns the Linux GNU type based on the platform.
+    """
+    mapPlatform2GnuType = {
+        "x86_64": "x86_64-linux-gnu",
+        "amd64": "x86_64-linux-gnu",
+        "i386": "i386-linux-gnu",
+        "i686": "i386-linux-gnu",
+        "aarch64": "aarch64-linux-gnu",
+        "arm64": "aarch64-linux-gnu",
+        "armv7l": "arm-linux-gnueabihf",
+        "armv6l": "arm-linux-gnueabi",
+        "ppc64le": "powerpc64le-linux-gnu",
+        "s390x": "s390x-linux-gnu",
+        "riscv64": "riscv64-linux-gnu",
+    };
+    return mapPlatform2GnuType.get(platform.machine().lower());
+
+def checkWhich(sCmdName, sToolDesc = None, sCustomPath = None, asVersionSwitches = None):
     """
     Helper to check for a command in PATH or custom path.
 
@@ -188,11 +229,223 @@ def checkWhich(sCmdName, sToolDesc, sCustomPath = None, asVersionSwitches = None
                     return sCmdPath, sVer;
             return sCmdPath, '<unknown>';
         except subprocess.SubprocessError as ex:
-            printError(f"Error while checking version of {sToolDesc}: {str(ex)}");
+            printError(f"Error while checking version of {sToolDesc if sToolDesc else sCmdName}: {str(ex)}");
         return None, None;
 
     printError(f"'{sCmdName}' not found in PATH.");
     return None, None;
+
+def getLinkerArgs(enmBuildTarget, asLibFiles):
+    """
+    Returns the linker arguments for the library as a list.
+
+    Returns an empty list for no libs.
+    """
+    if not asLibFiles:
+        return [];
+
+    asLibArgs = [];
+
+    if enmBuildTarget == BuildTarget.WINDOWS:
+        asLibArgs.extend( [ '/link' ]);
+
+    for sLibCur in asLibFiles:
+        if enmBuildTarget == BuildTarget.WINDOWS:
+            asLibArgs.extend( [ sLibCur + '.lib'] );
+        else:
+            # Remove 'lib' prefix if present for -l on UNIX-y OSes.
+            if sLibCur.startswith("lib"):
+                sLibCur = sLibCur[3:];
+            else:
+                sLibCur = ':' + sLibCur;
+            asLibArgs += [ f'-l{sLibCur}' ];
+    return asLibArgs;
+
+def hasCPPHeader(asHeader):
+    """
+    Rough guess which headers require C++.
+
+    Returns True if it requires C++, False if C only.
+    """
+    if len(asHeader) == 0:
+        return False; # ASSUME C on empty headers.
+    asCPPHdr = [ 'c++', 'iostream', 'Qt', 'qt', 'qglobal.h', 'qcoreapplication.h' ];
+    if asHeader:
+        asCPPHdr.extend(asHeader);
+    return any(h for h in asCPPHdr if h and any(c in h for c in asCPPHdr));
+
+def getWinError(uCode):
+    """
+    Returns an error string for a given Windows error code.
+    """
+    FORMAT_MESSAGE_FROM_SYSTEM    = 0x00001000;
+    FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
+
+    wszBuf = ctypes.create_unicode_buffer(2048);
+    dwBuf = ctypes.windll.kernel32.FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                                  None, uCode, 0, # Default language.
+                                                  wszBuf, len(wszBuf), None);
+    if dwBuf:
+        return wszBuf.value.strip();
+    return f'{uCode:#x}'; # Return the plain error (as hex).
+
+def compileAndExecute(sName, enmBuildTarget, enmBuildArch, asIncPaths, asLibPaths, asIncFiles, asLibFiles, sCode, oEnv = None, fLog = True):
+    """
+    Compiles and executes a test program.
+
+    Returns a tuple (Success, StdOut, StdErr).
+    """
+    _ = enmBuildArch;
+    fRet = False;
+    sStdOut = sStdErr = None;
+
+    if enmBuildTarget == BuildTarget.WINDOWS:
+        sCompiler = g_oEnv['config_cpp_compiler'];
+    else:
+        sCompiler = g_oEnv['config_cpp_compiler'] if hasCPPHeader(asIncFiles) else g_oEnv['config_c_compiler'];
+    assert sCompiler is not None;
+
+    if g_fDebug:
+        sTempDir = tempfile.gettempdir();
+    else:
+        sTempDir = tempfile.mkdtemp();
+
+    asFilesToDelete = []; # For cleanup
+
+    sFileSource = os.path.join(sTempDir, "testlib.cpp" if ('g++' in sCompiler or 'cl.exe' in sCompiler) else "testlib.c"); ## @todo Improve this.
+    asFilesToDelete.extend( [sFileSource] );
+    sFileImage  = os.path.join(sTempDir, "a.out" if enmBuildTarget != BuildTarget.WINDOWS else "a.exe");
+    asFilesToDelete.extend( [sFileImage] );
+
+    with open(sFileSource, "w", encoding = 'utf-8') as fh:
+        fh.write(sCode);
+    fh.close();
+
+    asCmd = [ sCompiler ];
+    oProcEnv = oEnv if oEnv else g_oEnv;
+    if g_fDebug:
+        if enmBuildTarget == BuildTarget.WINDOWS:
+            asCmd.extend( [ '/showIncludes' ]);
+    if enmBuildTarget == BuildTarget.WINDOWS:
+        if asIncPaths:
+            for sIncPath in asIncPaths:
+                oProcEnv.prependPath('INCLUDE', sIncPath);
+        if asLibPaths:
+            for sLibPath in asLibPaths:
+                oProcEnv.prependPath('LIB', sLibPath);
+        asCmd.extend( [ sFileSource ] );
+        asCmd.extend( [ '/Fe:' + sFileImage ] );
+    else: # Non-Windows
+        if asIncPaths:
+            for sIncPath in asIncPaths:
+                asCmd.extend( [ f'-I{sIncPath}' ] );
+        if asLibPaths:
+            for sLibPath in asLibPaths:
+                asCmd.extend( [ f'-L{sLibPath}' ] );
+        asCmd.extend( [ sFileSource ] );
+        asCmd.extend( [ '-o', sFileImage ] );
+    asCmd.extend(getLinkerArgs(enmBuildTarget, asLibFiles));
+
+    if g_fDebug:
+        print(f'Process environment: {oProcEnv.env}');
+        print(f'Process command line: {asCmd}');
+
+    try:
+        # Try compiling the test source file.
+        oProc = subprocess.run(asCmd, env = oProcEnv.env, stdout = subprocess.PIPE, stderr = subprocess.PIPE, check = False, timeout = 15);
+        if oProc.returncode != 0:
+            sStdOut = oProc.stdout.decode("utf-8", errors="ignore"); # MSVC prints errors to stdout.
+            sStdErr = oProc.stderr.decode("utf-8", errors="ignore");
+            if fLog:
+                printError(f'Compilation of test program for {sName} failed:', fDontCount = True);
+                printError(f'    { " ".join(asCmd) }', fDontCount = True);
+                printError(sStdOut, fDontCount = True);
+                printError(sStdErr);
+        else:
+            # Try executing the compiled binary and capture stdout + stderr.
+            try:
+                oProc = subprocess.run([sFileImage], env = oProcEnv.env, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE, check = False, timeout = 10);
+                if oProc.returncode == 0:
+                    sStdOut = oProc.stdout.decode('utf-8', 'replace').strip();
+                    fRet = True;
+                else:
+                    sStdErr = oProc.stderr.decode("utf-8", errors="ignore");
+                    if fLog:
+                        printError(f"Execution of test binary for {sName} failed with return code {oProc.returncode}:");
+                        if enmBuildTarget == BuildTarget.WINDOWS:
+                            printError(f"Windows Error { getWinError(oProc.returncode) }", fDontCount = True);
+                        if sStdErr:
+                            printError(sStdErr, fDontCount = True);
+            except subprocess.SubprocessError as ex:
+                if fLog:
+                    printError(f"Execution of test binary for {sName} failed: {str(ex)}");
+                    printError(f'    {sFileImage}', fDontCount = True);
+    except PermissionError as e:
+        printError(f'Compiler not found: {str(e)}', fDontCount = True);
+    except FileNotFoundError as e:
+        printError( 'Compiler not found:', fDontCount = True);
+        printError(f'    { " ".join(asCmd) }', fDontCount = True);
+        printError(str(e));
+    except subprocess.SubprocessError as e:
+        printError( 'Invoking compiler failed:', fDontCount = True);
+        printError(f'    { " ".join(asCmd) }', fDontCount = True);
+        printError(str(e));
+
+    # Clean up.
+    try:
+        if not g_fDebug:
+            for sFileToDel in asFilesToDelete:
+                try:
+                    os.remove(sFileToDel);
+                except PermissionError:
+                    pass;
+            os.rmdir(sTempDir);
+    except OSError as ex:
+        if fLog:
+            printVerbose(1, f"Failed to remove temporary files in '{sTempDir}': {str(ex)}");
+
+    return fRet, sStdOut, sStdErr;
+
+def getPackageInfo(sPackageName, sWhat):
+    """
+    Returns information for a given package.
+    """
+    try:
+        if g_enmHostTarget in [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.DARWIN ]:
+            # Use pkg-config on Linux and macOS.
+            sCmd = f"pkg-config {sWhat} {shlex.quote(sPackageName)}"
+        elif g_enmHostTarget == BuildTarget.WINDOWS:
+            # Detect VCPKG.
+            # See: https://learn.microsoft.com/en-us/vcpkg/ + https://vcpkg.io
+            sCmd, _ = checkWhich('vcpkg');
+            if sCmd:
+                sVcPkgRoot = g_oEnv.get('config_vcpkg_root', os.environ['VCPKG_ROOT'] if 'VCPKG_ROOT' in os.environ else None);
+                if sVcPkgRoot:
+                    printVerbose(1, f"vcpkg found at '{sVcPkgRoot}'");
+                else:
+                    printError('vcpkg found, but VCPKG_ROOT is not defined');
+        else:
+            raise RuntimeError("Unsupported OS");
+
+        oProc = subprocess.run(sCmd, shell = True, check = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE, text =True);
+        asLibs = oProc.stdout.strip();
+        return True, asLibs;
+    except subprocess.CalledProcessError:
+        printVerbose(1, f'Package "{sPackageName}" invalid or not found');
+        return False, None;
+    return False, None;
+
+def getPackageLibs(sPackageName):
+    """
+    Returns the libraries of a given package.
+    """
+    return getPackageInfo(sPackageName, '--libs');
+
+def getPackagePath(sPackageName):
+    """
+    Returns the resource path of a given package.
+    """
+    return getPackageInfo(sPackageName, '--variable=exec_prefix');
 
 class LibraryCheck:
     """
@@ -208,41 +461,17 @@ class LibraryCheck:
         self.asAltIncFiles = asAltIncFiles or [];
         self.fDisabled = False;
         self.sCustomPath = None;
-        self.sIncPath = None;
-        self.sLibPath = None;
+        # Note: The first entry (index 0) always points to the library include path.
+        #       The following indices are for auxillary header paths.
+        self.asIncPaths = None;
+        # Note: The first entry (index 0) always points to the library include path.
+        #       The following indices are for auxillary header paths.
+        self.asLibPaths = None;
         # Is a tri-state: None if not required (optional or not needed), False if required but not found, True if found.
         self.fHave = None;
         # Contains the (parsable) version string if detected.
         # Only valid if self.fHave is True.
         self.sVer = None;
-
-    def hasCPPHeader(self):
-        """
-        Rough guess which headers require C++.
-        """
-        asCPPHdr = ['c++", "iostream", "Qt", "qt", "qglobal.h", "qcoreapplication.h'];
-        return any(h for h in ([self.asIncFiles] + self.asAltIncFiles) if h and any(c in h for c in asCPPHdr));
-
-    def getLinkerArgs(self, enmBuildTarget):
-        """
-        Returns the linker arguments for the library as a string.
-
-        Returns None for no libs.
-        """
-        if not self.asLibFiles:
-            return None;
-        # Remove 'lib' prefix if present for -l on UNIX-y OSes.
-        asLibArgs = '';
-        for sLibCur in self.asLibFiles:
-            if enmBuildTarget == BuildTarget.WINDOWS:
-                asLibArgs += f"{sLibCur} ";
-            else:
-                if sLibCur.startswith("lib"):
-                    sLibCur = sLibCur[3:];
-                else:
-                    sLibCur = ':' + sLibCur;
-                asLibArgs += f"-l{sLibCur} ";
-        return asLibArgs;
 
     def getTestCode(self):
         """
@@ -253,71 +482,26 @@ class LibraryCheck:
             return "";
 
         if self.sCode:
-            return '#include <stdio.h>\n' + self.sCode if 'stdio.h' not in self.sCode else self.sCode;
-        if self.hasCPPHeader():
-            return f"#include <{header}>\n#include <iostream>\nint main() {{ std::cout << \"1\" << std::endl; return 0; }}\n"
+            if hasCPPHeader(self.asIncFiles):
+                return '#include <iostream>\n' + self.sCode;
+            else:
+                return '#include <stdio.h>\n' + self.sCode;
         else:
-            return f'#include <{header}>\n#include <stdio.h>\nint main(void) {{ printf("<found>"); return 0; }}\n'
+            if hasCPPHeader(self.asIncFiles):
+                return f"#include <{header}>\n#include <iostream>\nint main() {{ std::cout << \"1\" << std::endl; return 0; }}\n";
+        return f'#include <{header}>\n#include <stdio.h>\nint main(void) {{ printf("<found>"); return 0; }}\n';
 
     def compileAndExecute(self, enmBuildTarget, enmBuildArch):
         """
         Attempts to compile and execute test code using the discovered paths and headers.
+
+        Returns a tuple (Success, StdOut, StdErr).
         """
-
-        _ = enmBuildArch;
-        if enmBuildTarget == BuildTarget.WINDOWS:
-            sCompiler = 'cl';
-        else:
-            sCompiler = 'g++' if self.hasCPPHeader() else 'gcc';
-
-        with tempfile.TemporaryDirectory() as sTempDir:
-
-            if g_fDebug:
-                sTempDir = '/tmp/';
-
-            sFilePath = os.path.join(sTempDir, "testlib.cpp" if sCompiler == "g++" else "testlib.c");
-            sBinPath  = os.path.join(sTempDir, "a.out" if enmBuildTarget != BuildTarget.WINDOWS else "a.exe");
-
-            with open(sFilePath, "w", encoding = 'utf-8') as fh:
-                fh.write(self.sCode);
-            fh.close();
-
-            if enmBuildTarget == BuildTarget.WINDOWS:
-                sIncFlags     = f'/I"{self.sIncPath}"';
-                sLibFlags     = f'/LIBPATH:"{self.sLibPath}"';
-                asLinkerFlags = self.getLinkerArgs(enmBuildTarget);
-                asCmd         = [ sCompiler, sFilePath, sIncFlags, sLibFlags, "/Fe:" + sBinPath ] + asLinkerFlags;
-            else:
-                sIncFlags     = f"-I{self.sIncPath}";
-                sLibFlags     = f"-L{self.sLibPath}";
-                asLinkerFlags = self.getLinkerArgs(enmBuildTarget);
-                asCmd         = [ sCompiler, sFilePath, sIncFlags, sLibFlags, "-o", sBinPath ] + asLinkerFlags;
-
-            try:
-                # Try compiling the test source file.
-                oProc = subprocess.run(asCmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE, check = False, timeout = 15);
-                if oProc.returncode != 0:
-                    sCompilerStdErr = oProc.stderr.decode("utf-8", errors="ignore");
-                    printError(sCompilerStdErr);
-                else:
-                    # Try executing the compiled binary and capture stdout + stderr.
-                    try:
-                        oProc = subprocess.run([sBinPath], stdout = subprocess.PIPE, stderr = subprocess.PIPE, check = False, timeout = 10);
-                        if oProc.returncode == 0:
-                            self.sVer = oProc.stdout.decode('utf-8', 'replace').strip();
-                        else:
-                            printError(f"Execution of test binary for {self.sName} failed with return code {oProc.returncode}:");
-                            printError(oProc.stderr.decode("utf-8", errors="ignore"));
-                    except subprocess.SubprocessError as ex:
-                        printError(f"Execution of test binary for {self.sName} failed: {str(ex)}");
-                    finally:
-                        try:
-                            if not g_fDebug:
-                                os.remove(sBinPath);
-                        except OSError as ex:
-                            printError(f"Failed to remove temporary binary file {sBinPath}: {str(ex)}");
-            except subprocess.SubprocessError as e:
-                printError(str(e));
+        fRc, sStdOut, sStdErr = compileAndExecute(self.sName, enmBuildTarget, enmBuildArch, \
+                                                  self.asIncPaths, self.asLibPaths, self.asIncFiles, self.asLibFiles, self.getTestCode());
+        if fRc and sStdOut:
+            self.sVer = sStdOut;
+        return fRc, sStdOut, sStdErr;
 
     def setArgs(self, args):
         """
@@ -326,40 +510,40 @@ class LibraryCheck:
         self.fDisabled = getattr(args, f"config_libs_disable_{self.sName}", False);
         self.sCustomPath = getattr(args, f"config_libs_path_{self.sName}", None);
 
-    def getLinuxGnuTypeFromPlatform(self):
-        """
-        Returns the Linux GNU type based on the platform.
-        """
-        mapPlatform2GnuType = {
-            "x86_64": "x86_64-linux-gnu",
-            "amd64": "x86_64-linux-gnu",
-            "i386": "i386-linux-gnu",
-            "i686": "i386-linux-gnu",
-            "aarch64": "aarch64-linux-gnu",
-            "arm64": "aarch64-linux-gnu",
-            "armv7l": "arm-linux-gnueabihf",
-            "armv6l": "arm-linux-gnueabi",
-            "ppc64le": "powerpc64le-linux-gnu",
-            "s390x": "s390x-linux-gnu",
-            "riscv64": "riscv64-linux-gnu",
-        };
-        return mapPlatform2GnuType.get(platform.machine().lower());
-
     def getIncSearchPaths(self):
         """
         Returns a list of existing search directories for includes.
         """
         asPaths = [];
+
+        # If a custom path has been specified (via '--with-<library>-path'), this has precedence.
         if self.sCustomPath:
-            asPaths.extend([ os.path.join(self.sCustomPath, "include")] );
+            asPaths.extend([ self.sCustomPath ]);
+        else: # Try our in-tree libs. We assume our checked-in stuff works! :-D
+            asPaths.extend([ os.path.join(g_sScriptPath, 'src/libs', self.sName) ]);
+
+        #
+        # Windows
+        #
         if  g_oEnv['KBUILD_TARGET'] == BuildTarget.WINDOWS:
+            #
+            # Try VCPKG first.
+            #
+            if g_oEnv['VCPKG_ROOT']:
+                asPaths.extend([ os.path.join(g_oEnv['VCPKG_ROOT'], 'packages', self.sName) ]);
+            #
+            # Desperate fallback.
+            #
             asRootDrivers = [ d+":" for d in "CDEFGHIJKLMNOPQRSTUVWXYZ" if os.path.exists(d+":") ];
             for r in asRootDrivers:
                 asPaths.extend([ os.path.join(r, p) for p in [
                     "\\msys64\\mingw64\\include", "\\msys64\\mingw32\\include", "\\include" ]]);
                 asPaths.extend([ r"c:\\Program Files", r"c:\\Program Files (x86)" ]);
-        else: # Linux / MacOS / Solaris
-            sGnuType = self.getLinuxGnuTypeFromPlatform();
+        #
+        # Linux / MacOS / Solaris
+        #
+        else:
+            sGnuType = getLinuxGnuTypeFromPlatform();
             # Sorted by most likely-ness.
             asPaths.extend([ "/usr/include", "/usr/local/include",
                              "/usr/include/" + sGnuType, "/usr/local/include/" + sGnuType,
@@ -367,12 +551,19 @@ class LibraryCheck:
                              "/opt/include", "/opt/local/include" ]);
             if  g_oEnv['KBUILD_TARGET'] == BuildTarget.DARWIN:
                 asPaths.extend([ "/opt/homebrew/include" ]);
+        #
+        # Walk the custom path to guess where the include files are.
+        #
+        if self.sCustomPath:
+            for sIncFile in self.asIncFiles:
+                for sRoot, _, asFiles in os.walk(self.sCustomPath):
+                    if sIncFile in asFiles:
+                        asPaths = [ sRoot ] + asPaths;
 
-        asPathMatched = [];
-        for sPathCur in asPaths:
-            sPattern = sPathCur + '-*';
-            asPathMatched.extend(glob.glob(sPattern));
-        asPaths = asPathMatched + asPaths; # Put at the beginning.
+        #
+        # Some libs need IPRT, so include it.
+        #
+        asPaths.extend([ os.path.join(g_sScriptPath, 'include') ]);
 
         return [p for p in asPaths if os.path.isdir(p)];
 
@@ -381,18 +572,38 @@ class LibraryCheck:
         Returns a list of existing search directories for libraries.
         """
         asPaths = [];
+
+        # If a custom path has been specified (via '--with-<library>-path'), this has precedence.
         if self.sCustomPath:
-            asPaths = [os.path.join(self.sCustomPath, "lib")];
+            asPaths = [os.path.join(self.sCustomPath, 'lib')];
+
+        # Try our in-tree libs first.
+        asPaths.extend([ os.path.join(g_sScriptPath, 'src/libs', self.sName) ]);
+
+        #
+        # Windows
+        #
         if  g_oEnv['KBUILD_TARGET'] == BuildTarget.WINDOWS:
-            root_drives = [d+":" for d in "CDEFGHIJKLMNOPQRSTUVWXYZ" if os.path.exists(d+":")];
-            for r in root_drives:
+            #
+            # Try VCPKG first.
+            #
+            if g_oEnv['VCPKG_ROOT']:
+                asPaths.extend([ os.path.join(g_oEnv['VCPKG_ROOT'], 'packages', self.sName) ]);
+            #
+            # Desperate fallback.
+            #
+            asRootDrives = [d+":" for d in "CDEFGHIJKLMNOPQRSTUVWXYZ" if os.path.exists(d+":")];
+            for r in asRootDrives:
                 asPaths += [os.path.join(r, p) for p in [
                     '\\msys64\\mingw64\\lib', '\\msys64\\mingw32\\lib', '\\lib']];
                 asPaths += [r'c:\\Program Files', r'c:\\Program Files (x86)'];
-        else:
+        #
+        # Linux / MacOS / Solaris
+        #
+        else:  # Linux / MacOS / Solaris
             if  g_oEnv['KBUILD_TARGET'] == BuildTarget.LINUX \
             or  g_oEnv['KBUILD_TARGET'] == BuildTarget.SOLARIS:
-                sGnuType = self.getLinuxGnuTypeFromPlatform();
+                sGnuType = getLinuxGnuTypeFromPlatform();
                 # Sorted by most likely-ness.
                 asPaths.extend([ "/usr/lib", "/usr/local/lib",
                                  "/usr/lib/" + sGnuType, "/opt/local/lib/" + sGnuType,
@@ -400,12 +611,14 @@ class LibraryCheck:
                                  "/opt/lib", "/opt/local/lib" ]);
             else: # Darwin
                 asPaths.append("/opt/homebrew/lib");
-
-        asPathMatched = [];
-        for sPathCur in asPaths:
-            sPattern = sPathCur + '-*';
-            asPathMatched.extend(glob.glob(sPattern));
-        asPaths = asPathMatched + asPaths; # Put at the beginning.
+        #
+        # Walk the custom path to guess where the lib files are.
+        #
+        if self.sCustomPath:
+            for sLibFile in self.asLibFiles:
+                for sRoot, _, asFiles in os.walk(self.sCustomPath):
+                    if sLibFile in asFiles:
+                        asPaths = [ sRoot ] + asPaths;
 
         return [p for p in asPaths if os.path.exists(p)];
 
@@ -419,21 +632,25 @@ class LibraryCheck:
         if self.asIncFiles:
             asHeaderToSearch.extend(self.asIncFiles);
         asHeaderToSearch.extend(self.asAltIncFiles);
+        asHeaderFound = [];
         asSearchPaths = self.getIncSearchPaths();
-        for sCurSearchPath in asSearchPaths:
-            printVerbose(1, f'Checking include path for {self.sName}: {sCurSearchPath}');
-            for sCurHeader in asHeaderToSearch:
-                sCur = os.path.join(sCurSearchPath, sCurHeader);
-                if os.path.isfile(sCur):
-                    self.sIncPath = sCurSearchPath;
-                    return True;
-                if os.sep == "\\":
-                    sCur = os.path.join(sCurSearchPath, sCurHeader.replace("/", "\\"));
-                    if os.path.isfile(sCur):
-                        self.sIncPath = sCurSearchPath;
-                        return True;
+        for sCurHeader in asHeaderToSearch:
+            for sCurSearchPath in asSearchPaths:
+                printVerbose(1, f"{self.sName}: Checking include path for '{sCurHeader}': {sCurSearchPath}");
+                if os.path.isfile(os.path.join(sCurSearchPath, sCurHeader)):
+                    if os.sep == "\\":
+                        sCurSearchPath = sCurSearchPath.replace("/", "\\");
+                    if not self.asIncPaths:
+                        self.asIncPaths = [];
+                    self.asIncPaths.extend([ sCurSearchPath ]);
+                    asHeaderFound.extend([ sCurHeader ]);
+                    break;
 
-        printError(f"Header files {asHeaderToSearch} not found in paths: {asSearchPaths}");
+        if asHeaderFound == asHeaderToSearch:
+            printVerbose(1, f"{self.sName}: All header files found");
+            return True;
+
+        printError(f"{self.sName}: Header files {asHeaderToSearch} not found in paths: {asSearchPaths}");
         return False;
 
     def checkLib(self):
@@ -442,25 +659,33 @@ class LibraryCheck:
         """
         if not self.asLibFiles:
             return True;
-        sBasename = self.asLibFiles;
+        asLibToSearch = self.asLibFiles;
         asLibExts = [];
         if  g_oEnv['KBUILD_TARGET'] == BuildTarget.WINDOWS:
-            asLibExts = ['.lib", ".dll", ".a", ".dll.a'];
+            asLibExts = ['.lib', '.dll', '.a', '.dll.a'];
         elif  g_oEnv['KBUILD_TARGET'] == BuildTarget.DARWIN:
-            asLibExts = ['.a", ".dylib", ".so'];
+            asLibExts = ['.a', '.dylib', '.so'];
         else:
-            asLibExts = ['.a", ".so'];
+            asLibExts = ['.a', '.so'];
+        asLibFound = [];
         asSearchPaths = self.getLibSearchPaths();
         for sCurSearchPath in asSearchPaths:
-            printVerbose(1, f'Checking library path for {self.sName}: {sCurSearchPath}');
-            for sCurExt in asLibExts:
-                sPattern = os.path.join(sCurSearchPath, f"{sBasename}*{sCurExt}");
-                for sCurFile in glob.glob(sPattern):
-                    if os.path.isfile(sCurFile):
-                        self.sLibPath = sCurSearchPath;
-                        return True;
+            printVerbose(1, f'{self.sName}: Checking library path: {sCurSearchPath}');
+            for sCurLib in asLibToSearch:
+                for sCurExt in asLibExts:
+                    sPattern = os.path.join(sCurSearchPath, f"{sCurLib}*{sCurExt}");
+                    for sCurFile in glob.glob(sPattern):
+                        if os.path.isfile(sCurFile):
+                            if not self.asLibPaths:
+                                self.asLibPaths = [];
+                            self.asLibPaths.extend([ sCurSearchPath ]);
+                            return True;
 
-        printError(f"Library files {self.asLibFiles} not found in paths: {asSearchPaths}");
+        if asLibFound == asLibToSearch:
+            printVerbose(1, f"{self.sName}: All libraries found");
+            return True;
+
+        printError(f"{self.sName}: Library files { ' '.join(asLibToSearch)} not found in paths: {asSearchPaths}");
         return False;
 
     def performCheck(self):
@@ -468,14 +693,34 @@ class LibraryCheck:
         Run library detection.
         """
         if  g_oEnv['KBUILD_TARGET'] in self.aeTargetsExcluded:
-            self.fHave = None;
-            return;
+            return True;
         if self.fDisabled:
-            self.fHave = None;
-            return;
+            return True;
+        # Check if no custom path was specified and we have the lib in-tree.
+        if not self.sCustomPath:
+            sInTreePath = os.path.join(g_sScriptPath, 'src/libs', self.sName + '-*');
+            asPatternMatches = glob.glob(sInTreePath);
+            for sCurMatch in asPatternMatches:
+                print(f"{self.sName}: Found library in-tree at '{sCurMatch}, skipping check");
+                self.fHave = True;
+                # Extract the version from the directory name.
+                oReMatch = re.search(r'-([\d\.]+)$', os.path.basename(os.path.normpath(sCurMatch)));
+                if oReMatch:
+                    self.sVer = oReMatch.group(1);
+                if not self.asIncPaths:
+                    self.asIncPaths = [];
+                self.asIncPaths.extend([ os.path.relpath(sCurMatch, g_sScriptPath) ]); # Make the path relative to the script.
+                return True; # ASSUMES that we only have one version per lib in-tree.
+        self.fHave = False;
         if  g_oEnv['KBUILD_TARGET'] in self.aeTargets \
         or BuildTarget.ANY in self.aeTargets:
-            self.fHave = self.checkInc() and self.checkLib();
+            print(f"{self.sName}: Testing library ...");
+            if self.checkInc():
+                if self.checkLib():
+                    self.fHave, _, _ = self.compileAndExecute(g_oEnv['KBUILD_TARGET'], g_oEnv['KBUILD_TARGET_ARCH']);
+            if not self.fHave:
+                printError(f"{self.sName}: Library not found");
+        return self.fHave;
 
     def getStatusString(self):
         """
@@ -538,6 +783,8 @@ class ToolCheck:
             return True;
         if g_oEnv['KBUILD_TARGET'] in self.aeTargets \
         or BuildTarget.ANY in self.aeTargets:
+            self.fHave = False;
+            print(f"{self.sName}: Checking ...");
             if self.fnCallback: # Custom callback function provided?
                 self.fHave = self.fnCallback(self);
             else:
@@ -545,20 +792,20 @@ class ToolCheck:
                     self.sCmdPath, self.sVer = checkWhich(sCmdCur, self.sName, self.sCustomPath);
                     if self.sCmdPath:
                         self.fHave = True;
-                    else:
-                        return False;
-        return True;
+            if not self.fHave:
+                printError(f"{self.sName}: Tool not found");
+        return self.fHave;
 
     def getStatusString(self):
         """
         Returns a string for the tool's status.
         """
         if self.fDisabled:
-            return "DISABLED";
+            return 'DISABLED';
         if self.fHave:
-            return f"ok ({os.path.basename(self.sCmdPath)})";
+            return f'ok ({os.path.basename(self.sCmdPath)})' if self.sCmdPath else 'ok';
         if self.fHave is None:
-            return "?";
+            return '?';
         return "failed";
 
     def __repr__(self):
@@ -571,16 +818,68 @@ class ToolCheck:
         @todo Cache this?
         """
         asPaths = [];
-        for sEnv in [ 'ProgramFiles', r'C:\Program File' \
-                      'ProgramFiles(x86)', r'C:\Program Files (x86)' ]:
+        for sEnv in [ 'ProgramFiles', r'C:\Program File', \
+                      'ProgramFiles(x86)', r'C:\Program Files (x86)',
+                      'ProgramFiles(Arm)', r'C:\Program Files (Arm)' ]:
             sPath = os.environ.get(sEnv);
             if sPath and os.path.exists(sPath):
                 asPaths.extend([ sPath ]);
+
+        if 'programfiles' in g_asPathsPrepend:
+            asPaths = g_asPathsPrepend['programfiles'] + asPaths;
+        if 'programfiles' in g_asPathsAppend:
+            asPaths.extend(g_asPathsAppend['programfiles']);
+
         return asPaths;
+
+    def checkCallback_GSOAP(self):
+        """
+        Checks for the GSOAP compiler. Needed for the webservices.
+        """
+
+        asLibs = None;
+        sPath = None; # Acts as the 'found' beacon.
+        sPathImport = None;
+        sPathSource = None;
+
+        if     not g_oEnv['VBOX_PATH_GSOAP'] \
+           and not g_oEnv['VBOX_PATH_GSOAP_IMPORRT']:
+            fRc, asLibs,  = getPackageLibs('gsoapssl++');
+            if fRc:
+                fRc, sPath,  = getPackagePath('gsoapssl++');
+
+        if not sPath: # Try in dev tools.
+            asDevPaths = sorted(glob.glob(f'{g_sDevPath}/common/gsoap/v*'));
+            for sDevPath in asDevPaths:
+                if os.path.exists(sDevPath):
+                    sPath = sDevPath;
+
+        if not sPath: # Still not found? Try other stuff.
+            sBin1, _  = checkWhich('soapcpp2');
+            sBin2, _  = checkWhich('wsdl2h');
+            ## @todo Check for libgsoap++.a/so
+            if os.path.dirname(sBin1) == os.path.dirname(sBin2):
+                sPath = os.path.dirname(sBin1);
+                if sPath.startswith('/usr/'):
+                    sPathImport = os.path.join('/usr', 'share/gsoap/import');
+
+        if sPath:
+            sPathImport = os.path.join(sPath, 'share/gsoap/import');
+            sPathSource = os.path.join(sPath, 'share/gsoap/stdsoap2.cpp');
+            if not os.path.isfile(sPathSource):
+                sPathSource = None;
+
+        g_oEnv.set('VBOX_GSOAP_INSTALLED', '1' if sPath else None);
+        g_oEnv.set('VBOX_PATH_GSOAP', sPath);
+        g_oEnv.set('VBOX_PATH_GSOAP_IMPORT', sPathImport if sPath else None);
+        g_oEnv.set('VBOX_GSOAP_CXX_SOURCES', sPathSource if sPath else None);
+        g_oEnv.set('VBOX_GSOAP_CXX_LIBS', asLibs if sPath else None);
+
+        return True if sPath else False;
 
     def checkCallback_VisualCPP(self):
         """
-        Checks for Visual C++ version 16 (2019), 15 (2017), 14 (2015), 12 (2013), 11 (2012) or 10 (2010).
+        Checks for Visual C++ Build Tools 16 (2019), 15 (2017), 14 (2015), 12 (2013), 11 (2012) or 10 (2010).
         """
 
         # Since v2017 we can use vswhere.exe, so try using that first.
@@ -589,20 +888,31 @@ class ToolCheck:
         for sProgramPath in self.getWinProgramFiles():
             sPath = os.path.join(sProgramPath, 'Microsoft Visual Studio', 'Installer', 'vswhere.exe');
             if os.path.isfile(sPath):
-                asCmd = [ sPath,
-                          '-products', '*',
-                          '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
-                          '-property', 'installationVersion,displayName,installationPath',
-                          '-format', 'json' ];
-                oProc = subprocess.run(asCmd, capture_output = True, check = False, text = True);
-                if oProc.returncode == 0 and oProc.stdout.strip():
-                    import json
-                    asList = json.loads(oProc.stdout);
-                    for curProd in asList:
-                        sVCPPVer  = curProd.get("installationVersion", None);
-                        sVCPPPath = curProd.get("installationPath", None);
-                        print(f'Found {curProd.get("displayName", "")} {sVCPPVer} at {sVCPPPath}');
-                        break;
+                # Stupid vswhere can't handle multiple properties at once, so we have to deal with it
+                # by calling it multiple times. Joy.
+                asProps = [ 'installationVersion', 'installationPath', 'displayName' ];
+                for sCurProp in asProps:
+                    asCmd = [ sPath,
+                             '-sort', # Sort newest version first.
+                             '-products', '*',
+                             '-requires', 'Microsoft.VisualStudio.BuildTools*',
+                             '-property', sCurProp,
+                             '-format', 'json' ];
+                    oProc = subprocess.run(asCmd, capture_output = True, check = False, text = True);
+                    if oProc.returncode == 0 and oProc.stdout.strip():
+                        import json
+                        asList = json.loads(oProc.stdout);
+                        for curProd in asList:
+                            if sCurProp == 'installationVersion':
+                                sVCPPVer = curProd.get('installationVersion', None);
+                            if sCurProp == 'installationPath':
+                                sVCPPPath = curProd.get('installationPath', None);
+                            if sCurProp == 'displayName':
+                                print(f"Found {curProd.get('displayName', '')} version {sVCPPVer} at '{sVCPPPath}'");
+
+                if not g_fDebug:
+                    break;
+
             if sVCPPVer:
                 break;
 
@@ -620,14 +930,29 @@ class ToolCheck:
                     pass;
 
         if sVCPPVer:
-            print(f'Found Visual C++ {sVCPPVer} at "{sVCPPPath}"');
+            print(f"Found Visual C++ version {sVCPPVer} at '{sVCPPPath}'");
 
-            g_oEnv.set('VBOX_VCC_TOOL_STEM', sVCPPVer);
+            sVCPPPath = os.path.join(sVCPPPath, 'VC', 'Tools', 'MSVC');
+            asVCPPVer = sorted(glob.glob(os.path.join(sVCPPPath, '*')), reverse = True);
+            for sVer in asVCPPVer:
+                sVCPPPath = os.path.join(sVCPPPath, sVer, 'bin', 'Hostx64', 'x64', 'cl.exe');
+
             g_oEnv.set(f'PATH_TOOL_{sVCPPVer}', sVCPPPath);
             g_oEnv.set(f'PATH_TOOL_{sVCPPVer}X86', sVCPPPath);
             g_oEnv.set(f'PATH_TOOL_{sVCPPVer}AMD64', sVCPPPath);
             ## @todo ARM?
 
+            ## @todo Fix this.
+            g_oEnv.prependPath('INCLUDE', r'C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.16.27023\include');
+            g_oEnv.prependPath('INCLUDE', r'c:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\ucrt');
+            g_oEnv.prependPath('INCLUDE', r'c:\Program Files (x86)\Windows Kits\10\Include\10.0.19041.0\shared');
+            g_oEnv.prependPath('LIB', r'C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Tools\MSVC\14.16.27023\lib\x64');
+            g_oEnv.prependPath('LIB', r'C:\Program Files (x86)\Windows Kits\10\Lib\10.0.19041.0\ucrt\x64');
+            g_oEnv.prependPath('LIB', r'C:\Program Files (x86)\Windows Kits\10\Lib\10.0.19041.0\um\x64');
+            g_oEnv.prependPath('PATH', r'c:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Tools\MSVC\14.16.27023\bin\Hostx64\x64');
+
+            g_oEnv.set('config_c_compiler', sVCPPPath);
+            g_oEnv.set('config_cpp_compiler', sVCPPPath);
             ## @todo VBOX_WITH_NEW_VCC?
 
         return True if sVCPPVer else False;
@@ -664,8 +989,8 @@ class ToolCheck:
             sPathDevTools = os.path.join(sPath, 'tools');
             sPathDevTools = sPathDevTools if os.path.exists(sPathDevTools) else None;
         if sPathDevTools:
-            print(f'kBuild devtools found at {sPathDevTools}');
-            g_oEnv.set('KBUILD_DEVTOOLS', sPathDevTools);
+            print(f"kBuild devtools is set to '{sPathDevTools}'");
+            fFound = True if os.path.isfile(os.path.join(sPathDevTools, 'ZIP.kmk')) else False; # Check for some random tool.
         else: ## @todo Is this fatal?
             printVerbose(1, 'kBuild devtools not found!');
 
@@ -751,6 +1076,11 @@ class ToolCheck:
             g_oEnv.set('CC' , 'gcc -m64' if sCC == 'gcc' else None);
             g_oEnv.set('CXX', 'gxx -m64' if sCC == 'gxx' else None);
 
+        self.sCmdPath = asToolsToCheck['gcc'].sPath;
+        self.sVer     = asToolsToCheck['gcc'].sVer;
+
+        g_oEnv.set('config_c_compiler', 'gcc');   ## @todo Fix this.
+        g_oEnv.set('config_cpp_compiler', 'g++');
         return True;
 
     def checkCallback_devtools(self):
@@ -766,7 +1096,7 @@ class ToolCheck:
                     g_oEnv.set('KBUILD_DEVTOOLS', sPath);
                     self.sCmdPath = g_oEnv['KBUILD_DEVTOOLS'];
                     return True;
-        return False;
+        return True; ## @todo Not critical?
 
     def checkCallback_OpenWatcom(self):
         """
@@ -793,6 +1123,73 @@ class ToolCheck:
                 return False;
 
         return True;
+
+    def checkCallback_PythonC_API(self):
+        """
+        Checks for required Python C API development files.
+        """
+
+        # On darwin (macOS), just enable Python support.
+        if g_enmHostTarget == BuildTarget.DARWIN:
+            return True;
+
+        # Due to Windows App sandboxing and permissions, the include directory returned by a Python installation
+        # from the Microsoft Store (or App packages) will point to the inaccessible WindowsApp directory.
+        # So detect that and refuse to continue.
+        asPathInc = sysconfig.get_paths()[ 'include' ];
+        if not asPathInc:
+            printError('Python installation invalid (include path) not found');
+            return False;
+        if '\\WindowsApps\\' in asPathInc: # Lazy me.
+            printError('Incompatible Python installation detected (placed in WindowsApps directory), can\'t continue');
+            return False;
+
+        sCode = """
+#include <Python.h>
+int main()
+{
+    Py_Initialize();
+    Py_Finalize();
+    return 0;
+}""";
+        sLibDir = sysconfig.get_config_var("LIBDIR");
+        sLdLib  = sysconfig.get_config_var("LDLIBRARY");
+        if sLdLib.endswith('.so'):
+            sLdLib = sLdLib[:-3]; # Strip .so ending.
+        elif sLdLib.endswith('.dll'):
+            sLdLib = sLdLib[:-4]; # Strip .dll ending.
+
+        # Make sure that the Python .dll / .so files are in PATH.
+        g_oEnv.prependPath('PATH', sysconfig.get_paths()[ 'data' ]);
+
+        if compileAndExecute('Python Dev', g_enmHostTarget, g_enmHostArch, [ asPathInc ], [ sLibDir ], [ ], [ sLdLib ], sCode):
+            g_oEnv.set('VBOX_WITH_PYTHON', '1' if asPathInc else None);
+            g_oEnv.set('VBOX_PATH_PYTHON_INC', asPathInc);
+            g_oEnv.set('VBOX_LIB_PYTHON', sLibDir);
+            return True;
+
+        return False;
+
+    def checkCallback_PythonModules(self):
+        """
+        Checks for required Python modules installed.
+        """
+        fFound = True;
+        asModulesToCheck = [ 'packaging' ];
+
+        for asCurMod in asModulesToCheck:
+            try:
+                importlib.import_module(asCurMod);
+                printVerbose(1, f"Python module '{asCurMod}'' is installed");
+            except ImportError:
+                printError(f"Python module '{asCurMod}' is not installed");
+                printError(f"Hint: Try running 'pip install {asCurMod}'", fDontCount=True);
+                fFound = False;
+                if not g_fContOnErr:
+                    return fFound;
+
+        return fFound;
+
 
     def checkCallback_XCode(self):
         """
@@ -831,9 +1228,9 @@ class EnvManager:
 
     def __init__(self):
         """
-        Initializes an empty environment variable store.
+        Initializes an environment variable store with the default environment applied.
         """
-        self.env = {};
+        self.env = os.environ.copy();
 
     def set(self, sKey, sVal):
         """
@@ -844,6 +1241,7 @@ class EnvManager:
         if sVal is None:
             return;
         assert isinstance(sVal, str);
+        printVerbose(2, f"EnvManager: Setting {sKey}={sVal}");
         self.env[sKey] = sVal;
 
     def unset(self, sKey):
@@ -859,6 +1257,17 @@ class EnvManager:
         If the key does not exist yet, it will be created.
         """
         return self.set(sKey, self.env[sKey] + sVal if sKey in self.env else sVal);
+
+    def prependPath(self, sKey, sPath, enmBuildTarget = g_enmHostTarget):
+        """
+        Prepends a path to a given key.
+        """
+        if not sPath or len(sPath) == 0:
+            return True;
+        if sKey not in self.env:
+            return self.set(sKey, sPath);
+        sDelim = ';' if enmBuildTarget == BuildTarget.WINDOWS else ':';
+        return self.set(sKey, sPath + sDelim + self.env[sKey]);
 
     def get(self, key, default=None):
         """
@@ -878,7 +1287,7 @@ class EnvManager:
     def updateFromArgs(self, oArgs):
         """
         Updates environment variable store using a Namespace object from argparse.
-        Each argument becomes an environment variable (in uppercase), set only if its value is not None.
+        Each argument becomes an environment variable, set only if its value is not None.
         """
         for sKey, aValue in vars(oArgs).items():
             if aValue:
@@ -892,15 +1301,51 @@ class EnvManager:
                     aValueNew = sKey[idxSep + 1:];
                     self.set(sKeyNew, str(aValueNew));
 
-    def write(self, fh, asPrefixExclude):
+    def write_single(self, fh, sKey, sVal, sWhat = None):
+        """
+        Writes a single key=value pair to the given file handle.
+        """
+        sVal = ''.join(c if c != '\\' else '/' for c in sVal); # Translate to UNIX paths (for kBuild).
+        fh.write(f'{sWhat if sWhat else ''}{sKey}={sVal}\n');
+
+    def write_all(self, fh, sWhat = None, asPrefixInclude = None, asPrefixExclude = None):
         """
         Writes all stored environment variables as KEY=VALUE pairs to the given file handle.
         """
         for sKey, sVal in self.env.items():
             if asPrefixExclude and any(sKey.startswith(p) for p in asPrefixExclude):
                 continue;
+            if asPrefixInclude and not any(sKey.startswith(p) for p in asPrefixInclude):
+                continue;
             if sVal: # Might be None.
-                fh.write(f"{sKey}={sVal}\n");
+                self.write_single(fh, sKey, sVal, sWhat);
+        return True;
+
+    def write_all_as_exports(self, fh, enmBuildTarget, asPrefixInclude = None, asPrefixExclude = None):
+        """
+        Writes all stored environment variables as (system-specific) export / set KEY=VALUE pairs
+        to the given file handle.
+        """
+        sWhat = 'set ' if enmBuildTarget == BuildTarget.WINDOWS else 'export ';
+        return self.write_all(fh, sWhat, asPrefixInclude, asPrefixExclude);
+
+    def write(self, fh, sKey, sWhat = None):
+        """
+        Writes a single key.
+        """
+        if sKey in self.env:
+            sVal = self.env[sKey];
+            if sVal:
+                self.write_single(fh, sKey, sVal, sWhat);
+                return True;
+        return False;
+
+    def write_as_export(self, fh, sKey, enmBuildTarget):
+        """
+        Writes a single key as an export.
+        """
+        sWhat = 'set ' if enmBuildTarget == BuildTarget.WINDOWS else 'export ';
+        return self.write(fh, sKey, sWhat);
 
     def transform(self, mapTransform):
         """
@@ -998,9 +1443,8 @@ Hint: Combine any supported --disable-<lib|tool> and --with-<lib>-path=PATH opti
 """);
 
 g_aoLibs = sorted([
-    ## @todo
-    #LibraryCheck("berkeley-softfloat-3", [ "softfloat.h" ], [ "libsoftfloat" ],
-    #             '#include <softfloat.h>\nint main() { float32_t x, y; f32_add(x, y); printf("<found>"); return 0; }\n'),
+    LibraryCheck("softfloat", [ "softfloat.h", "iprt/cdefs.h" ], [ "libsoftfloat" ], [ BuildTarget.ANY ],
+                 '#define IN_RING3\n#include <softfloat.h>\nint main() { softfloat_state_t s; float32_t x, y; f32_add(x, y, &s); printf("<found>"); return 0; }\n'),
     LibraryCheck("dxmt", [ "version.h" ], [ "libdxmt" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                 '#include <version.h>\nint main() { return 0; }\n'),
     LibraryCheck("dxvk", [ "dxvk/dxvk.h" ], [ "libdxvk" ],  [ BuildTarget.LINUX ],
@@ -1036,7 +1480,7 @@ g_aoLibs = sorted([
     LibraryCheck("libssh", [ "libssh/libssh.h" ], [ "libssh" ], [ BuildTarget.ANY ],
                  '#include <libssh/libssh.h>\n#include <libssh/libssh_version.h>\nint main() { printf("%d.%d.%d", LIBSSH_VERSION_MAJOR, LIBSSH_VERSION_MINOR, LIBSSH_VERSION_MICRO); return 0; }\n'),
     LibraryCheck("libstdc++", [ "c++/11/iostream" ], [ ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
-                 "#include <iostream>\nint main() { \n #ifdef __GLIBCXX__\nstd::cout << __GLIBCXX__;\n#elif defined(__GLIBCPP__)\nstd::cout << __GLIBCPP__;\n#else\nreturn 1\n#endif\nreturn 0; }\n",
+                 "int main() { \n #ifdef __GLIBCXX__\nstd::cout << __GLIBCXX__;\n#elif defined(__GLIBCPP__)\nstd::cout << __GLIBCPP__;\n#else\nreturn 1\n#endif\nreturn 0; }\n",
                  asAltIncFiles = [ "c++/4.8.2/iostream", "c++/iostream" ]),
     LibraryCheck("libtpms", [ "libtpms/tpm_library.h" ], [ "libtpms" ], [ BuildTarget.ANY ],
                  '#include <libtpms/tpm_library.h>\nint main() { printf("%d.%d.%d", TPM_LIBRARY_VER_MAJOR, TPM_LIBRARY_VER_MINOR, TPM_LIBRARY_VER_MICRO); return 0; }\n'),
@@ -1075,26 +1519,30 @@ g_aoLibs = sorted([
                  '#include <X11/Xlib.h>\n#include <X11/extensions/Xinerama.h>\nint main() { Display *dpy = XOpenDisplay(NULL); XineramaIsActive(dpy); printf("<found>"); return 0; }\n')
 ], key=lambda l: l.sName);
 
-g_aoTools = sorted([
+# Note: The order is important here for subsequent checks.
+#       Don't change without proper testing!
+g_aoTools = [
     ToolCheck("gcc", asCmd = [ "gcc" ], fnCallback = ToolCheck.checkCallback_gcc, aeTargets = [ BuildTarget.LINUX, BuildTarget.SOLARIS ] ),
+    ToolCheck("visualcpp", asCmd = [ ], fnCallback = ToolCheck.checkCallback_VisualCPP, aeTargets = [ BuildTarget.WINDOWS ] ),
     ToolCheck("devtools", asCmd = [ ], fnCallback = ToolCheck.checkCallback_devtools ),
-    ToolCheck("gsoap", asCmd = [ "soapcpp2", "wsdl2h" ]),
+    ToolCheck("gsoap", asCmd = [ ], fnCallback = ToolCheck.checkCallback_GSOAP),
     ToolCheck("java", asCmd = [ "java" ]),
     ToolCheck("kbuild", asCmd = [ "kbuild" ], fnCallback = ToolCheck.checkCallback_kBuild ),
     ToolCheck("makeself", asCmd = [ "makeself" ], aeTargets = [ BuildTarget.LINUX ]),
     ToolCheck("openwatcom", asCmd = [ "wcl", "wcl386", "wlink" ], fnCallback = ToolCheck.checkCallback_OpenWatcom ),
-    ToolCheck("visualcpp", asCmd = [ ], fnCallback = ToolCheck.checkCallback_VisualCPP ),
+    ToolCheck("python_c_api", asCmd = [ ], fnCallback = ToolCheck.checkCallback_PythonC_API ),
+    ToolCheck("python_modules", asCmd = [ ], fnCallback = ToolCheck.checkCallback_PythonModules ),
     ToolCheck("xcode", asCmd = [], fnCallback = ToolCheck.checkCallback_XCode, aeTargets = [ BuildTarget.DARWIN ]),
-    ToolCheck("yasm", asCmd = [ 'yasm' ], aeTargets = [ BuildTarget.LINUX ]),
-], key=lambda t: t.sName.lower())
+    ToolCheck("yasm", asCmd = [ 'yasm' ], aeTargets = [ BuildTarget.ANY ]),
+];
 
-def write_autoconfig_kmk(sFilePath, oEnv, aoLibs, aoTools):
+def write_autoconfig_kmk(sFilePath, enmBuildTarget, oEnv, aoLibs, aoTools):
     """
     Writes the AutoConfig.kmk file with SDK paths and enable/disable flags.
     Each library/tool gets VBOX_WITH_<NAME>, SDK_<NAME>_LIBS, SDK_<NAME>_INCS.
     """
 
-    _ = aoTools; # Unused for now.
+    _ = enmBuildTarget, aoTools; # Unused for now.
 
     try:
         with open(sFilePath, "w", encoding = "utf-8") as fh:
@@ -1111,25 +1559,25 @@ def write_autoconfig_kmk(sFilePath, oEnv, aoLibs, aoTools):
 # Generated on """ + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """
 #
 \n""");
-            oEnv.write(fh, asPrefixExclude = ['CONFIG_', 'KBUILD_'] );
+            oEnv.write_all(fh, asPrefixInclude = ['VBOX_', 'PATH_TOOL_' ]);
             fh.write('\n');
 
             for oLibCur in aoLibs:
                 sVarBase = oLibCur.sName.upper().replace("+", "PLUS").replace("-", "_");
-                fEnabled = 1 if oLibCur.fHave else 0;
-                fh.write(f"VBOX_WITH_{sVarBase}={fEnabled}\n");
-                if oLibCur.fHave and (oLibCur.sLibPath or oLibCur.sIncPath):
-                    if oLibCur.sLibPath:
-                        fh.write(f"SDK_{sVarBase}_LIBS={oLibCur.sLibPath}\n");
-                    if oLibCur.sIncPath:
-                        fh.write(f"SDK_{sVarBase}_INCS={oLibCur.sIncPath}\n");
+                sEnabled = '1' if oLibCur.fHave else '';
+                fh.write(f"VBOX_WITH_{sVarBase}={sEnabled}\n");
+                if oLibCur.fHave and (oLibCur.asLibPaths or oLibCur.asIncPaths):
+                    if oLibCur.asLibPaths:
+                        g_oEnv.write_single(fh, f'SDK_{sVarBase}_LIBS', oLibCur.asLibPaths[0]);
+                    if oLibCur.asIncPaths:
+                        g_oEnv.write_single(fh, f'SDK_{sVarBase}_INCS', oLibCur.asIncPaths[0]);
 
         return True;
     except OSError as ex:
         printError(f"Failed to write AutoConfig.kmk to {sFilePath}: {str(ex)}");
     return False;
 
-def write_env(sFilePath, oEnv, aoLibs, aoTools):
+def write_env(sFilePath, enmBuildTarget, enmBuildArch, oEnv, aoLibs, aoTools):
     """
     Writes the env.sh file with kBuild configuration and other tools stuff.
     """
@@ -1138,41 +1586,48 @@ def write_env(sFilePath, oEnv, aoLibs, aoTools):
 
     try:
         with open(sFilePath, "w", encoding = "utf-8") as fh:
-            fh.write(f"""
+            sTimestamp  = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S");
+            sScriptArgs = ' '.join(sys.argv[1:]);
+            if g_enmHostTarget != BuildTarget.WINDOWS:
+                fh.write(f"""
+#!/bin/bash
 # -*- Environment -*-
 #
 # Automatically generated by
 #
-#   {g_sScriptName} """ + ' '.join(sys.argv[1:]) + f"""
+#   {g_sScriptName} """ + sScriptArgs + f"""
 #
 # DO NOT EDIT THIS FILE MANUALLY
 # It will be completely overwritten if {g_sScriptName} is executed again.
 #
-# Generated on """ + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + f"""
-#
-
-KBUILD_HOST={g_enmHostTarget}
-KBUILD_HOST_ARCH={g_sHostArch}
-KBUILD_TARGET={ oEnv['KBUILD_TARGET'] }
-KBUILD_TARGET_ARCH={ oEnv['KBUILD_TARGET_ARCH'] }
-KBUILD_TARGET_CPU={ oEnv['KBUILD_TARGET_ARCH'] }
-KBUILD_TYPE={ oEnv['KBUILD_TYPE'] }
-export KBUILD_HOST KBUILD_HOST_ARCH KBUILD_TARGET KBUILD_TARGET_ARCH KBUILD_TARGET_CPU KBUILD_TYPE
-KBUILD_PATH={ oEnv['KBUILD_PATH'] }
-""");
-
-            sPath = oEnv['KBUILD_DEVTOOLS'];
-            if sPath:
-                fh.writef(f'KBUILD_DEVTOOLS={sPath}\n');
-                fh.writef( 'export KBUILD_PATH KBUILD_DEVTOOLS\n');
+# Generated on """ + sTimestamp + """
+#\n""");
+            else: # non-Windows.
+                fh.write(f"""
+@echo off
+rem -*- Environment -*-
+rem
+rem Automatically generated by
+rem
+rem   {g_sScriptName} """ + sScriptArgs + f"""
+rem
+rem DO NOT EDIT THIS FILE MANUALLY
+rem It will be completely overwritten if {g_sScriptName} is executed again.
+rem
+rem Generated on """ +  sTimestamp + """
+rem\n""");
+            oEnv.write_all_as_exports(fh, enmBuildTarget, asPrefixInclude = [ 'KBUILD_' ]);
             sPath = oEnv['PATH_OUT_BASE'];
             if sPath:
                 fh.write(f'PATH_OUT_BASE={sPath}\n');
-                fh.write( 'export PATH_OUT_BASE\n');
+                fh.write( 'set PATH_OUT_BASE\n');
+
+            oEnv.prependPath('PATH', os.path.join(g_sScriptPath, g_oEnv['KBUILD_PATH'], 'bin', f'{enmBuildTarget}.{enmBuildArch}'));
+            oEnv.write_as_export(fh, 'PATH', enmBuildTarget);
 
         return True;
     except OSError as ex:
-        printError(f"Failed to write env.sh to {sFilePath}: {str(ex)}");
+        printError(f"Failed to write environment file to {sFilePath}: {str(ex)}");
     return False;
 
 def main():
@@ -1181,18 +1636,19 @@ def main():
     """
     global g_cVerbosity;
     global g_fDebug;
-    global g_fNoFatal;
+    global g_fContOnErr;
     global g_sFileLog;
+    global g_sDevBinPath;
 
     #
     # argparse config namespace rules:
     # - Everything internally used is prefixed with 'config_'.
     # - Library options are prefixed with 'config_libs_'.
     # - Tool options are prefixed with 'config_tools_'.
-    # - VirtualBox-specific environment variables (VBOX_WITH_, VBOX_ONLY_ and so on) are written as-is (e.g. 'vbox_with_docs=1'),
+    # - VirtualBox-specific environment variables (VBOX_WITH_, VBOX_ONLY_ and so on) are written as-is but lowercase (e.g. 'vbox_with_docs=1'),
     #   including the value to be set.
     #
-    oParser = argparse.ArgumentParser(add_help=False);
+    oParser = argparse.ArgumentParser(description='Checks and configures the build environment', add_help=False);
     oParser.add_argument('-h', '--help', help="Displays this help", action='store_true');
     oParser.add_argument('-v', '--verbose', help="Enables verbose output", action='count', default=0, dest='config_verbose');
     oParser.add_argument('-V', '--version', help="Prints the version of this script", action='store_true');
@@ -1207,43 +1663,52 @@ def main():
         # For debugging / development only. We don't expose this in the syntax help.
         oParser.add_argument(f'--only-{oToolCur.sName}', action='store_true', default=None, dest=f'config_tools_only_{oToolCur.sName}');
 
-    oParser.add_argument('--disable-docs', help='Disables building the documentation', action='store_true', default=None, dest='vbox_with_docs=');
-    oParser.add_argument('--disable-python', help='Disables building the Python bindings', action='store_true', default=None, dest='vbox_with_python=');
-    oParser.add_argument('--disable-pylint', help='Disables using pylint', action='store_true', default=None, dest='vbox_with_pylint=');
-    oParser.add_argument('--disable-sdl', help='Disables building the SDL frontend', action='store_true', default=None, dest='vbox_with_sdl=');
-    oParser.add_argument('--disable-udptunnel', help='Disables building UDP tunnel support', action='store_true', default=None, dest='vbox_with_udptunnel=');
-    oParser.add_argument('--with-hardening', help='Enables or disables hardening', action='store_true', default=None, dest='vbox_with_hardening=1');
-    oParser.add_argument('--without-hardening', help='Enables or disables hardening', action='store_true', default=None, dest='vbox_with_hardening=');
+    oParser.add_argument('--disable-docs', help='Disables building the documentation', action='store_true', default=None, dest='VBOX_WITH_DOCS=');
+    oParser.add_argument('--disable-python', help='Disables building the Python bindings', action='store_true', default=None, dest='VBOX_WITH_PYTHON=');
+    oParser.add_argument('--disable-pylint', help='Disables using pylint', action='store_true', default=None, dest='VBOX_WITH_PYLINT=');
+    oParser.add_argument('--disable-sdl', help='Disables building the SDL frontend', action='store_true', default=None, dest='VBOX_WITH_SDL=');
+    oParser.add_argument('--disable-udptunnel', help='Disables building UDP tunnel support', action='store_true', default=None, dest='VBOX_WITH_UDPTUNNEL=');
+    oParser.add_argument('--with-hardening', help='Enables or disables hardening', action='store_true', default=None, dest='VBOX_WITH_HARDENING=1');
+    oParser.add_argument('--without-hardening', help='Enables or disables hardening', action='store_true', default=None, dest='VBOX_WITH_HARDENing=');
     oParser.add_argument('--file-autoconfig', help='Path to output AutoConfig.kmk file', action='store_true', default='AutoConfig.kmk', dest='config_file_autoconfig');
     oParser.add_argument('--file-env', help='Path to output env[.bat|.sh] file', action='store_true', \
                          default='env.bat' if g_enmHostTarget == BuildTarget.WINDOWS else 'env.sh', dest='config_file_env');
     oParser.add_argument('--file-log', help='Path to output log file', action='store_true', default='configure.log', dest='config_file_log');
-    oParser.add_argument('--only-additions', help='Only build Guest Additions related libraries and tools', action='store_true', default=None, dest='vbox_only_additions=');
-    oParser.add_argument('--only-docs', help='Only build the documentation', action='store_true', default=None, dest='vbox_only_docs=1');
+    oParser.add_argument('--only-additions', help='Only build Guest Additions related libraries and tools', action='store_true', default=None, dest='VBOX_ONLY_ADDITIONS=');
+    oParser.add_argument('--only-docs', help='Only build the documentation', action='store_true', default=None, dest='VBOX_ONLY_DOCS=1');
     oParser.add_argument('--path-out-base', help='Specifies the output directory', action='store', default=None, dest='config_path_out_base');
-    oParser.add_argument('--ose', help='Builds the OSE version', action='store_true', default=None, dest='vbox_ose=1');
+    oParser.add_argument('--ose', help='Builds the OSE version', action='store_true', default=None, dest='VBOX_OSE=1');
     oParser.add_argument('--debug', help='Runs in debug mode. Only use for development', action='store_true', default=False, dest='config_debug');
-    oParser.add_argument('--nofatal', help='Continues execution on fatal errors', action='store_true', dest='config_nofatal');
-    oParser.add_argument('--build-profile', help='Build with a profiling support', action='store_true', default=None, dest='kbuild_type=profile');
+    oParser.add_argument('--nofatal', '--continue-on-error', help='Continues execution on fatal errors', action='store_true', dest='config_nofatal');
+    oParser.add_argument('--build-profile', help='Build with a profiling support', action='store_true', default=None, dest='KBUILD_TYPE=profile');
     oParser.add_argument('--build-target', help='Specifies the build target', action='store_true', default=None, dest='config_build_target');
     oParser.add_argument('--build-arch', help='Specifies the build architecture', action='store_true', default=None, dest='config_build_arch');
-    oParser.add_argument('--build-debug', help='Build with debugging symbols and assertions', action='store_true', default=None, dest='kbuild_type=debug');
+    oParser.add_argument('--build-debug', help='Build with debugging symbols and assertions', action='store_true', default=None, dest='KBUILD_TYPE=debug');
     oParser.add_argument('--build-headless', help='Build headless (without any GUI frontend)', action='store_true', dest='config_build_headless');
-    # Windows-specific arguments (legacy versions, kept for backwards compatibility).
-    oParser.add_argument('--disable-com', help='Disable building components which require COM', action='store_true', dest='config_disable_com');
-    oParser.add_argument('--with-DDK', help='Where the WDK is to be found', action='store_true', dest='config_win_ddk_path');
-    oParser.add_argument('--with-midl', help='Where midl.exe is to be found', action='store_true', dest='config_win_midl_path');
-    oParser.add_argument('--with-nasm', help='Where NASM is to be found (optional)', action='store_true', dest='config_win_nasm_path');
-    oParser.add_argument('--with-SDK', help='Where the Windows SDK is to be found', action='store_true', dest='config_win_sdk_path');
-    oParser.add_argument('--with-SDK10', help='Where the Windows 10 SDK/WDK is to be found', action='store_true', dest='config_win_sdk10_path');
-    oParser.add_argument('--with-VC-Common', help='Maybe needed for 2015 and older to locate the Common7 directory', action='store_true', dest='config_win_vc_common_path');
-    oParser.add_argument('--with-VC', help='Where the Visual C++ compiler is to be found. Expecting bin, include and lib subdirs', action='store_true', dest='config_win_vc_path');
-    oParser.add_argument('--with-yasm=PATH', help='Where YASM is to be found', action='store_true', dest='config_libs_path_yasm'); ## Note: Same as above in libs block.
+    oParser.add_argument('--internal-first', help='Check internal tools (tools/win.*) first (default)', action='store_true', dest='config_internal_first');
+    oParser.add_argument('--internal-last', help='Check internal tools (tools/win.*) last', action='store_true', dest='config_internal_last');
+    oParser.add_argument('--append-ewdk-path', '--append-ewdk-dir', help='Adds an EWDK drive to search.', dest='config_path_append_ewdk');
+    oParser.add_argument('--prepend-ewdk-path', '--prepend-ewdk-dir', help='Adds an EWDK drive to search.', dest='config_path_prepend_ewdk');
+    oParser.add_argument('--append-programfiles-path', '--append-programfiles-dir', help='Adds an alternative Program Files directory to search.', dest='config_path_append_programfiles');
+    oParser.add_argument('--prepend-programfiles-path', '--prepend-programfiles-dir', help='Adds an alternative Program Files directory to search.', dest='config_path_prepend_programfiles');
+    oParser.add_argument('--append-tools-path', '--append-tools-dir', help='Adds an alternative tools directory to search.', dest='config_path_append_tools');
+    oParser.add_argument('--prepend-tools-path', '--prepend-tools-dir', help='Adds an alternative tools directory to search.', dest='config_path_prepend_tools');
+    # Windows-specific arguments (the second arguments points to legacy versions kept for backwards compatibility).
+    oParser.add_argument('--disable-com', '--disable-com', help='Disable building components which require COM', action='store_true', dest='config_disable_com');
+    oParser.add_argument('--with-win-ddk', '--with-DDK', help='Where the WDK is to be found', action='store_true', dest='config_win_ddk_path');
+    oParser.add_argument('--with-win-midl', '--with-midl', help='Where midl.exe is to be found', action='store_true', dest='config_win_midl_path');
+    oParser.add_argument('--with-win-nasm', '--with-nasm', help='Where NASM is to be found (optional)', action='store_true', dest='config_win_nasm_path');
+    oParser.add_argument('--with-win-sdk', '--with-SDK', help='Where the Windows SDK is to be found', action='store_true', dest='config_win_sdk_path');
+    oParser.add_argument('--with-win-sdk10', '--with-SDK10', help='Where the Windows 10 SDK/WDK is to be found', action='store_true', dest='config_win_sdk10_path');
+    oParser.add_argument('--with-win-vc-common', '--with-VC-Common', help='Maybe needed for 2015 and older to locate the Common7 directory', action='store_true', dest='config_win_vc_common_path');
+    oParser.add_argument('--with-win-vc', '--with-VC', help='Where the Visual C++ compiler is to be found. Expecting bin, include and lib subdirs', action='store_true', dest='config_win_vc_path');
+    oParser.add_argument('--with-win-vcpkg-root', help='Where the VCPKG root directory to be found', action='store_true', dest='config_win_vcpkg_root');
+    oParser.add_argument('--with-win-yasm', '--with-yasm', help='Where YASM is to be found', action='store_true', dest='config_libs_path_yasm'); ## Note: Same as above in libs block.
 
     try:
         oArgs = oParser.parse_args();
-    except argparse.ArgumentError as e:
-        printError(f"Argument error: {str(e)}");
+    except SystemExit:
+        print('Invalid argument(s) -- try --help for more information.');
         return 2;
 
     if oArgs.help:
@@ -1259,17 +1724,29 @@ def main():
 
     g_cVerbosity = oArgs.config_verbose;
     g_fDebug = oArgs.config_debug;
-    g_fNoFatal = oArgs.config_nofatal;
+    g_fContOnErr = oArgs.config_nofatal;
     g_sFileLog = oArgs.config_file_log;
+    g_sDevBinPath = os.path.join(g_sDevPath, f'{g_enmHostTarget}.{g_enmHostArch}');
 
     # Set defaults.
+    g_oEnv.set('KBUILD_HOST', g_enmHostTarget);
+    g_oEnv.set('KBUILD_HOST_ARCH', g_enmHostArch);
     g_oEnv.set('KBUILD_TYPE', BuildType.RELEASE);
     g_oEnv.set('KBUILD_TARGET', oArgs.config_build_target if oArgs.config_build_target else g_enmHostTarget);
     g_oEnv.set('KBUILD_TARGET_ARCH', oArgs.config_build_arch if oArgs.config_build_arch else g_enmHostArch);
+    g_oEnv.set('KBUILD_TARGET_CPU', 'blend'); ## @todo Check this.
     g_oEnv.set('KBUILD_PATH', oArgs.config_tools_path_kbuild);
-    g_oEnv.set('VBOX_OSE', '1');
     g_oEnv.set('VBOX_WITH_HARDENING', '1');
     g_oEnv.set('PATH_OUT_BASE', oArgs.config_path_out_base);
+
+    # Handle prepending / appending certain paths ('--[prepend|append]-<whatever>-path') arguments.
+    for sArgCur, _ in g_asPathsPrepend.items(): # ASSUMES that g_asPathsAppend and g_asPathsPrepend are in sync.
+        sPath = getattr(oArgs, f'config_path_append_{sArgCur}');
+        if sPath:
+            g_asPathsAppend[ sArgCur ].extend( [ sPath ] );
+        sPath = getattr(oArgs, f'config_path_prepend_{sArgCur}');
+        if sPath:
+            g_asPathsPrepend[ sArgCur ].extend( [ sPath ] );
 
     # Apply updates from command line arguments.
     g_oEnv.updateFromArgs(oArgs);
@@ -1286,6 +1763,7 @@ def main():
     print( 'VirtualBox configuration script');
     print();
     print(f'Running on {platform.system()} {platform.release()} ({platform.machine()})');
+    print(f'Using Python {sys.version}');
     print();
     print(f'Host OS / arch     : { g_sHostTarget}.{g_sHostArch}');
     print(f'Building for target: { g_oEnv["KBUILD_TARGET"] }.{ g_oEnv["KBUILD_TARGET_ARCH"] }');
@@ -1295,7 +1773,7 @@ def main():
     #
     # Handle OSE building.
     #
-    fOSE = g_oEnv.get('VBOX_OSE');
+    fOSE = True if g_oEnv.get('VBOX_OSE') == '1' else None;
     if  not fOSE  \
     and os.path.exists('src/VBox/ExtPacks/Puel/ExtPack.xml'):
         print('Found ExtPack, assuming to build PUEL version');
@@ -1334,6 +1812,9 @@ def main():
                       'VBOX_WITH_LIBVORBIS': '', \
                       'VBOX_WITH_AUDIO_RECORDING': '' } if  g_oEnv['CONFIG_LIBS_DISABLE_LIBOGG'] \
                                                         and g_oEnv['CONFIG_LIBS_DISABLE_LIBVORBIS'] else {},
+        # Disable building webservices if GSOAP is disabled.
+        lambda env: { 'VBOX_WITH_GSOAP': '', \
+                      'VBOX_WITH_WEBSERVICES': '' } if g_oEnv['CONFIG_TOOLS_DISABLE_GSOAP'] else {},
         # Disable components which require COM.
         lambda env: { 'VBOX_WITH_MAIN': '', \
                       'VBOX_WITH_QTGUI': '', \
@@ -1349,12 +1830,13 @@ def main():
     #
     # Perform OS tool checks.
     # These are essential and must be present for all following checks.
+    # Sorted by importance.
     #
     aOsTools = {
-        BuildTarget.LINUX:   [ 'gcc', 'make', 'pkg-config' ],
+        BuildTarget.LINUX:   [ 'pkg-config', 'gcc', 'make',  ],
         BuildTarget.DARWIN:  [ 'clang', 'make', 'brew' ],
-        BuildTarget.WINDOWS: [ 'msbuild' ],
-        BuildTarget.SOLARIS: [ 'cc', 'gmake', 'pkg-config' ]
+        BuildTarget.WINDOWS: [ ], # Done via own callbacks in the ToolCheck class down below.
+        BuildTarget.SOLARIS: [ 'pkg-config', 'cc', 'gmake' ]
     };
     aOsToolsToCheck = aOsTools.get( g_oEnv[ 'KBUILD_TARGET' ], [] );
     oOsToolsTable = SimpleTable([ 'Tool', 'Status', 'Version', 'Path' ]);
@@ -1370,53 +1852,56 @@ def main():
     # Perform tool checks.
     #
     if g_cErrors == 0 \
-    or g_fNoFatal:
+    or g_fContOnErr:
         print();
         for oToolCur in aoToolsToCheck:
             oToolCur.setArgs(oArgs);
-            oToolCur.performCheck();
+            if  not oToolCur.performCheck() \
+            and not g_fContOnErr:
+                break;
 
     #
     # Perform library checks.
     #
     if g_cErrors == 0 \
-    or g_fNoFatal:
+    or g_fContOnErr:
         print();
         for oLibCur in aoLibsToCheck:
             oLibCur.setArgs(oArgs);
-            oLibCur.performCheck();
-            if oLibCur.fHave:
-                oLibCur.compileAndExecute(g_oEnv['KBUILD_BUILD_TARGET'], g_oEnv['KBUILD_BUILD_TARGET_ARCH']);
+            if  not oLibCur.performCheck() \
+            and not g_fContOnErr:
+                break;
     #
     # Print summary.
     #
+    oToolsTable = SimpleTable([ 'Tool', 'Status', 'Version', 'Path' ]);
+    for oToolCur in aoToolsToCheck:
+        oToolsTable.addRow(( oToolCur.sName,
+                                oToolCur.getStatusString().split()[0],
+                                oToolCur.sVer if oToolCur.sVer else '-',
+                                oToolCur.sCmdPath if oToolCur.sCmdPath else '-' ));
+    print();
+    oToolsTable.print();
+    print();
+
+    oLibsTable = SimpleTable([ 'Library', 'Status', 'Version', 'Include Path(s)' ]);
+    for oLibCur in aoLibsToCheck:
+        oLibsTable.addRow(( oLibCur.sName,
+                            oLibCur.getStatusString().split()[0],
+                            oLibCur.sVer if oLibCur.sVer else '-',
+                            oLibCur.asIncPaths[0] if oLibCur.asIncPaths else '-' ));
+        if oLibCur.asIncPaths and len(oLibCur.asIncPaths) > 1:
+            for sIncPath in oLibCur.asIncPaths[1:]:
+                oLibsTable.addRow(( ' ', ' ', ' ', sIncPath));
+
+    print();
+    oLibsTable.print();
+    print();
+
     if g_cErrors == 0 \
-    or g_fNoFatal:
-
-        oToolsTable = SimpleTable([ 'Tool', 'Status', 'Version', 'Path' ]);
-        for oToolCur in aoToolsToCheck:
-            oToolsTable.addRow(( oToolCur.sName,
-                                 oToolCur.getStatusString().split()[0],
-                                 oToolCur.sVer if oToolCur.sVer else '-',
-                                 oToolCur.sCmdPath if oToolCur.sCmdPath else '-' ));
-        print();
-        oToolsTable.print();
-        print();
-
-        oLibsTable = SimpleTable([ 'Library', 'Status', 'Version', 'Include Path' ]);
-        for oLibCur in aoLibsToCheck:
-            oLibsTable.addRow(( oLibCur.sName,
-                                oLibCur.getStatusString().split()[0],
-                                oLibCur.sVer if oLibCur.sVer else '-',
-                                oLibCur.sIncPath if oLibCur.sIncPath else '-' ));
-        print();
-        oLibsTable.print();
-        print();
-
-    if g_cErrors == 0 \
-    or g_fNoFatal:
-        if write_autoconfig_kmk(oArgs.config_file_autoconfig, g_oEnv, g_aoLibs, g_aoTools):
-            if write_env(oArgs.config_file_env, g_oEnv, g_aoLibs, g_aoTools):
+    or g_fContOnErr:
+        if write_autoconfig_kmk(oArgs.config_file_autoconfig, g_enmHostTarget, g_oEnv, g_aoLibs, g_aoTools):
+            if write_env(oArgs.config_file_env, g_enmHostTarget, g_enmHostArch, g_oEnv, g_aoLibs, g_aoTools):
                 print();
                 print(f'Successfully generated \"{oArgs.config_file_autoconfig}\" and \"{oArgs.config_file_env}\".');
                 print();
@@ -1435,7 +1920,7 @@ def main():
                 print( '  kmk');
                 print();
 
-        if g_oEnv['KBUILD_TARGET'] == BuildTarget.LINUX:
+        if g_enmHostTarget == BuildTarget.LINUX:
             print('To compile the kernel modules, do:');
             print();
             print(f"  cd {g_sOutPath}/{ g_oEnv['KBUILD_TARGET'] }.{ g_oEnv['KBUILD_TARGET_ARCH'] }/{ g_oEnv['KBUILD_TYPE'] }/bin/src");
@@ -1473,7 +1958,7 @@ def main():
     if g_cErrors:
         print(f'\nConfiguration failed with {g_cErrors} error(s). See {g_sFileLog} for details.');
         print('');
-    if  g_fNoFatal \
+    if  g_fContOnErr \
     and g_cErrors:
         print('\nWARNING: Errors occurred but non-fatal mode active -- check build carefully!');
         print('');
