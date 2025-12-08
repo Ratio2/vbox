@@ -1254,8 +1254,14 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
                     goto arp_ok;
             }
 #ifdef VBOX
-            if (slirp->mLoopbackMap && ((ah->ar_tip & slirp->vnetwork_mask.s_addr) == slirp->vnetwork_addr.s_addr))
-                goto arp_ok;
+            if (slirp->mLoopbackMap)
+            {
+                for (int i = 0; i < slirp->mLoopbackMap->num_lomap; i++)
+                {
+                    if ((ah->ar_tip & htonl(0x000000FF)) == htonl(slirp->mLoopbackMap->lomap[i].off))
+                        goto arp_ok;
+                }
+            }
 #endif
             return;
         arp_ok:
