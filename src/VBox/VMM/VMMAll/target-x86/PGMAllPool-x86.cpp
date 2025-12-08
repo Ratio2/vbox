@@ -3810,7 +3810,6 @@ int pgmPoolTrackFlushGCPhysPTsSlow(PVMCC pVM, PPGMPAGE pPhysPage)
         if (    pPage->GCPhys != NIL_RTGCPHYS
             &&  pPage->cPresent)
         {
-            Assert(!PGMPOOL_PAGE_IS_NESTED(pPage)); /* see if it hits */
             switch (pPage->enmKind)
             {
                 /*
@@ -3873,6 +3872,70 @@ int pgmPoolTrackFlushGCPhysPTsSlow(PVMCC pVM, PPGMPAGE pPhysPage)
                         }
                     break;
                 }
+
+#ifdef VBOX_WITH_NESTED_HWVIRT_VMX_EPT
+                case PGMPOOLKIND_EPT_PT_FOR_EPT_PT:
+                {
+                    unsigned cPresent = pPage->cPresent;
+                    PEPTPT   pPT = (PEPTPT)PGMPOOL_PAGE_2_PTR(pPool->CTX_SUFF(pVM), pPage);
+                    for (unsigned i = 0; i < RT_ELEMENTS(pPT->a); i++)
+                    {
+                        uint64_t const uPte = pPT->a[i].u;
+                        if (uPte & EPT_PRESENT_MASK)
+                        {
+                            if ((uPte & EPT_E_PG_MASK) == u64)
+                            {
+                                ASMAtomicWriteU64(&pPT->a[i].u, 0);
+
+                                /* Update the counter as we're removing references. */
+                                Assert(pPage->cPresent);
+                                Assert(pPool->cPresent);
+                                pPage->cPresent--;
+                                pPool->cPresent--;
+                            }
+                            if (!--cPresent)
+                                break;
+                        }
+                    }
+                    break;
+                }
+
+                case PGMPOOLKIND_EPT_PT_FOR_EPT_2MB:
+                {
+                    unsigned cPresent = pPage->cPresent;
+                    PEPTPT   pPT = (PEPTPT)PGMPOOL_PAGE_2_PTR(pPool->CTX_SUFF(pVM), pPage);
+                    for (unsigned i = 0; i < RT_ELEMENTS(pPT->a); i++)
+                    {
+                        uint64_t const uPte = pPT->a[i].u;
+                        if (   !(uPte & EPT_E_LEAF)
+                            &&  (uPte & EPT_PRESENT_MASK))
+                        {
+                            if ((uPte & EPT_PTE_PG_MASK) == u64)
+                            {
+                                ASMAtomicWriteU64(&pPT->a[i].u, 0);
+
+                                /* Update the counter as we're removing references. */
+                                Assert(pPage->cPresent);
+                                Assert(pPool->cPresent);
+                                pPage->cPresent--;
+                                pPool->cPresent--;
+                            }
+                            if (!--cPresent)
+                                break;
+                        }
+                    }
+                    break;
+                }
+
+                case PGMPOOLKIND_EPT_PD_FOR_EPT_PD:
+                case PGMPOOLKIND_EPT_PDPT_FOR_EPT_PDPT:
+                case PGMPOOLKIND_EPT_PML4_FOR_EPT_PML4:
+                {
+                    AssertMsgFailed(("Invalid/unexpected page kind %d (%s)\n", pPage->enmKind,
+                                     pgmPoolPoolKindToStr(pPage->enmKind)));
+                    break;
+                }
+#endif
 
                 case PGMPOOLKIND_EPT_PT_FOR_PHYS:
                 {
@@ -5591,7 +5654,6 @@ void pgmPoolFlushPageByGCPhys(PVM pVM, RTGCPHYS GCPhys)
         PPGMPOOLPAGE pPage = &pPool->aPages[i];
         if (pPage->GCPhys - GCPhys < PAGE_SIZE)
         {
-            Assert(!PGMPOOL_PAGE_IS_NESTED(pPage));  /* Temporary to see if it hits. Remove later. */
             switch (pPage->enmKind)
             {
                 case PGMPOOLKIND_32BIT_PT_FOR_32BIT_PT:
@@ -5607,6 +5669,12 @@ void pgmPoolFlushPageByGCPhys(PVM pVM, RTGCPHYS GCPhys)
                 case PGMPOOLKIND_64BIT_PML4:
                 case PGMPOOLKIND_32BIT_PD:
                 case PGMPOOLKIND_PAE_PDPT:
+#ifdef VBOX_WITH_NESTED_HWVIRT_VMX_EPT
+                case PGMPOOLKIND_EPT_PML4_FOR_EPT_PML4:
+                case PGMPOOLKIND_EPT_PDPT_FOR_EPT_PDPT:
+                case PGMPOOLKIND_EPT_PD_FOR_EPT_PD:
+                case PGMPOOLKIND_EPT_PT_FOR_EPT_PT:
+#endif
                 {
                     Log(("PGMPoolFlushPage: found pgm pool pages for %RGp\n", GCPhys));
 # ifdef PGMPOOL_WITH_OPTIMIZED_DIRTY_PT
@@ -5636,6 +5704,9 @@ void pgmPoolFlushPageByGCPhys(PVM pVM, RTGCPHYS GCPhys)
                 case PGMPOOLKIND_PAE_PDPT_PHYS:
                 case PGMPOOLKIND_32BIT_PD_PHYS:
                 case PGMPOOLKIND_PAE_PDPT_FOR_32BIT:
+#ifdef VBOX_WITH_NESTED_HWVIRT_VMX_EPT
+                case PGMPOOLKIND_EPT_PT_FOR_EPT_2MB:
+#endif
                     break;
 
                 default:
