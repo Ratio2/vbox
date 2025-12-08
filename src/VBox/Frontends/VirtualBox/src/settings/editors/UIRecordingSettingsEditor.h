@@ -35,12 +35,8 @@
 #include "UIEditor.h"
 #include "UISettingsDefs.h"
 
-/* COM includes: */
-#include "KRecordingCodecDeadline.h"
-
 /* Forward declarations: */
 class QCheckBox;
-class QComboBox;
 class QGridLayout;
 class QLabel;
 class QWidget;

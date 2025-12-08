@@ -86,7 +86,6 @@ struct UIDataSettingsMachineDisplay
         , m_iRecordingVideoFrameHeight(0)
         , m_iRecordingVideoFrameRate(0)
         , m_iRecordingVideoBitRate(0)
-        , m_enmVideoQuality(KRecordingCodecDeadline_Default)
         , m_strAudioProfile(QString())
     {}
 
@@ -116,7 +115,6 @@ struct UIDataSettingsMachineDisplay
                && (m_iRecordingVideoBitRate == other.m_iRecordingVideoBitRate)
                && (m_vecRecordingScreens == other.m_vecRecordingScreens)
                && (m_strRecordingFeatures == other.m_strRecordingFeatures)
-               && (m_enmVideoQuality == other.m_enmVideoQuality)
                && (m_strAudioProfile == other.m_strAudioProfile)
                ;
     }
@@ -173,8 +171,6 @@ struct UIDataSettingsMachineDisplay
     QVector<bool>               m_vecRecordingScreens;
     /** Holds the recording features. */
     QVector<KRecordingFeature>  m_strRecordingFeatures;
-    /** Holds the video quality. */
-    KRecordingCodecDeadline     m_enmVideoQuality;
     /** Holds the audio profile. */
     QString                     m_strAudioProfile;
 };
@@ -325,7 +321,6 @@ void UIMachineSettingsDisplay::loadToCacheFrom(QVariant &data)
         oldDisplayData.m_iRecordingVideoFrameRate = comRecordingScreen0Settings.GetVideoFPS();
         oldDisplayData.m_iRecordingVideoBitRate = comRecordingScreen0Settings.GetVideoRate();
         oldDisplayData.m_strRecordingFeatures = comRecordingScreen0Settings.GetFeatures();
-        oldDisplayData.m_enmVideoQuality = comRecordingScreen0Settings.GetVideoDeadline();
         const ULONG uHz = comRecordingScreen0Settings.GetAudioHz();
         const ULONG uChannels = comRecordingScreen0Settings.GetAudioChannels();
         if (uHz == 8000 && uChannels == 1)
@@ -1211,12 +1206,6 @@ bool UIMachineSettingsDisplay::saveRecordingData()
             if (fSuccess && newDisplayData.m_strRecordingFeatures != oldDisplayData.m_strRecordingFeatures)
             {
                 comRecordingScreenSettings.SetFeatures(newDisplayData.m_strRecordingFeatures);
-                fSuccess = comRecordingScreenSettings.isOk();
-            }
-            /* Save video quality: */
-            if (fSuccess && newDisplayData.m_enmVideoQuality != oldDisplayData.m_enmVideoQuality)
-            {
-                comRecordingScreenSettings.SetVideoDeadline(newDisplayData.m_enmVideoQuality);
                 fSuccess = comRecordingScreenSettings.isOk();
             }
             /* Save audio profile: */
