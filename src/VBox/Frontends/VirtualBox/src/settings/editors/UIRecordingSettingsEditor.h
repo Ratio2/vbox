@@ -163,9 +163,6 @@ private:
         QVector<UISettingsDefs::RecordingMode>  m_supportedValues;
         /** Holds the mode. */
         UISettingsDefs::RecordingMode           m_enmMode;
-
-        /** Holds the screens. */
-        QVector<bool>  m_screens;
     /** @} */
 
     /** @name Widgets
