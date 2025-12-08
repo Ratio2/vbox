@@ -48,6 +48,7 @@
 /* COM includes: */
 #include "KRecordingFeature.h"
 
+
 UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     : UIEditor(pParent, true /* show in basic mode */)
     , m_fFeatureEnabled(false)
@@ -184,21 +185,13 @@ int UIRecordingSettingsEditor::bitrate() const
 
 void UIRecordingSettingsEditor::setAudioProfile(const QString &strProfile)
 {
-    /* Update cached value and
-     * slider if value has changed: */
-    if (m_strAudioProfile != strProfile)
-    {
-        m_strAudioProfile = strProfile;
-        if (m_pEditorAudioProfile)
-            m_pEditorAudioProfile->setAudioProfile(strProfile);
-    }
+    if (m_pEditorAudioProfile)
+        m_pEditorAudioProfile->setAudioProfile(strProfile);
 }
 
 QString UIRecordingSettingsEditor::audioProfile() const
 {
-    if (m_pEditorAudioProfile)
-        return m_pEditorAudioProfile->audioProfile();
-    return QString();
+    return m_pEditorAudioProfile ? m_pEditorAudioProfile->audioProfile() : QString();
 }
 
 void UIRecordingSettingsEditor::setScreens(const QVector<bool> &screens)
@@ -345,7 +338,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     addEditor(m_pEditorBitrate);
                     m_pLayoutSettings->addWidget(m_pEditorBitrate, ++iLayoutSettingsRow, 0, 1, 4);
                 }
-                m_pEditorAudioProfile = new UIRecordingAudioProfileEditor(pWidgetSettings, true);
+                m_pEditorAudioProfile = new UIRecordingAudioProfileEditor(pWidgetSettings);
                 if (m_pEditorAudioProfile)
                 {
                     addEditor(m_pEditorAudioProfile);

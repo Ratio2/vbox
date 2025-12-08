@@ -39,7 +39,7 @@ class QGridLayout;
 class QLabel;
 class QIAdvancedSlider;
 
-/** UIEditor sub-class used as a recording settings editor. */
+/** UIEditor sub-class used as a recording audio profile editor. */
 class SHARED_LIBRARY_STUFF UIRecordingAudioProfileEditor : public UIEditor
 {
     Q_OBJECT;
@@ -47,7 +47,7 @@ class SHARED_LIBRARY_STUFF UIRecordingAudioProfileEditor : public UIEditor
 public:
 
     /** Constructs editor passing @a pParent to the base-class. */
-    UIRecordingAudioProfileEditor(QWidget *pParent = 0, bool fShowInBasicMode = false);
+    UIRecordingAudioProfileEditor(QWidget *pParent = 0);
 
     /** Defines audio @a strProfile. */
     void setAudioProfile(const QString &strProfile);
@@ -74,7 +74,7 @@ private:
     /** @name Values
      * @{ */
         /** Holds the audio profile. */
-        QString                  m_strAudioProfile;
+        QString  m_strAudioProfile;
     /** @} */
 
     /** @name Widgets
@@ -82,15 +82,15 @@ private:
         /** Holds the main layout instance. */
         QGridLayout      *m_pLayout;
         /** Holds the audio profile label instance. */
-        QLabel             *m_pLabel;
+        QLabel           *m_pLabel;
         /** Holds the audio profile slider instance. */
-        QIAdvancedSlider   *m_pSlider;
+        QIAdvancedSlider *m_pSlider;
         /** Holds the audio profile min label instance. */
-        QLabel             *m_pLabelMin;
+        QLabel           *m_pLabelMin;
         /** Holds the audio profile med label instance. */
-        QLabel             *m_pLabelMed;
+        QLabel           *m_pLabelMed;
         /** Holds the audio profile max label instance. */
-        QLabel             *m_pLabelMax;
+        QLabel           *m_pLabelMax;
     /** @} */
 };
 

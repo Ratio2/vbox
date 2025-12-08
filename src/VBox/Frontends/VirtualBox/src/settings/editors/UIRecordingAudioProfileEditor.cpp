@@ -26,18 +26,16 @@
  */
 
 /* Qt includes: */
-#include <QHBoxLayout>
 #include <QGridLayout>
 #include <QLabel>
-#include <QSpinBox>
 
 /* GUI includes: */
 #include "QIAdvancedSlider.h"
 #include "UIRecordingAudioProfileEditor.h"
 
 
-UIRecordingAudioProfileEditor::UIRecordingAudioProfileEditor(QWidget *pParent /* = 0 */, bool fShowInBasicMode /* = false */)
-    : UIEditor(pParent, fShowInBasicMode)
+UIRecordingAudioProfileEditor::UIRecordingAudioProfileEditor(QWidget *pParent /* = 0 */)
+    : UIEditor(pParent, true /* show in basic mode? */)
     , m_pLayout(0)
     , m_pLabel(0)
     , m_pSlider(0)
@@ -46,17 +44,6 @@ UIRecordingAudioProfileEditor::UIRecordingAudioProfileEditor(QWidget *pParent /*
     , m_pLabelMax(0)
 {
     prepare();
-}
-
-int UIRecordingAudioProfileEditor::minimumLabelHorizontalHint() const
-{
-    return m_pLabel ? m_pLabel->minimumSizeHint().width() : 0;
-}
-
-void UIRecordingAudioProfileEditor::setMinimumLayoutIndent(int iIndent)
-{
-    if (m_pLayout)
-        m_pLayout->setColumnMinimumWidth(0, iIndent + m_pLayout->spacing());
 }
 
 void UIRecordingAudioProfileEditor::setAudioProfile(const QString &strProfile)
@@ -87,12 +74,22 @@ QString UIRecordingAudioProfileEditor::audioProfile() const
     return m_strAudioProfile;
 }
 
+int UIRecordingAudioProfileEditor::minimumLabelHorizontalHint() const
+{
+    return m_pLabel ? m_pLabel->minimumSizeHint().width() : 0;
+}
+
+void UIRecordingAudioProfileEditor::setMinimumLayoutIndent(int iIndent)
+{
+    if (m_pLayout)
+        m_pLayout->setColumnMinimumWidth(0, iIndent + m_pLayout->spacing());
+}
 
 void UIRecordingAudioProfileEditor::sltRetranslateUI()
 {
     m_pLabel->setText(tr("&Audio Profile"));
     m_pSlider->setToolTip(tr("Audio profile. Increasing this value will make the audio "
-                                         "sound better at the cost of an increased file size."));
+                             "sound better at the cost of an increased file size."));
     m_pLabelMin->setText(tr("low", "profile"));
     m_pLabelMed->setText(tr("medium", "profile"));
     m_pLabelMax->setText(tr("high", "profile"));
@@ -114,6 +111,8 @@ void UIRecordingAudioProfileEditor::prepareWidgets()
     if (m_pLayout)
     {
         m_pLayout->setContentsMargins(0, 0, 0, 0);
+        m_pLayout->setColumnStretch(2, 1); // stretch between min and med labels
+        m_pLayout->setColumnStretch(4, 1); // stretch between med and max labels
 
         /* Prepare recording audio profile label: */
         m_pLabel = new QLabel(this);
@@ -122,59 +121,37 @@ void UIRecordingAudioProfileEditor::prepareWidgets()
             m_pLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
             m_pLayout->addWidget(m_pLabel, 0, 0);
         }
-        QWidget *pWidgetContainer = new QWidget(this);
-        if (pWidgetContainer)
+
+        /* Prepare recording audio profile slider: */
+        m_pSlider = new QIAdvancedSlider(this);
+        if (m_pSlider)
         {
-            pWidgetContainer->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Preferred);
-            /* Prepare recording audio profile layout: */
-            QVBoxLayout *pLayoutRecordingAudioProfile = new QVBoxLayout(pWidgetContainer);
-            if (pLayoutRecordingAudioProfile)
-            {
-                pLayoutRecordingAudioProfile->setContentsMargins(0, 0, 0, 0);
+            if (m_pLabel)
+                m_pLabel->setBuddy(m_pSlider);
+            m_pSlider->setOrientation(Qt::Horizontal);
+            m_pSlider->setMinimum(0);
+            m_pSlider->setMaximum(2);
+            m_pSlider->setPageStep(1);
+            m_pSlider->setSingleStep(1);
+            m_pSlider->setTickInterval(1);
+            m_pSlider->setSnappingEnabled(true);
+            m_pSlider->setOptimalHint(0, 1);
+            m_pSlider->setWarningHint(1, 2);
 
-                /* Prepare recording audio profile slider: */
-                m_pSlider = new QIAdvancedSlider(this);
-                if (m_pSlider)
-                {
-                    if (m_pLabel)
-                        m_pLabel->setBuddy(m_pSlider);
-                    m_pSlider->setOrientation(Qt::Horizontal);
-                    m_pSlider->setMinimum(0);
-                    m_pSlider->setMaximum(2);
-                    m_pSlider->setPageStep(1);
-                    m_pSlider->setSingleStep(1);
-                    m_pSlider->setTickInterval(1);
-                    m_pSlider->setSnappingEnabled(true);
-                    m_pSlider->setOptimalHint(0, 1);
-                    m_pSlider->setWarningHint(1, 2);
-
-                    pLayoutRecordingAudioProfile->addWidget(m_pSlider);
-                }
-                /* Prepare recording audio profile scale layout: */
-                QHBoxLayout *pLayoutRecordingAudioProfileScale = new QHBoxLayout;
-                if (pLayoutRecordingAudioProfileScale)
-                {
-                    pLayoutRecordingAudioProfileScale->setContentsMargins(0, 0, 0, 0);
-
-                    /* Prepare recording audio profile min label: */
-                    m_pLabelMin = new QLabel(this);
-                    if (m_pLabelMin)
-                        pLayoutRecordingAudioProfileScale->addWidget(m_pLabelMin);
-                    pLayoutRecordingAudioProfileScale->addStretch();
-                    /* Prepare recording audio profile med label: */
-                    m_pLabelMed = new QLabel(this);
-                    if (m_pLabelMed)
-                        pLayoutRecordingAudioProfileScale->addWidget(m_pLabelMed);
-                    pLayoutRecordingAudioProfileScale->addStretch();
-                    /* Prepare recording audio profile max label: */
-                    m_pLabelMax = new QLabel(this);
-                    if (m_pLabelMax)
-                        pLayoutRecordingAudioProfileScale->addWidget(m_pLabelMax);
-
-                    pLayoutRecordingAudioProfile->addLayout(pLayoutRecordingAudioProfileScale);
-                }
-            }
-            m_pLayout->addWidget(pWidgetContainer, 0, 1);
+            m_pLayout->addWidget(m_pSlider, 0, 1, 1, 5);
         }
+
+        /* Prepare recording audio profile min label: */
+        m_pLabelMin = new QLabel(this);
+        if (m_pLabelMin)
+            m_pLayout->addWidget(m_pLabelMin, 1, 1);
+        /* Prepare recording audio profile med label: */
+        m_pLabelMed = new QLabel(this);
+        if (m_pLabelMed)
+            m_pLayout->addWidget(m_pLabelMed, 1, 3);
+        /* Prepare recording audio profile max label: */
+        m_pLabelMax = new QLabel(this);
+        if (m_pLabelMax)
+            m_pLayout->addWidget(m_pLabelMax, 1, 5);
     }
 }

@@ -164,9 +164,6 @@ private:
         /** Holds the mode. */
         UISettingsDefs::RecordingMode           m_enmMode;
 
-        /** Holds the audio profile. */
-        QString  m_strAudioProfile;
-
         /** Holds the screens. */
         QVector<bool>  m_screens;
     /** @} */
