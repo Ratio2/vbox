@@ -168,10 +168,6 @@ private:
         /** Holds the mode. */
         UISettingsDefs::RecordingMode           m_enmMode;
 
-        /** Holds the frame width. */
-        int      m_iFrameWidth;
-        /** Holds the frame height. */
-        int      m_iFrameHeight;
         /** Holds the audio profile. */
         QString  m_strAudioProfile;
 

@@ -26,7 +26,6 @@
  */
 
 /* Qt includes: */
-#include <QCheckBox>
 #include <QComboBox>
 #include <QGridLayout>
 #include <QLabel>
@@ -36,38 +35,52 @@
 #include "UICommon.h"
 #include "UIRecordingVideoFrameSizeEditor.h"
 
-UIRecordingVideoFrameSizeEditor::UIRecordingVideoFrameSizeEditor(QWidget *pParent /* = 0 */, bool fShowInBasicMode /* = false */)
-    : UIEditor(pParent, fShowInBasicMode /* show in basic mode */)
+
+UIRecordingVideoFrameSizeEditor::UIRecordingVideoFrameSizeEditor(QWidget *pParent /* = 0 */)
+    : UIEditor(pParent)
+    , m_iFrameWidth(0)
+    , m_iFrameHeight(0)
+    , m_pLayout(0)
+    , m_pLabel(0)
+    , m_pCombo(0)
+    , m_pSpinboxWidth(0)
+    , m_pSpinboxHeight(0)
 {
     prepare();
 }
 
 void UIRecordingVideoFrameSizeEditor::setFrameWidth(int iWidth)
 {
-    if (m_pSpinboxWidth)
+    /* Update cached value and
+     * spin-box if value has changed: */
+    if (m_iFrameWidth != iWidth)
     {
-        if (m_pSpinboxWidth->value() != iWidth)
-            m_pSpinboxWidth->setValue(iWidth);
+        m_iFrameWidth = iWidth;
+        if (m_pSpinboxWidth)
+            m_pSpinboxWidth->setValue(m_iFrameWidth);
     }
 }
 
 int UIRecordingVideoFrameSizeEditor::frameWidth() const
 {
-    return m_pSpinboxWidth ? m_pSpinboxWidth->value() : 0;
+    return m_pSpinboxWidth ? m_pSpinboxWidth->value() : m_iFrameWidth;
 }
 
 void UIRecordingVideoFrameSizeEditor::setFrameHeight(int iHeight)
 {
-    if (m_pSpinboxHeight)
+    /* Update cached value and
+     * spin-box if value has changed: */
+    if (m_iFrameHeight != iHeight)
     {
-        if (m_pSpinboxHeight->value() != iHeight)
-            m_pSpinboxHeight->setValue(iHeight);
+        m_iFrameHeight = iHeight;
+        if (m_pSpinboxHeight)
+            m_pSpinboxHeight->setValue(m_iFrameHeight);
     }
 }
 
 int UIRecordingVideoFrameSizeEditor::frameHeight() const
 {
-    return m_pSpinboxHeight ? m_pSpinboxHeight->value() : 0;
+    return m_pSpinboxHeight ? m_pSpinboxHeight->value() : m_iFrameHeight;
 }
 
 int UIRecordingVideoFrameSizeEditor::minimumLabelHorizontalHint() const
@@ -93,10 +106,7 @@ void UIRecordingVideoFrameSizeEditor::sltRetranslateUI()
 void UIRecordingVideoFrameSizeEditor::sltHandleFrameSizeComboChange()
 {
     /* Get the proposed size: */
-    const int iCurrentIndex = m_pCombo->currentIndex();
-    const QSize frameSize = m_pCombo->itemData(iCurrentIndex).toSize();
-
-    /* Make sure its valid: */
+    const QSize frameSize = m_pCombo->currentData().toSize();
     if (!frameSize.isValid())
         return;
 
@@ -137,15 +147,16 @@ void UIRecordingVideoFrameSizeEditor::prepareWidgets()
     m_pLayout = new QGridLayout(this);
     if (m_pLayout)
     {
-        int iLayoutSettingsRow = 0;
         m_pLayout->setContentsMargins(0, 0, 0, 0);
+
         /* Prepare recording frame size label: */
         m_pLabel = new QLabel(this);
         if (m_pLabel)
         {
             m_pLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-            m_pLayout->addWidget(m_pLabel, ++iLayoutSettingsRow, 0);
+            m_pLayout->addWidget(m_pLabel, 0, 0);
         }
+
         /* Prepare recording frame size combo: */
         m_pCombo = new QComboBox(this);
         if (m_pCombo)
@@ -176,8 +187,9 @@ void UIRecordingVideoFrameSizeEditor::prepareWidgets()
             m_pCombo->addItem("1920 x 1440 (4:3)",   QSize(1920, 1440));
             m_pCombo->addItem("2880 x 1800 (16:10)", QSize(2880, 1800));
 
-            m_pLayout->addWidget(m_pCombo, iLayoutSettingsRow, 1);
+            m_pLayout->addWidget(m_pCombo, 0, 1);
         }
+
         /* Prepare recording frame width spinbox: */
         m_pSpinboxWidth = new QSpinBox(this);
         if (m_pSpinboxWidth)
@@ -186,8 +198,9 @@ void UIRecordingVideoFrameSizeEditor::prepareWidgets()
             m_pSpinboxWidth->setMinimum(16);
             m_pSpinboxWidth->setMaximum(2880);
 
-            m_pLayout->addWidget(m_pSpinboxWidth, iLayoutSettingsRow, 2);
+            m_pLayout->addWidget(m_pSpinboxWidth, 0, 2);
         }
+
         /* Prepare recording frame height spinbox: */
         m_pSpinboxHeight = new QSpinBox(this);
         if (m_pSpinboxHeight)
@@ -196,7 +209,7 @@ void UIRecordingVideoFrameSizeEditor::prepareWidgets()
             m_pSpinboxHeight->setMinimum(16);
             m_pSpinboxHeight->setMaximum(1800);
 
-            m_pLayout->addWidget(m_pSpinboxHeight, iLayoutSettingsRow, 3);
+            m_pLayout->addWidget(m_pSpinboxHeight, 0, 3);
         }
     }
 }
@@ -213,18 +226,10 @@ void UIRecordingVideoFrameSizeEditor::prepareConnections()
 
 void UIRecordingVideoFrameSizeEditor::lookForCorrespondingFrameSizePreset()
 {
-    lookForCorrespondingPreset(m_pCombo,
-                               QSize(m_pSpinboxWidth->value(),
-                                     m_pSpinboxHeight->value()));
-}
-
-/* static */
-void UIRecordingVideoFrameSizeEditor::lookForCorrespondingPreset(QComboBox *pComboBox, const QVariant &data)
-{
     /* Use passed iterator to look for corresponding preset of passed combo-box: */
-    const int iLookupResult = pComboBox->findData(data);
-    if (iLookupResult != -1 && pComboBox->currentIndex() != iLookupResult)
-        pComboBox->setCurrentIndex(iLookupResult);
-    else if (iLookupResult == -1 && pComboBox->currentIndex() != 0)
-        pComboBox->setCurrentIndex(0);
+    const int iLookupResult = m_pCombo->findData(QSize(m_pSpinboxWidth->value(), m_pSpinboxHeight->value()));
+    if (iLookupResult != -1 && m_pCombo->currentIndex() != iLookupResult)
+        m_pCombo->setCurrentIndex(iLookupResult);
+    else if (iLookupResult == -1 && m_pCombo->currentIndex() != 0)
+        m_pCombo->setCurrentIndex(0);
 }

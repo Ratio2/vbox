@@ -40,19 +40,20 @@ class QGridLayout;
 class QLabel;
 class QSpinBox;
 
-/** UIEditor sub-class used as a recording settings editor. */
+/** UIEditor sub-class used as a recording video frame size editor. */
 class SHARED_LIBRARY_STUFF UIRecordingVideoFrameSizeEditor : public UIEditor
 {
     Q_OBJECT;
 
 signals:
 
+    /** Notifies listeners about video frame size change. */
     void sigFrameSizeChanged();
 
 public:
 
     /** Constructs editor passing @a pParent to the base-class. */
-    UIRecordingVideoFrameSizeEditor(QWidget *pParent = 0, bool fShowInBasicMode = false);
+    UIRecordingVideoFrameSizeEditor(QWidget *pParent = 0);
 
     /** Defines frame @a iWidth. */
     void setFrameWidth(int iWidth);
@@ -72,6 +73,7 @@ private slots:
 
     /** Handles translation event. */
     virtual void sltRetranslateUI() RT_OVERRIDE RT_FINAL;
+
     /** Handles frame size change. */
     void sltHandleFrameSizeComboChange();
     /** Handles frame width change. */
@@ -90,20 +92,27 @@ private:
 
     /** Searches for corresponding frame size preset. */
     void lookForCorrespondingFrameSizePreset();
-    /** Searches for the @a data field in corresponding @a pComboBox. */
-    static void lookForCorrespondingPreset(QComboBox *pComboBox, const QVariant &data);
 
-     /** @name Widgets
+    /** @name Values
      * @{ */
-        QLabel             *m_pLabel;
-        /** Holds the frame size combo instance. */
-        QComboBox          *m_pCombo;
-        /** Holds the frame width spinbox instance. */
-        QSpinBox           *m_pSpinboxWidth;
-        /** Holds the frame height spinbox instance. */
-        QSpinBox           *m_pSpinboxHeight;
+        /** Holds the frame width. */
+        int  m_iFrameWidth;
+        /** Holds the frame height. */
+        int  m_iFrameHeight;
+    /** @} */
+
+    /** @name Widgets
+     * @{ */
         /** Holds the layout instance. */
-        QGridLayout        *m_pLayout;
+        QGridLayout *m_pLayout;
+        /** Holds the label instance. */
+        QLabel      *m_pLabel;
+        /** Holds the combo instance. */
+        QComboBox   *m_pCombo;
+        /** Holds the width spinbox instance. */
+        QSpinBox    *m_pSpinboxWidth;
+        /** Holds the height spinbox instance. */
+        QSpinBox    *m_pSpinboxHeight;
     /** @} */
 };
 

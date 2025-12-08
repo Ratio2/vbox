@@ -53,8 +53,6 @@ UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     , m_fFeatureEnabled(false)
     , m_fOptionsAvailable(false)
     , m_enmMode(UISettingsDefs::RecordingMode_Max)
-    , m_iFrameWidth(0)
-    , m_iFrameHeight(0)
     , m_pCheckboxFeature(0)
     , m_pLayoutSettings(0)
     , m_pEditorMode(0)
@@ -328,7 +326,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pLayoutSettings->addWidget(m_pEditorFilePath, ++iLayoutSettingsRow, 0, 1, 4);
                 }
                 /* Prepare recording frame size editor: */
-                m_pEditorFrameSize = new UIRecordingVideoFrameSizeEditor(pWidgetSettings, false);
+                m_pEditorFrameSize = new UIRecordingVideoFrameSizeEditor(pWidgetSettings);
                 if (m_pEditorFrameSize)
                 {
                     addEditor(m_pEditorFrameSize);
