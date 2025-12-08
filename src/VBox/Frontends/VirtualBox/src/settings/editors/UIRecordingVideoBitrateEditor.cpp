@@ -140,7 +140,8 @@ void UIRecordingVideoBitrateEditor::prepareWidgets()
     if (m_pLayout)
     {
         m_pLayout->setContentsMargins(0, 0, 0, 0);
-        m_pLayout->setColumnStretch(2, 1); // min label between min and max labels
+        m_pLayout->setColumnStretch(2, 1); // stretch between min and med labels
+        m_pLayout->setColumnStretch(4, 1); // stretch between med and max labels
 
         /* Prepare label: */
         m_pLabel = new QLabel(this);
@@ -164,7 +165,7 @@ void UIRecordingVideoBitrateEditor::prepareWidgets()
             m_pSlider->setOptimalHint(1, 5);
             m_pSlider->setWarningHint(5, 9);
             m_pSlider->setErrorHint(9, 10);
-            m_pLayout->addWidget(m_pSlider, 0, 1, 1, 3);
+            m_pLayout->addWidget(m_pSlider, 0, 1, 1, 5);
         }
 
         /* Prepare min label: */
@@ -174,11 +175,11 @@ void UIRecordingVideoBitrateEditor::prepareWidgets()
         /* Prepare med label: */
         m_pLabelMed = new QLabel(this);
         if (m_pLabelMed)
-            m_pLayout->addWidget(m_pLabelMed, 1, 2);
+            m_pLayout->addWidget(m_pLabelMed, 1, 3);
         /* Prepare max label: */
         m_pLabelMax = new QLabel(this);
         if (m_pLabelMax)
-            m_pLayout->addWidget(m_pLabelMax, 1, 3);
+            m_pLayout->addWidget(m_pLabelMax, 1, 5);
 
         /* Prepare spinbox: */
         m_pSpinbox = new QSpinBox(this);
@@ -189,7 +190,7 @@ void UIRecordingVideoBitrateEditor::prepareWidgets()
             uiCommon().setMinimumWidthAccordingSymbolCount(m_pSpinbox, 5);
             m_pSpinbox->setMinimum(VIDEO_CAPTURE_BIT_RATE_MIN);
             m_pSpinbox->setMaximum(VIDEO_CAPTURE_BIT_RATE_MAX);
-            m_pLayout->addWidget(m_pSpinbox, 0, 4);
+            m_pLayout->addWidget(m_pSpinbox, 0, 6);
         }
     }
 }
