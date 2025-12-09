@@ -43,6 +43,7 @@
 #else
 # include <iprt/stream.h>
 # define printk RTPrintf
+# define RTLNX_VER_MIN(x, y, z) 1
 #endif
 
 #if !defined(IN_RING0) && !defined(DOXYGEN_RUNNING) /* A linking tweak for the testcase: */
@@ -236,7 +237,7 @@ RTR0DECL(int) RTR0DbgKrnlInfoQuerySymbol(RTDBGKRNLINFO hKrnlInfo, const char *ps
             cbInBuf = off;
             offLine = 0;
             rc = RTFileReadAt(pThis->hFile, offFile, &pchBuf[off], sizeof(pThis->abBuf) - off, &cbRead);
-printk("dbgkrnlinfo: read %#lx bytes (rc=%d)\n", (unsigned long)cbRead, rc);
+            //printk("dbgkrnlinfo: read %#lx bytes (rc=%d)\n", (unsigned long)cbRead, rc);
             if (RT_FAILURE(rc))
                 return rc;
             offFile += cbRead;
@@ -253,7 +254,7 @@ printk("dbgkrnlinfo: read %#lx bytes (rc=%d)\n", (unsigned long)cbRead, rc);
          * Try parse it.
          */
         pchBuf[off] = '\0'; /* terminate the line */
-printk("dbgkrnlinfo: %s\n",  &pchBuf[offLine]);
+        //printk("dbgkrnlinfo: %s\n",  &pchBuf[offLine]);
         if (   off - offLine >= cchMinLineLength
             && off - offLine <= cchMinLineLength + 8) /* parnaoia - we could do an exact match here, actually. */
         {
