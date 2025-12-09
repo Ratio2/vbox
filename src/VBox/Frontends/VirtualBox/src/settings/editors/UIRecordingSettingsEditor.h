@@ -136,8 +136,6 @@ private:
     /** Prepares connections. */
     void prepareConnections();
 
-    /** Updates widget visibility. */
-    void updateWidgetVisibility();
     /** Updates widget availability. */
     void updateWidgetAvailability();
     /** Updates recording file size hint. */
@@ -158,11 +156,6 @@ private:
 
         /** Holds whether options are available. */
         bool  m_fOptionsAvailable;
-
-        /** Holds the list of supported modes. */
-        QVector<UISettingsDefs::RecordingMode>  m_supportedValues;
-        /** Holds the mode. */
-        UISettingsDefs::RecordingMode           m_enmMode;
     /** @} */
 
     /** @name Widgets

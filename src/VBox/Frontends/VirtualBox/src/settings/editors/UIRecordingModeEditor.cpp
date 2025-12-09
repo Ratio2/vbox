@@ -38,8 +38,9 @@
 /* COM includes: */
 #include "KRecordingFeature.h"
 
-UIRecordingModeEditor::UIRecordingModeEditor(QWidget *pParent /* = 0 */, bool fShowInBasicMode /* = false*/)
-    : UIEditor(pParent, fShowInBasicMode)
+
+UIRecordingModeEditor::UIRecordingModeEditor(QWidget *pParent /* = 0 */)
+    : UIEditor(pParent)
     , m_enmMode(UISettingsDefs::RecordingMode_Max)
     , m_pLabel(0)
     , m_pCombo(0)
@@ -54,7 +55,7 @@ void UIRecordingModeEditor::setMode(UISettingsDefs::RecordingMode enmMode)
     if (m_enmMode != enmMode)
     {
         m_enmMode = enmMode;
-        populateComboMode();
+        populateCombo();
     }
 }
 
@@ -92,6 +93,9 @@ void UIRecordingModeEditor::prepare()
     prepareWidgets();
     prepareConnections();
 
+    /* Populate combo: */
+    populateCombo();
+
     /* Apply language settings: */
     sltRetranslateUI();
 }
@@ -117,11 +121,12 @@ void UIRecordingModeEditor::prepareWidgets()
         {
             if (m_pLabel)
                 m_pLabel->setBuddy(m_pCombo);
+            m_pCombo->setSizePolicy(QSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed));
             m_pCombo->addItem(QString(), QVariant::fromValue(UISettingsDefs::RecordingMode_VideoAudio));
             m_pCombo->addItem(QString(), QVariant::fromValue(UISettingsDefs::RecordingMode_VideoOnly));
             m_pCombo->addItem(QString(), QVariant::fromValue(UISettingsDefs::RecordingMode_AudioOnly));
 
-            m_pLayout->addWidget(m_pCombo, 0, 1, 1, 5);
+            m_pLayout->addWidget(m_pCombo, 0, 1);
         }
     }
 }
@@ -132,7 +137,7 @@ void UIRecordingModeEditor::prepareConnections()
             this, &UIRecordingModeEditor::sigModeChange);
 }
 
-void UIRecordingModeEditor::populateComboMode()
+void UIRecordingModeEditor::populateCombo()
 {
     if (m_pCombo)
     {

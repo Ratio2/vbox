@@ -53,7 +53,6 @@ UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     : UIEditor(pParent, true /* show in basic mode */)
     , m_fFeatureEnabled(false)
     , m_fOptionsAvailable(false)
-    , m_enmMode(UISettingsDefs::RecordingMode_Max)
     , m_pCheckboxFeature(0)
     , m_pLayoutSettings(0)
     , m_pEditorMode(0)
@@ -102,14 +101,8 @@ void UIRecordingSettingsEditor::setOptionsAvailable(bool fAvailable)
 
 void UIRecordingSettingsEditor::setMode(UISettingsDefs::RecordingMode enmMode)
 {
-    /* Update cached value and
-     * combo if value has changed: */
-    if (m_enmMode != enmMode)
-    {
-        m_enmMode = enmMode;
+    if (m_pEditorMode)
         m_pEditorMode->setMode(enmMode);
-        updateWidgetVisibility();
-    }
 }
 
 UISettingsDefs::RecordingMode UIRecordingSettingsEditor::mode() const
@@ -299,44 +292,44 @@ void UIRecordingSettingsEditor::prepareWidgets()
                 int iLayoutSettingsRow = 0;
                 m_pLayoutSettings->setContentsMargins(0, 0, 0, 0);
                 /* Prepare recording mode editor: */
-                m_pEditorMode = new UIRecordingModeEditor(pWidgetSettings, false);
+                m_pEditorMode = new UIRecordingModeEditor(pWidgetSettings);
                 if (m_pEditorMode)
                 {
                     addEditor(m_pEditorMode);
-                    m_pLayoutSettings->addWidget(m_pEditorMode, ++iLayoutSettingsRow, 0, 1, 4);
+                    m_pLayoutSettings->addWidget(m_pEditorMode, ++iLayoutSettingsRow, 0, 1, 2);
                 }
                 /* Prepare recording file path editor: */
                 m_pEditorFilePath = new UIRecordingFilePathEditor(pWidgetSettings, false);
                 if (m_pEditorFilePath)
                 {
                     addEditor(m_pEditorFilePath);
-                    m_pLayoutSettings->addWidget(m_pEditorFilePath, ++iLayoutSettingsRow, 0, 1, 4);
+                    m_pLayoutSettings->addWidget(m_pEditorFilePath, ++iLayoutSettingsRow, 0, 1, 2);
                 }
                 /* Prepare recording frame size editor: */
                 m_pEditorFrameSize = new UIRecordingVideoFrameSizeEditor(pWidgetSettings);
                 if (m_pEditorFrameSize)
                 {
                     addEditor(m_pEditorFrameSize);
-                    m_pLayoutSettings->addWidget(m_pEditorFrameSize, ++iLayoutSettingsRow, 0, 1, 4);
+                    m_pLayoutSettings->addWidget(m_pEditorFrameSize, ++iLayoutSettingsRow, 0, 1, 2);
                 }
                 /* Prepare recording frame rate editor: */
                 m_pEditorFrameRate = new UIRecordingVideoFrameRateEditor(pWidgetSettings, false);
                 if (m_pEditorFrameRate)
                 {
                     addEditor(m_pEditorFrameRate);
-                    m_pLayoutSettings->addWidget(m_pEditorFrameRate, ++iLayoutSettingsRow, 0, 1, 4);
+                    m_pLayoutSettings->addWidget(m_pEditorFrameRate, ++iLayoutSettingsRow, 0, 1, 2);
                 }
                 m_pEditorBitrate = new UIRecordingVideoBitrateEditor(pWidgetSettings);
                 if (m_pEditorBitrate)
                 {
                     addEditor(m_pEditorBitrate);
-                    m_pLayoutSettings->addWidget(m_pEditorBitrate, ++iLayoutSettingsRow, 0, 1, 4);
+                    m_pLayoutSettings->addWidget(m_pEditorBitrate, ++iLayoutSettingsRow, 0, 1, 2);
                 }
                 m_pEditorAudioProfile = new UIRecordingAudioProfileEditor(pWidgetSettings);
                 if (m_pEditorAudioProfile)
                 {
                     addEditor(m_pEditorAudioProfile);
-                    m_pLayoutSettings->addWidget(m_pEditorAudioProfile, ++iLayoutSettingsRow, 0, 1, 4);
+                    m_pLayoutSettings->addWidget(m_pEditorAudioProfile, ++iLayoutSettingsRow, 0, 1, 2);
                 }
                 /* Prepare recording size hint label: */
                 m_pLabelSizeHint = new QLabel(pWidgetSettings);
@@ -347,7 +340,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                 if (m_pEditorScreenSelector)
                 {
                     addEditor(m_pEditorScreenSelector);
-                    m_pLayoutSettings->addWidget(m_pEditorScreenSelector, ++iLayoutSettingsRow, 0, 1, 4);
+                    m_pLayoutSettings->addWidget(m_pEditorScreenSelector, ++iLayoutSettingsRow, 0, 1, 2);
                 }
             }
             pLayout->addWidget(pWidgetSettings, 1, 1, 1, 2);
@@ -374,19 +367,10 @@ void UIRecordingSettingsEditor::prepareConnections()
             this, &UIRecordingSettingsEditor::sltHandleVideoBitrateChange);
 }
 
-void UIRecordingSettingsEditor::updateWidgetVisibility()
-{
-    /* Only the Audio stuff can be totally disabled, so we will add the code for hiding Audio stuff only: */
-    const bool fAudioSettingsVisible =    m_supportedValues.isEmpty()
-                                       || m_supportedValues.contains(UISettingsDefs::RecordingMode_AudioOnly);
-    m_pEditorAudioProfile->setVisible(fAudioSettingsVisible);
-}
-
 void UIRecordingSettingsEditor::updateWidgetAvailability()
 {
     const bool fFeatureEnabled = m_pCheckboxFeature->isChecked();
-    const UISettingsDefs::RecordingMode enmRecordingMode =
-        m_pEditorMode->mode();
+    const UISettingsDefs::RecordingMode enmRecordingMode = m_pEditorMode->mode();
     const bool fRecordVideo =    enmRecordingMode == UISettingsDefs::RecordingMode_VideoOnly
                               || enmRecordingMode == UISettingsDefs::RecordingMode_VideoAudio;
     const bool fRecordAudio =    enmRecordingMode == UISettingsDefs::RecordingMode_AudioOnly

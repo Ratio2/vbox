@@ -40,24 +40,24 @@ class QComboBox;
 class QGridLayout;
 class QLabel;
 
-
-/** UIEditor sub-class used as a recording settings editor. */
+/** UIEditor sub-class used as a recording mode editor. */
 class SHARED_LIBRARY_STUFF UIRecordingModeEditor : public UIEditor
 {
     Q_OBJECT;
 
 signals:
 
+    /** Notifies listeners about mode change. */
     void sigModeChange();
 
 public:
 
     /** Constructs editor passing @a pParent to the base-class. */
-    UIRecordingModeEditor(QWidget *pParent = 0, bool fShowInBasicMode = false);
+    UIRecordingModeEditor(QWidget *pParent = 0);
 
     /** Defines @a enmMode. */
     void setMode(UISettingsDefs::RecordingMode enmMode);
-    /** Return mode. */
+    /** Returns mode. */
     UISettingsDefs::RecordingMode mode() const;
 
     /** Returns minimum layout hint. */
@@ -79,8 +79,8 @@ private:
     /** Prepares connections. */
     void prepareConnections();
 
-    /** Populates mode combo-box. */
-    void populateComboMode();
+    /** Populates combo-box. */
+    void populateCombo();
 
     /** @name Values
      * @{ */
@@ -92,11 +92,11 @@ private:
 
     /** @name Widgets
      * @{ */
-        QGridLayout        *m_pLayout;
+        QGridLayout *m_pLayout;
         /** Holds the mode label instance. */
-        QLabel             *m_pLabel;
+        QLabel      *m_pLabel;
         /** Holds the mode combo instance. */
-        QComboBox          *m_pCombo;
+        QComboBox   *m_pCombo;
     /** @} */
 };
 
