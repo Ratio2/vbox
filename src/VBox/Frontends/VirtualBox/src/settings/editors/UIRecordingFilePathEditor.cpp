@@ -33,8 +33,8 @@
 #include "UIFilePathSelector.h"
 #include "UIRecordingFilePathEditor.h"
 
-UIRecordingFilePathEditor::UIRecordingFilePathEditor(QWidget *pParent /* = 0 */, bool fShowInBasicMode /* = false */)
-    : UIEditor(pParent, fShowInBasicMode)
+UIRecordingFilePathEditor::UIRecordingFilePathEditor(QWidget *pParent /* = 0 */)
+    : UIEditor(pParent)
     , m_pLabel(0)
     , m_pSelector(0)
 {

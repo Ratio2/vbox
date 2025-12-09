@@ -35,8 +35,8 @@
 #include "UICommon.h"
 #include "UIRecordingVideoFrameRateEditor.h"
 
-UIRecordingVideoFrameRateEditor::UIRecordingVideoFrameRateEditor(QWidget *pParent /* = 0 */, bool fShowInBasicMode /* = false */)
-: UIEditor(pParent, fShowInBasicMode)
+UIRecordingVideoFrameRateEditor::UIRecordingVideoFrameRateEditor(QWidget *pParent /* = 0 */)
+: UIEditor(pParent)
     , m_pLabel(0)
     , m_pSlider(0)
     , m_pSpinbox(0)

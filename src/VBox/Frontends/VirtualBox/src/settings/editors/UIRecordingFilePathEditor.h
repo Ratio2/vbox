@@ -47,7 +47,7 @@ class SHARED_LIBRARY_STUFF UIRecordingFilePathEditor : public UIEditor
 public:
 
     /** Constructs editor passing @a pParent to the base-class. */
-    UIRecordingFilePathEditor(QWidget *pParent = 0, bool fShowInBasicMode = false);
+    UIRecordingFilePathEditor(QWidget *pParent = 0);
 
     /** Defines @a strFolder. */
     void setFolder(const QString &strFolder);

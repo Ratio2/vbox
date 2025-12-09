@@ -299,7 +299,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pLayoutSettings->addWidget(m_pEditorMode, ++iLayoutSettingsRow, 0, 1, 2);
                 }
                 /* Prepare recording file path editor: */
-                m_pEditorFilePath = new UIRecordingFilePathEditor(pWidgetSettings, false);
+                m_pEditorFilePath = new UIRecordingFilePathEditor(pWidgetSettings);
                 if (m_pEditorFilePath)
                 {
                     addEditor(m_pEditorFilePath);
@@ -313,7 +313,7 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     m_pLayoutSettings->addWidget(m_pEditorFrameSize, ++iLayoutSettingsRow, 0, 1, 2);
                 }
                 /* Prepare recording frame rate editor: */
-                m_pEditorFrameRate = new UIRecordingVideoFrameRateEditor(pWidgetSettings, false);
+                m_pEditorFrameRate = new UIRecordingVideoFrameRateEditor(pWidgetSettings);
                 if (m_pEditorFrameRate)
                 {
                     addEditor(m_pEditorFrameRate);
