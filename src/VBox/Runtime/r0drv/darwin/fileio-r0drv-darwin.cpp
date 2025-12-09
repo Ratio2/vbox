@@ -137,6 +137,7 @@ RTDECL(int) RTFileOpen(PRTFILE phFile, const char *pszFilename, uint64_t fOpen)
                 break;
             default:
                 AssertMsgFailed(("RTFileOpen received an invalid RW value, fOpen=%#x\n", fOpen));
+                RTMemFree(pThis);
                 IPRT_DARWIN_RESTORE_EFL_AC();
                 return VERR_INVALID_PARAMETER;
         }
