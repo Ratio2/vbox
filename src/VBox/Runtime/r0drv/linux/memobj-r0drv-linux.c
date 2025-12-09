@@ -111,21 +111,6 @@
 # define gfp_t  unsigned
 #endif
 
-/*
- * Wrappers around mmap_lock/mmap_sem difference.
- */
-#if RTLNX_VER_MIN(5,8,0)
-# define LNX_MM_DOWN_READ(a_pMm)    down_read(&(a_pMm)->mmap_lock)
-# define LNX_MM_UP_READ(a_pMm)        up_read(&(a_pMm)->mmap_lock)
-# define LNX_MM_DOWN_WRITE(a_pMm)   down_write(&(a_pMm)->mmap_lock)
-# define LNX_MM_UP_WRITE(a_pMm)       up_write(&(a_pMm)->mmap_lock)
-#else
-# define LNX_MM_DOWN_READ(a_pMm)    down_read(&(a_pMm)->mmap_sem)
-# define LNX_MM_UP_READ(a_pMm)        up_read(&(a_pMm)->mmap_sem)
-# define LNX_MM_DOWN_WRITE(a_pMm)   down_write(&(a_pMm)->mmap_sem)
-# define LNX_MM_UP_WRITE(a_pMm)       up_write(&(a_pMm)->mmap_sem)
-#endif
-
 
 /*********************************************************************************************************************************
 *   Structures and Typedefs                                                                                                      *
@@ -192,7 +177,11 @@ static const struct
 };
 
 
+/*********************************************************************************************************************************
+*   Internal Functions                                                                                                           *
+*********************************************************************************************************************************/
 static void rtR0MemObjLinuxFreePages(PRTR0MEMOBJLNX pMemLnx);
+
 
 
 /**
@@ -274,6 +263,10 @@ static pgprot_t rtR0MemObjLinuxConvertProt(unsigned fProt, bool fKernel)
 # endif
             }
             return PAGE_READONLY_EXEC;
+#elif defined(PAGE_KERNEL_ROX)
+            return fKernel ? PAGE_KERNEL_ROX        : PAGE_READONLY_EXEC;
+#elif defined(PAGE_READONLY_EXEC)
+            return fKernel ? PAGE_READONLY_EXEC     : PAGE_READONLY_EXEC;
 #else
             return fKernel ? MY_PAGE_KERNEL_EXEC    : PAGE_READONLY_EXEC;
 #endif
@@ -2147,11 +2140,28 @@ DECLHIDDEN(int) rtR0MemObjNativeProtect(PRTR0MEMOBJINTERNAL pMem, size_t offSub,
         LNXAPPLYPGRANGE Args;
         Args.pMemLnx = pMemLnx;
         Args.fPg = rtR0MemObjLinuxConvertProt(fProt, true /*fKernel*/);
+#  if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86) /** @todo check why not using init_mm works on x86/amd64... */
         int rcLnx = apply_to_page_range(current->active_mm, (unsigned long)pMemLnx->Core.pv + offSub, cbSub,
                                         rtR0MemObjLinuxApplyPageRange, (void *)&Args);
+#  else 
+        /* We really need the init_mm here, or the mapping will end up in the
+           process map on arm and we'll crash later when trying to access the
+           kernel address.  Problem, though, is that init_mm isn't exported.
+           So, we're forced to scan kallsyms to find it's whereabouts. */
+        struct mm_struct *pInitMm = g_pLnxInitMm;
+        if (!pInitMm)
+            return VERR_SYMBOL_NOT_FOUND;
+
+        int rcLnx = apply_to_page_range(pInitMm, (unsigned long)pMemLnx->Core.pv + offSub, cbSub,
+                                        rtR0MemObjLinuxApplyPageRange, (void *)&Args);
+#  endif
         if (rcLnx)
             return VERR_NOT_SUPPORTED;
 
+        /* Invalidate the mapping and instruction cache, just to be on the safe side... */
+        if (fProt & RTMEM_PROT_EXEC)
+            flush_icache_range((uintptr_t)pMemLnx->Core.pv + offSub, cbSub);
+        flush_tlb_kernel_range((uintptr_t)pMemLnx->Core.pv + offSub, cbSub);
         return VINF_SUCCESS;
     }
 # endif

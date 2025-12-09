@@ -39,6 +39,8 @@
 
 #include "r0drv/linux/alloc-r0drv-linux.c"
 #include "r0drv/linux/assert-r0drv-linux.c"
+#include "r0drv/linux/dbgkrnlinfo-r0drv-linux.c"
+#include "r0drv/linux/fileio-r0drv-linux.c"
 #include "r0drv/linux/initterm-r0drv-linux.c"
 #include "r0drv/linux/memobj-r0drv-linux.c"
 #include "r0drv/linux/memuserkernel-r0drv-linux.c"

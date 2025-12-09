@@ -51,6 +51,8 @@
 #undef LOG_GROUP
 #include "r0drv/generic/semspinmutex-r0drv-generic.c"
 #undef LOG_GROUP
+#include "r0drv/RTR0DbgKrnlInfoGetSymbol.c"
+#undef LOG_GROUP
 #include "common/alloc/alloc.c"
 #undef LOG_GROUP
 #include "common/checksum/crc32.c"
