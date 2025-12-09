@@ -125,7 +125,7 @@ DECLHIDDEN(int) rtR0InitNative(void)
 
 
     /* Try get hold of 'init_mm' so we can protect kernel memory. */
-#if RTLNX_VER_MIN(6,7,0)
+#if RTLNX_VER_MIN(6,10,0) /** @todo support this for older kernels (see also dbgkrnlinfo-r0drv-linux.c and fileio-r0drv-linux.c) */
     {
         RTDBGKRNLINFO hKrnlInfo;
         int rc2 = RTR0DbgKrnlInfoOpen(&hKrnlInfo, 0);

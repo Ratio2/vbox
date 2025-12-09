@@ -58,7 +58,7 @@
 #include "internal/magics.h"
 
 
-#if RTLNX_VER_MIN(6,10,0) /** @todo support this for older kernels */
+#if RTLNX_VER_MIN(6,10,0)  /** @todo support this for older kernels (see also dbgkrnlinfo-r0drv-linux.c and fileio-r0drv-linux.c) */
 
 
 /*********************************************************************************************************************************
