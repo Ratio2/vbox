@@ -202,7 +202,8 @@ ifdef VBOX_WITH_TESTCASES # The whole file
   	tstRTProcIsRunningByName \
   	tstRTBitOperationsPIC3 \
   	tstRTInlineAsmPIC \
-  	tstRTInlineAsmPIC3
+  	tstRTInlineAsmPIC3 \
+  	tstRTLinuxKallsyms
   PROGRAMS.solaris += \
   	tstRTCoreDump
   PROGRAMS.darwin += \
@@ -1190,6 +1191,12 @@ ifdef VBOX_WITH_TESTCASES # The whole file
  tstRTDarwinMachKernel_SOURCES = \
  	tstRTDarwinMachKernel.cpp \
  	../r0drv/darwin/dbgkrnlinfo-r0drv-darwin.cpp
+
+ tstRTLinuxKallsyms_TEMPLATE = VBoxR3TstExe
+ tstRTLinuxKallsyms_INCS    = ../include
+ tstRTLinuxKallsyms_SOURCES = \
+ 	tstRTLinuxKallsyms.cpp \
+ 	../r0drv/linux/dbgkrnlinfo-r0drv-linux.c
 
  ntGetTimerResolution_SOURCES = ntGetTimerResolution.cpp
  ntGetTimerResolution_SDKS.win = ReorderCompilerIncs $(VBOX_WINPSDK) $(VBOX_WINDDK) VBoxNtDll
