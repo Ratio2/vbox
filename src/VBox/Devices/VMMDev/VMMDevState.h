@@ -60,8 +60,8 @@ typedef struct DISPLAYCHANGEREQUEST
 {
     bool fPending;
     bool afAlignment[3];
-    VMMDevDisplayDef displayChangeRequest;
-    VMMDevDisplayDef lastReadDisplayChangeRequest;
+    VMMDevDisplayDef displayChangeDef;
+    VMMDevDisplayDef lastReadDisplayChangeDef;
 } DISPLAYCHANGEREQUEST;
 
 typedef struct DISPLAYCHANGEDATA
