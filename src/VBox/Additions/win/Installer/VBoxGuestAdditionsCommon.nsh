@@ -60,7 +60,9 @@ Function ${un}Common_DetectEnvironment
   ${If} ${AtLeastWin2003}
     StrCpy $g_strEarlyNTDrvInfix ""
   ${Else}
+!if $%KBUILD_TARGET_ARCH% == "x86" ; Exempt WinXP 64-bit.
     StrCpy $g_strEarlyNTDrvInfix "EarlyNT"
+!endif
   ${EndIf}
 
   Call ${un}SetAppMode64
@@ -91,6 +93,8 @@ Function ${un}Common_DetectEnvironment
 !ifdef _DEBUG
   ${LogVerbose} "Installer runs in debug mode"
 !endif
+  IfSilent +1 +2 ; NSIS will expand ${LogVerbose} before doing relative jumps!
+    LogText "Installer runs in silent mode"
 
   Pop $3
   Pop $2

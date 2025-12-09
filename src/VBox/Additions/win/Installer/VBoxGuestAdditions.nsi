@@ -608,8 +608,10 @@ Section $(VBOX_COMPONENT_MAIN) SEC01
     StrCpy $g_bLogEnable "true" ; Force logging in silent mode.
 
   ${LogEnable} "$g_bLogEnable"
-  IfSilent +1 +2 ; NSIS will expand ${LogVerbose} before doing relative jumps!
-    LogText "Installer runs in silent mode"
+
+  ; Call this again here, as the logging now is set up.
+  ; Useful to have this in the release logs as well.
+  Call Common_DetectEnvironment
 
   SetOutPath "$INSTDIR"
   SetOverwrite on
