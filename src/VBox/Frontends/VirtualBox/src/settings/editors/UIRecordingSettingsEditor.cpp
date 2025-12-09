@@ -61,7 +61,6 @@ UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
     , m_pEditorFrameRate(0)
     , m_pEditorBitrate(0)
     , m_pEditorAudioProfile(0)
-    , m_pWidgetAudioProfileSettings(0)
     , m_pLabelSizeHint(0)
     , m_pEditorScreenSelector(0)
 {
@@ -78,7 +77,7 @@ void UIRecordingSettingsEditor::setFeatureEnabled(bool fEnabled)
         if (m_pCheckboxFeature)
         {
             m_pCheckboxFeature->setChecked(m_fFeatureEnabled);
-            sltHandleFeatureToggled();
+            sltHandleFeatureToggle();
         }
     }
 }
@@ -212,13 +211,13 @@ void UIRecordingSettingsEditor::sltRetranslateUI()
     updateMinimumLayoutHint();
 }
 
-void UIRecordingSettingsEditor::sltHandleFeatureToggled()
+void UIRecordingSettingsEditor::sltHandleFeatureToggle()
 {
     /* Update widget availability: */
     updateWidgetAvailability();
 }
 
-void UIRecordingSettingsEditor::sltHandleModeComboChange()
+void UIRecordingSettingsEditor::sltHandleModeChange()
 {
     /* Update widget availability: */
     updateWidgetAvailability();
@@ -226,7 +225,7 @@ void UIRecordingSettingsEditor::sltHandleModeComboChange()
 
 void UIRecordingSettingsEditor::sltHandleVideoQualityChange()
 {
-    /* Calculate/apply proposed bit rate: */
+    /* Calculate/apply proposed bitrate: */
     m_pEditorBitrate->blockSignals(true);
     m_pEditorBitrate->setBitrate(calculateBitrate(m_pEditorFrameSize->frameWidth(),
                                                   m_pEditorFrameSize->frameHeight(),
@@ -289,8 +288,9 @@ void UIRecordingSettingsEditor::prepareWidgets()
             m_pLayoutSettings = new QGridLayout(pWidgetSettings);
             if (m_pLayoutSettings)
             {
-                int iLayoutSettingsRow = 0;
                 m_pLayoutSettings->setContentsMargins(0, 0, 0, 0);
+                int iLayoutSettingsRow = 0;
+
                 /* Prepare recording mode editor: */
                 m_pEditorMode = new UIRecordingModeEditor(pWidgetSettings);
                 if (m_pEditorMode)
@@ -319,12 +319,14 @@ void UIRecordingSettingsEditor::prepareWidgets()
                     addEditor(m_pEditorFrameRate);
                     m_pLayoutSettings->addWidget(m_pEditorFrameRate, ++iLayoutSettingsRow, 0, 1, 2);
                 }
+                /* Prepare recording bitrate editor: */
                 m_pEditorBitrate = new UIRecordingVideoBitrateEditor(pWidgetSettings);
                 if (m_pEditorBitrate)
                 {
                     addEditor(m_pEditorBitrate);
                     m_pLayoutSettings->addWidget(m_pEditorBitrate, ++iLayoutSettingsRow, 0, 1, 2);
                 }
+                /* Prepare recording audio profile editor: */
                 m_pEditorAudioProfile = new UIRecordingAudioProfileEditor(pWidgetSettings);
                 if (m_pEditorAudioProfile)
                 {
@@ -354,9 +356,9 @@ void UIRecordingSettingsEditor::prepareWidgets()
 void UIRecordingSettingsEditor::prepareConnections()
 {
     connect(m_pCheckboxFeature, &QCheckBox::toggled,
-            this, &UIRecordingSettingsEditor::sltHandleFeatureToggled);
+            this, &UIRecordingSettingsEditor::sltHandleFeatureToggle);
     connect(m_pEditorMode, &UIRecordingModeEditor::sigModeChange,
-            this, &UIRecordingSettingsEditor::sltHandleModeComboChange);
+            this, &UIRecordingSettingsEditor::sltHandleModeChange);
     connect(m_pEditorFrameSize, &UIRecordingVideoFrameSizeEditor::sigFrameSizeChanged,
             this, &UIRecordingSettingsEditor::sltHandleVideoQualityChange);
     connect(m_pEditorFrameRate, &UIRecordingVideoFrameRateEditor::sigFrameRateChanged,
@@ -432,11 +434,11 @@ void UIRecordingSettingsEditor::updateMinimumLayoutHint()
 /* static */
 int UIRecordingSettingsEditor::calculateBitrate(int iFrameWidth, int iFrameHeight, int iFrameRate, int iQuality)
 {
-    /* Linear quality<=>bit rate scale-factor: */
+    /* Linear quality<=>bitrate scale-factor: */
     const double dResult = (double)iQuality
                          * (double)iFrameWidth * (double)iFrameHeight * (double)iFrameRate
                          / (double)10 /* translate quality to [%] */
-                         / (double)1024 /* translate bit rate to [kbps] */
+                         / (double)1024 /* translate bitrate to [kbps] */
                          / (double)18.75 /* linear scale factor */;
     return (int)dResult;
 }
@@ -444,11 +446,11 @@ int UIRecordingSettingsEditor::calculateBitrate(int iFrameWidth, int iFrameHeigh
 /* static */
 int UIRecordingSettingsEditor::calculateQuality(int iFrameWidth, int iFrameHeight, int iFrameRate, int iBitRate)
 {
-    /* Linear bit rate<=>quality scale-factor: */
+    /* Linear bitrate<=>quality scale-factor: */
     const double dResult = (double)iBitRate
                          / (double)iFrameWidth / (double)iFrameHeight / (double)iFrameRate
                          * (double)10 /* translate quality to [%] */
-                         * (double)1024 /* translate bit rate to [kbps] */
+                         * (double)1024 /* translate bitrate to [kbps] */
                          * (double)18.75 /* linear scale factor */;
     return (int)dResult;
 }

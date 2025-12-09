@@ -118,10 +118,11 @@ private slots:
 
     /** Handles translation event. */
     virtual void sltRetranslateUI() RT_OVERRIDE RT_FINAL;
+
     /** Handles feature toggling. */
-    void sltHandleFeatureToggled();
+    void sltHandleFeatureToggle();
     /** Handles mode change. */
-    void sltHandleModeComboChange();
+    void sltHandleModeChange();
     /** Handles video quality change. */
     void sltHandleVideoQualityChange();
     /** Handles video bitrate change. */
@@ -144,7 +145,7 @@ private:
     /** Updates minimum layout hint. */
     void updateMinimumLayoutHint();
 
-    /** Calculates recording bit rate for passed @a iFrameWidth, @a iFrameHeight, @a iFrameRate and @a iQuality. */
+    /** Calculates recording bitrate for passed @a iFrameWidth, @a iFrameHeight, @a iFrameRate and @a iQuality. */
     static int calculateBitrate(int iFrameWidth, int iFrameHeight, int iFrameRate, int iQuality);
     /** Calculates recording quality for passed @a iFrameWidth, @a iFrameHeight, @a iFrameRate and @a iBitrate. */
     static int calculateQuality(int iFrameWidth, int iFrameHeight, int iFrameRate, int iBitRate);
@@ -153,7 +154,6 @@ private:
      * @{ */
         /** Holds whether feature is enabled. */
         bool  m_fFeatureEnabled;
-
         /** Holds whether options are available. */
         bool  m_fOptionsAvailable;
     /** @} */
@@ -161,24 +161,23 @@ private:
     /** @name Widgets
      * @{ */
         /** Holds the feature check-box instance. */
-        QCheckBox          *m_pCheckboxFeature;
+        QCheckBox                       *m_pCheckboxFeature;
         /** Holds the settings layout instance. */
-        QGridLayout        *m_pLayoutSettings;
-        UIRecordingModeEditor *m_pEditorMode;
+        QGridLayout                     *m_pLayoutSettings;
+        /** Holds the mode editor instance. */
+        UIRecordingModeEditor           *m_pEditorMode;
         /** Holds the file path editor instance. */
-        UIRecordingFilePathEditor *m_pEditorFilePath;
-        /** Holds the frame size editor. */
+        UIRecordingFilePathEditor       *m_pEditorFilePath;
+        /** Holds the frame size editor instance. */
         UIRecordingVideoFrameSizeEditor *m_pEditorFrameSize;
         /** Holds the frame rate editor instance. */
         UIRecordingVideoFrameRateEditor *m_pEditorFrameRate;
-        /** Holds the bit rate editor instance. */
-        UIRecordingVideoBitrateEditor *m_pEditorBitrate;
+        /** Holds the bitrate editor instance. */
+        UIRecordingVideoBitrateEditor   *m_pEditorBitrate;
         /** Holds the audio profile editor instance. */
-        UIRecordingAudioProfileEditor *m_pEditorAudioProfile;
-        /** Holds the audio profile settings widget instance. */
-        QWidget            *m_pWidgetAudioProfileSettings;
+        UIRecordingAudioProfileEditor   *m_pEditorAudioProfile;
         /** Holds the size hint label instance. */
-        QLabel             *m_pLabelSizeHint;
+        QLabel                          *m_pLabelSizeHint;
         /** Holds the screen selector editor instance. */
         UIRecordingScreenSelectorEditor *m_pEditorScreenSelector;
     /** @} */
