@@ -83,7 +83,11 @@ Function ${un}Common_DetectEnvironment
   ${LogVerbose} "Temp directory: $TEMP"
   ${LogVerbose} "Current user: $g_strCurUser"
   ${LogVerbose} "--------------------------------------------------------------------------------"
-
+  ${LogVerbose} ""
+  ${LogVerbose} "Installer architecture: $%KBUILD_TARGET_ARCH%"
+  ${If} $g_strEarlyNTDrvInfix != ""
+    ${LogVerbose} "Installer uses early NT drivers"
+  ${EndIf}
 !ifdef _DEBUG
   ${LogVerbose} "Installer runs in debug mode"
 !endif
