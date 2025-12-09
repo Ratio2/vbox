@@ -132,7 +132,8 @@ DECLHIDDEN(int) rtR0InitNative(void)
         if (RT_SUCCESS(rc2))
         {
             g_pLnxInitMm = (struct mm_struct *)RTR0DbgKrnlInfoGetSymbol(hKrnlInfo, NULL,  "init_mm");
-            printk("rtR0InitNative: g_pLnxInitMm at %#lx\n", (unsigned long)g_pLnxInitMm);
+            //printk("rtR0InitNative: g_pLnxInitMm=%#lx\n", (unsigned long)g_pLnxInitMm);
+            printk("rtR0InitNative: g_pLnxInitMm=%p\n", g_pLnxInitMm);
 
             RTR0DbgKrnlInfoRelease(hKrnlInfo);
         }
