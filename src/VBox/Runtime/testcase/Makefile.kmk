@@ -168,7 +168,6 @@ ifdef VBOX_WITH_TESTCASES # The whole file
   	tstRTThreadPoke \
   	tstRTThreadExecutionTime \
   	tstRTTime \
-  	tstTime-2 \
   	tstTime-3 \
   	tstTime-4 \
   	tstTimer \
@@ -231,6 +230,7 @@ ifdef VBOX_WITH_TESTCASES # The whole file
    	tstLdr-2 \
    	tstLdr-3 \
    	tstLdr-4 \
+  	tstTime-2 \
    	tstTSC
    if defined(VBOX_WITH_HARDENING) && "$(KBUILD_TARGET)" == "win"
     PROGRAMS += \
