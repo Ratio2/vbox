@@ -584,7 +584,6 @@ static int ELF_RELOCATOR_NAME(RelocateSectionRel)(PRTLDRMODELF pModElf, Elf_Addr
 
             /* ignore */
             case R_AARCH64_NONE:
-                RT_NOREF(SecAddr, cbSec);
                 break;
 
 #else
