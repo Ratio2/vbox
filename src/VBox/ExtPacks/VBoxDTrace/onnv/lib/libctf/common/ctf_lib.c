@@ -40,6 +40,7 @@
 # include <libctf.h>
 # include <ctf_impl.h>
 # include <iprt/param.h>
+# include <iprt/system.h>
 # include <sys/stat.h>
 # include <stdio.h>
 # include <fcntl.h>
@@ -91,7 +92,7 @@ void libctf_init(void)
 #ifndef VBOX
 	_PAGESIZE = getpagesize();
 #else
-	_PAGESIZE = PAGE_SIZE;
+	_PAGESIZE = RTSystemGetPageSize();
 #endif
 	_PAGEMASK = ~(_PAGESIZE - 1);
 }
