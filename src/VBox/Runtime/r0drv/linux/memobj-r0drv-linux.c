@@ -2143,7 +2143,7 @@ DECLHIDDEN(int) rtR0MemObjNativeProtect(PRTR0MEMOBJINTERNAL pMem, size_t offSub,
 #  if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86) /** @todo check why not using init_mm works on x86/amd64... */
         int rcLnx = apply_to_page_range(current->active_mm, (unsigned long)pMemLnx->Core.pv + offSub, cbSub,
                                         rtR0MemObjLinuxApplyPageRange, (void *)&Args);
-#  else 
+#  else
         /* We really need the init_mm here, or the mapping will end up in the
            process map on arm and we'll crash later when trying to access the
            kernel address.  Problem, though, is that init_mm isn't exported.
