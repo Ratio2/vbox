@@ -5,6 +5,7 @@ Configuration script for building VirtualBox.
 
 # -*- coding: utf-8 -*-
 # $Id$
+# pylint: disable=bare-except
 # pylint: disable=consider-using-f-string
 # pylint: disable=global-statement
 # pylint: disable=line-too-long
@@ -234,7 +235,10 @@ def checkWhich(sCmdName, sToolDesc = None, sCustomPath = None, asVersionSwitches
             for sSwitch in asVersionSwitches:
                 oProc = subprocess.run([sCmdPath, sSwitch], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False, timeout=10);
                 if oProc.returncode == 0:
-                    sVer = oProc.stdout.decode('utf-8', 'replace').strip().splitlines()[0];
+                    try:
+                        sVer = oProc.stdout.decode('utf-8', 'replace').strip().splitlines()[0];
+                    except: # Some programs (java, for instance) output their version info in stderr.
+                        sVer = oProc.stderr.decode('utf-8', 'replace').strip().splitlines()[0];
                     printVerbose(1, f"Detected version for '{sCmdName}' is: {sVer}");
                     return sCmdPath, sVer;
             return sCmdPath, '<unknown>';
@@ -416,14 +420,34 @@ def compileAndExecute(sName, enmBuildTarget, enmBuildArch, asIncPaths, asLibPath
 
     return fRet, sStdOut, sStdErr;
 
-def getPackageInfo(sPackageName, sWhat):
+def getPackageLibs(sPackageName):
     """
-    Returns information for a given package.
+    Returns a tuple (success, list) of libraries of a given package.
     """
     try:
         if g_enmHostTarget in [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.DARWIN ]:
             # Use pkg-config on Linux and macOS.
-            sCmd = f"pkg-config {sWhat} {shlex.quote(sPackageName)}"
+            sCmd = f"pkg-config --libs {shlex.quote(sPackageName)}"
+        elif g_enmHostTarget == BuildTarget.WINDOWS:
+            raise RuntimeError("Unsupported OS");
+        else:
+            raise RuntimeError("Unsupported OS");
+
+        oProc = subprocess.run(sCmd, shell = True, check = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE, text =True);
+        asLibs = [ oProc.stdout.strip() ];
+        return True, asLibs;
+    except subprocess.CalledProcessError:
+        printVerbose(1, f'Package "{sPackageName}" invalid or not found');
+    return False, None;
+
+def getPackagePath(sPackageName):
+    """
+    Returns the package path for a given package.
+    """
+    try:
+        if g_enmHostTarget in [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.DARWIN ]:
+            # Use pkg-config on Linux and macOS.
+            sCmd = f"pkg-config --variable=exec_prefix {shlex.quote(sPackageName)}"
         elif g_enmHostTarget == BuildTarget.WINDOWS:
             # Detect VCPKG.
             # See: https://learn.microsoft.com/en-us/vcpkg/ + https://vcpkg.io
@@ -438,24 +462,11 @@ def getPackageInfo(sPackageName, sWhat):
             raise RuntimeError("Unsupported OS");
 
         oProc = subprocess.run(sCmd, shell = True, check = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE, text =True);
-        asLibs = oProc.stdout.strip();
-        return True, asLibs;
+        sPath = oProc.stdout.strip();
+        return True, sPath;
     except subprocess.CalledProcessError:
         printVerbose(1, f'Package "{sPackageName}" invalid or not found');
-        return False, None;
     return False, None;
-
-def getPackageLibs(sPackageName):
-    """
-    Returns the libraries of a given package.
-    """
-    return getPackageInfo(sPackageName, '--libs');
-
-def getPackagePath(sPackageName):
-    """
-    Returns the resource path of a given package.
-    """
-    return getPackageInfo(sPackageName, '--variable=exec_prefix');
 
 class LibraryCheck:
     """
@@ -641,10 +652,10 @@ class LibraryCheck:
         asHeaderToSearch = [];
         if self.asIncFiles:
             asHeaderToSearch.extend(self.asIncFiles);
-        asHeaderToSearch.extend(self.asAltIncFiles);
+        asAltHeaderToSearch = self.asAltIncFiles;
         asHeaderFound = [];
         asSearchPaths = self.getIncSearchPaths();
-        for sCurHeader in asHeaderToSearch:
+        for sCurHeader in asHeaderToSearch + asAltHeaderToSearch:
             for sCurSearchPath in asSearchPaths:
                 printVerbose(1, f"{self.sName}: Checking include path for '{sCurHeader}': {sCurSearchPath}");
                 if os.path.isfile(os.path.join(sCurSearchPath, sCurHeader)):
@@ -656,12 +667,13 @@ class LibraryCheck:
                     asHeaderFound.extend([ sCurHeader ]);
                     break;
 
-        if asHeaderFound == asHeaderToSearch:
-            printVerbose(1, f"{self.sName}: All header files found");
-            return True;
+        for sHdr in asHeaderToSearch:
+            if sHdr not in asHeaderFound:
+                printError(f"{self.sName}: Header file {sHdr} not found in paths: {asSearchPaths}");
+                return False;
 
-        printError(f"{self.sName}: Header files {asHeaderToSearch} not found in paths: {asSearchPaths}");
-        return False;
+        printVerbose(1, f"{self.sName}: All header files found");
+        return True;
 
     def checkLib(self):
         """
@@ -848,15 +860,14 @@ class ToolCheck:
         """
 
         asLibs = None;
-        sPath = None; # Acts as the 'found' beacon.
+        sPath = self.sCustomPath; # Acts as the 'found' beacon.
         sPathImport = None;
         sPathSource = None;
 
-        if     not g_oEnv['VBOX_PATH_GSOAP'] \
-           and not g_oEnv['VBOX_PATH_GSOAP_IMPORRT']:
-            fRc, asLibs,  = getPackageLibs('gsoapssl++');
-            if fRc:
-                fRc, sPath,  = getPackagePath('gsoapssl++');
+        if not sPath:
+            _, sPath = getPackagePath('gsoapssl++');
+
+        _, asLibs = getPackageLibs('gsoapssl++');
 
         if not sPath: # Try in dev tools.
             asDevPaths = sorted(glob.glob(f'{g_sDevPath}/common/gsoap/v*'));
@@ -864,28 +875,114 @@ class ToolCheck:
                 if os.path.exists(sDevPath):
                     sPath = sDevPath;
 
-        if not sPath: # Still not found? Try other stuff.
-            sBin1, _  = checkWhich('soapcpp2');
-            sBin2, _  = checkWhich('wsdl2h');
-            ## @todo Check for libgsoap++.a/so
-            if os.path.dirname(sBin1) == os.path.dirname(sBin2):
-                sPath = os.path.dirname(sBin1);
-                if sPath.startswith('/usr/'):
-                    sPathImport = os.path.join('/usr', 'share/gsoap/import');
+        self.sCmdPath, self.sVer = checkWhich('soapcpp2', sCustomPath = os.path.join(sPath, 'bin'));
+        if not self.sCmdPath:
+            self.sCmdPath, self.sVer = checkWhich('wsdl2h', sCustomPath = os.path.join(sPath, 'bin'));
 
         if sPath:
-            sPathImport = os.path.join(sPath, 'share/gsoap/import');
-            sPathSource = os.path.join(sPath, 'share/gsoap/stdsoap2.cpp');
+            printVerbose(1, f"GSOAP base path is '{sPath}'");
+            sPathImport = os.path.join(sPath, 'share', 'gsoap', 'import');
+            if not os.path.exists(sPathImport):
+                printVerbose(1, 'GSOAP import directory not found');
+                sPathImport = None;
+            sPathSource = os.path.join(sPath, 'share', 'gsoap', 'stdsoap2.cpp');
             if not os.path.isfile(sPathSource):
+                printVerbose(1, 'GSOAP shared sources not found');
                 sPathSource = None;
 
         g_oEnv.set('VBOX_GSOAP_INSTALLED', '1' if sPath else None);
-        g_oEnv.set('VBOX_PATH_GSOAP', sPath);
-        g_oEnv.set('VBOX_PATH_GSOAP_IMPORT', sPathImport if sPath else None);
-        g_oEnv.set('VBOX_GSOAP_CXX_SOURCES', sPathSource if sPath else None);
-        g_oEnv.set('VBOX_GSOAP_CXX_LIBS', asLibs if sPath else None);
+        g_oEnv.set('VBOX_PATH_GSOAP_IMPORT', sPathImport if sPathImport else None);
+        g_oEnv.set('VBOX_GSOAP_CXX_LIBS', 'libgsoapssl++' if asLibs else None);
+        # Note: VBOX_GSOAP_CXX_SOURCES gets resolved in checkCallback_GSOAPSources().
 
         return True if sPath else False;
+
+    def checkCallback_GSOAPSources(self):
+        """
+        Checks for the GSOAP sources.
+
+        This is needed for linking to functions which are needed when building
+        the webservices.
+        """
+        sPath       = self.sCustomPath; # Acts as the 'found' beacon.
+        sSourceFile = None;
+
+        if sPath:
+            sSourceFile = os.path.join(sPath, 'stdsoap2.cpp');
+        if sSourceFile and os.path.isfile(sSourceFile):
+            g_oEnv.set('VBOX_GSOAP_CXX_SOURCES', sSourceFile);
+        else:
+            if not g_oEnv['VBOX_WITH_WEBSERVICES'] \
+            or     g_oEnv['VBOX_WITH_WEBSERVICES'] == '1':
+                printWarn('GSOAP source package not found for building webservices');
+                printWarn('Either disable building or add source path via --with-gsoapsources-path <path>');
+                return False;
+
+        return True; # Silently skip.
+
+    def checkCallback_OpenJDK(self):
+        """
+        Checks for OpenJDK.
+
+        Note: We need OpenJDK <= 8, as only there the 'wsimport' binary is available.
+              Otherwise other packages need to be installed in order to find 'wsimport'.
+        """
+
+        # Detect Java home directory.
+        fRc       = True;
+        sJavaHome = None;
+        self.sCustomPath = self.sCustomPath;
+        if not sJavaHome:
+            sJavaHome = os.environ.get('JAVA_HOME');
+        if not sJavaHome:
+            try:
+                sStdErr = subprocess.check_output(['java', '-XshowSettings:properties', '-version'], stderr=subprocess.STDOUT);
+                for sLine in sStdErr.decode().splitlines():
+                    if 'java.home =' in sLine:
+                        sJavaHome = sLine.split('=', 1)[1].strip();
+                        break;
+            except:
+                pass;
+
+        if not sJavaHome:
+            printError(f'{self.sName}: Unable to detect Java home directory');
+
+        # Strip 'jre' component if found.
+        sHead, sTail = os.path.split(os.path.normpath(sJavaHome));
+        if sTail == 'jre':
+            sJavaHome = sHead;
+
+        g_oEnv.set('VBOX_JAVA_HOME', sJavaHome);
+
+        mapCmds = { 'java':  r'version "(\d+)\.(\d+)\.(\d+)_?.*"',
+                    'javac': r'javac (\d+)\.(\d+)\.(\d+)_?.*' };
+        for sCmd, (sRegEx) in mapCmds.items():
+            try:
+                _, sVer = checkWhich(sCmd, sCustomPath = os.path.join(sJavaHome, 'bin'));
+                reMatch = re.search(sRegEx, sVer);
+                if reMatch:
+                    uMaj = int(reMatch.group(1));
+                    # For Java 8 and below, major version is 1 and minor is 8 or less.
+                    # Java 9+ is labeled as "version "9.xx".
+                    if uMaj == 1:
+                        uMaj = int(reMatch.group(2));
+                    if uMaj > 8:
+                        printError(f'{self.sName}: OpenJDK {uMaj} installed ({sCmd}), but need <= 8');
+                        fRc = False;
+                        break;
+                else:
+                    printError(f'{self.sName}: Unable to detect Java version');
+                    fRc = False;
+                    break;
+            except:
+                printError(f'{self.sName}: Java is not installed or not found in PATH');
+                fRc = False;
+                break;
+
+        if fRc:
+            printVerbose(1, f'{self.sName}: OpenJDK {uMaj} installed');
+
+        return fRc;
 
     def checkCallback_VisualCPP(self):
         """
@@ -1191,15 +1288,25 @@ class ToolCheck:
         # If KBUILD_DEVTOOLS is set, check that it's pointing to something useful.
         sPathDevTools = os.environ.get('KBUILD_DEVTOOLS');
         if not sPathDevTools:
-            sPathDevTools = os.path.join(sPath, 'tools');
+            sPathDevTools = os.path.join(g_sScriptPath, 'tools');
             sPathDevTools = sPathDevTools if os.path.exists(sPathDevTools) else None;
         if sPathDevTools:
             print(f"kBuild devtools is set to '{sPathDevTools}'");
-            fFound = True if os.path.isfile(os.path.join(sPathDevTools, 'ZIP.kmk')) else False; # Check for some random tool.
+            fFound = True; # Not fatal (I guess).
         else: ## @todo Is this fatal?
             printVerbose(1, 'kBuild devtools not found!');
 
         return fFound;
+
+    def checkCallback_clang(self):
+        """
+        Checks for clang.
+        """
+        self.sCmdPath, self.sVer = checkWhich('clang-20');
+        if not self.sCmdPath:
+            self.sCmdPath, self.sVer = checkWhich('clang');
+
+        return True if self.sCmdPath else False;
 
     def checkCallback_gcc(self):
         """
@@ -1311,7 +1418,7 @@ class ToolCheck:
         # These are the sub directories OpenWatcom ships its binaries in.
         mapBuildTarget2Bin = {
             BuildTarget.DARWIN:  "binosx",  ## @todo Still correct for Apple Silicon?
-            BuildTarget.LINUX:   "binl64" if g_oEnv['KBUILD_TARGET_ARCH'] is BuildArch.AMD64 else "arml64", # ASSUMES 64-bit.
+            BuildTarget.LINUX:   "binl" if g_oEnv['KBUILD_TARGET_ARCH'] is BuildArch.AMD64 else "binl", # ASSUMES 64-bit.
             BuildTarget.SOLARIS: "binsol",  ## @todo Test on Solaris.
             BuildTarget.WINDOWS: "binnt",
             BuildTarget.BSD:     "binnbsd"  ## @todo Test this on FreeBSD.
@@ -1322,11 +1429,24 @@ class ToolCheck:
             printError(f"OpenWatcom not supported on host target { g_oEnv['KBUILD_TARGET'] }.");
             return False;
 
+        sPath = self.sCustomPath;
+        if not sPath:
+            if g_oEnv['KBUILD_TARGET'] == BuildTarget.LINUX:
+                # Modern distros might have Snap installed for which there is an Open Watcom package.
+                # Check for this.
+                sPath = os.path.join('/', 'snap', 'open-watcom', 'current');
+                if os.path.exists(sPath):
+                    printVerbose(1, "Detected snap package at '{sPath}'");
+
         for sCmdCur in self.asCmd:
-            self.sCmdPath, self.sVer = checkWhich(sCmdCur, 'OpenWatcom', os.path.join(self.sCustomPath, sBinSubdir) if self.sCustomPath else None);
+            self.sCmdPath, self.sVer = checkWhich(sCmdCur, 'OpenWatcom', os.path.join(sPath, sBinSubdir) if sPath else None);
+            if 'Version 2.' in self.sVer: # We don't support Open Watconm 2.0 (yet).
+                printError('Open Watcom 2.x found, but is not supported yet!');
+                return False;
             if not self.sCmdPath:
                 return False;
 
+        g_oEnv.set('PATH_TOOL_OPENWATCOM', sPath);
         return True;
 
     def checkCallback_PythonC_API(self):
@@ -1382,13 +1502,14 @@ int main()
         fFound = True;
         asModulesToCheck = [ 'packaging' ];
 
+        printVerbose(1, f"{self.sName}: Checking modules ...");
+
         for asCurMod in asModulesToCheck:
             try:
                 importlib.import_module(asCurMod);
-                printVerbose(1, f"Python module '{asCurMod}'' is installed");
             except ImportError:
-                printError(f"Python module '{asCurMod}' is not installed");
-                printError(f"Hint: Try running 'pip install {asCurMod}'", fDontCount=True);
+                printError(f"{self.sName}: Python module '{asCurMod}' is not installed");
+                printError(f"{self.sName}: Hint: Try running 'pip install {asCurMod}'", fDontCount=True);
                 fFound = False;
                 if not g_fContOnErr:
                     return fFound;
@@ -1510,6 +1631,10 @@ class EnvManager:
         """
         Writes a single key=value pair to the given file handle.
         """
+        if sKey not in self.env:
+            if g_fDebug:
+                printWarn(f'Key {sKey} does not exist -- skipping!');
+            return True;
         if sVal:
             sVal = ''.join(c if c != '\\' else '/' for c in sVal); # Translate to UNIX paths (for kBuild).
         fh.write(f'{sWhat if sWhat else ''}{sKey}={sVal if sVal else self.env[sKey]}\n');
@@ -1523,8 +1648,7 @@ class EnvManager:
                 continue;
             if asPrefixInclude and not any(sKey.startswith(p) for p in asPrefixInclude):
                 continue;
-            if sVal: # Might be None.
-                self.write_single(fh, sKey, sVal, sWhat);
+            self.write_single(fh, sKey, sVal, sWhat if sWhat else '');
         return True;
 
     def write_all_as_exports(self, fh, enmBuildTarget, asPrefixInclude = None, asPrefixExclude = None):
@@ -1665,6 +1789,8 @@ g_aoLibs = sorted([
                  '#include <curl/curl.h>\nint main() { printf("%s", LIBCURL_VERSION); return 0; }\n'),
     LibraryCheck("libdevmapper", [ "libdevmapper.h" ], [ "libdevmapper" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <libdevmapper.h>\nint main() { char v[64]; dm_get_library_version(v, sizeof(v)); printf("%s", v); return 0; }\n'),
+    LibraryCheck("libgsoapssl++", [ "stdsoap2.h" ], [ "libgsoapssl++" ], [ BuildTarget.ANY ],
+                 '#include <stdsoap2.h>\nint main() { printf("%ld", GSOAP_VERSION); return 0; }\n'),
     LibraryCheck("libjpeg-turbo", [ "turbojpeg.h" ], [ "libturbojpeg" ], [ BuildTarget.ANY ],
                  '#include <turbojpeg.h>\nint main() { tjInitCompress(); printf("<found>"); return 0; }\n'),
     LibraryCheck("liblzf", [ "lzf.h" ], [ "liblzf" ], [ BuildTarget.ANY ],
@@ -1686,8 +1812,7 @@ g_aoLibs = sorted([
     LibraryCheck("libssh", [ "libssh/libssh.h" ], [ "libssh" ], [ BuildTarget.ANY ],
                  '#include <libssh/libssh.h>\n#include <libssh/libssh_version.h>\nint main() { printf("%d.%d.%d", LIBSSH_VERSION_MAJOR, LIBSSH_VERSION_MINOR, LIBSSH_VERSION_MICRO); return 0; }\n'),
     LibraryCheck("libstdc++", [ "c++/11/iostream" ], [ ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
-                 "int main() { \n #ifdef __GLIBCXX__\nstd::cout << __GLIBCXX__;\n#elif defined(__GLIBCPP__)\nstd::cout << __GLIBCPP__;\n#else\nreturn 1\n#endif\nreturn 0; }\n",
-                 asAltIncFiles = [ "c++/4.8.2/iostream", "c++/iostream" ]),
+                 "int main() { \n #ifdef __GLIBCXX__\nstd::cout << __GLIBCXX__;\n#elif defined(__GLIBCPP__)\nstd::cout << __GLIBCPP__;\n#else\nreturn 1\n#endif\nreturn 0; }\n"),
     LibraryCheck("libtpms", [ "libtpms/tpm_library.h" ], [ "libtpms" ], [ BuildTarget.ANY ],
                  '#include <libtpms/tpm_library.h>\nint main() { printf("%d.%d.%d", TPM_LIBRARY_VER_MAJOR, TPM_LIBRARY_VER_MINOR, TPM_LIBRARY_VER_MICRO); return 0; }\n'),
     LibraryCheck("libvncserver", [ "rfb/rfb.h", "rfb/rfbclient.h" ], [ "libvncserver" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
@@ -1704,9 +1829,9 @@ g_aoLibs = sorted([
                  '#include <lwip/init.h>\nint main() { printf("%d.%d.%d", LWIP_VERSION_MAJOR, LWIP_VERSION_MINOR, LWIP_VERSION_REVISION); return 0; }\n'),
     LibraryCheck("opengl", [ "GL/gl.h" ], [ "libGL" ], [ BuildTarget.ANY ],
                  '#include <GL/gl.h>\n#include <stdio.h>\nint main() { const GLubyte *s = glGetString(GL_VERSION); printf("%s", s ? (const char *)s : "<found>"); return 0; }\n'),
-    LibraryCheck("qt6", [ "QtCore/qconfig.h" ], [ "libQt6Core" ], [ BuildTarget.ANY ],
+    LibraryCheck("qt6", [ "qt6/QtCore/qconfig.h" ], [ "libQt6Core" ], [ BuildTarget.ANY ],
                  '#include <stdio.h>\n#include <qt6/QtCore/qconfig.h>\nint main() { printf("%s", QT_VERSION_STR); }',
-                 asAltIncFiles = [ "qt/QtCore/qglobal.h", "QtCore/qcoreapplication.h", "qt6/QtCore/qcoreapplication.h" ] ),
+                 asAltIncFiles = [ "qt/QtCore/qconfig.h" ] ),
     LibraryCheck("sdl2", [ "SDL2/SDL.h" ], [ "libSDL2" ], [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.BSD ],
                  '#include <SDL2/SDL.h>\nint main() { printf("%d.%d.%d", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL); return 0; }\n',
                  asAltIncFiles = [ "SDL.h" ]),
@@ -1728,15 +1853,19 @@ g_aoLibs = sorted([
 # Note: The order is important here for subsequent checks.
 #       Don't change without proper testing!
 g_aoTools = [
+    ToolCheck("clang", asCmd = [ ], fnCallback = ToolCheck.checkCallback_clang, aeTargets = [ BuildTarget.LINUX, BuildTarget.SOLARIS ] ),
     ToolCheck("gcc", asCmd = [ "gcc" ], fnCallback = ToolCheck.checkCallback_gcc, aeTargets = [ BuildTarget.LINUX, BuildTarget.SOLARIS ] ),
+    ToolCheck("glslang-tools", asCmd = [ "glslangValidator" ], aeTargets = [ BuildTarget.LINUX, BuildTarget.SOLARIS ] ),
     ToolCheck("visualcpp", asCmd = [ ], fnCallback = ToolCheck.checkCallback_VisualCPP, aeTargets = [ BuildTarget.WINDOWS ] ),
     ToolCheck("win10sdk", asCmd = [ ], fnCallback = ToolCheck.checkCallback_Win10SDK, aeTargets = [ BuildTarget.WINDOWS ] ),
     ToolCheck("winddk", asCmd = [ ], fnCallback = ToolCheck.checkCallback_WinDDK, aeTargets = [ BuildTarget.WINDOWS ] ),
     ToolCheck("devtools", asCmd = [ ], fnCallback = ToolCheck.checkCallback_devtools ),
-    ToolCheck("gsoap", asCmd = [ ], fnCallback = ToolCheck.checkCallback_GSOAP),
-    ToolCheck("java", asCmd = [ "java" ]),
+    ToolCheck("gsoap", asCmd = [ ], fnCallback = ToolCheck.checkCallback_GSOAP ),
+    ToolCheck("gsoapsources", asCmd = [ ], fnCallback = ToolCheck.checkCallback_GSOAPSources ),
+    ToolCheck("openjdk", asCmd = [ ], fnCallback = ToolCheck.checkCallback_OpenJDK ),
     ToolCheck("kbuild", asCmd = [ "kbuild" ], fnCallback = ToolCheck.checkCallback_kBuild ),
     ToolCheck("makeself", asCmd = [ "makeself" ], aeTargets = [ BuildTarget.LINUX ]),
+    ToolCheck("nasm", asCmd = [ "nasm" ]),
     ToolCheck("openwatcom", asCmd = [ "wcl", "wcl386", "wlink" ], fnCallback = ToolCheck.checkCallback_OpenWatcom ),
     ToolCheck("python_c_api", asCmd = [ ], fnCallback = ToolCheck.checkCallback_PythonC_API ),
     ToolCheck("python_modules", asCmd = [ ], fnCallback = ToolCheck.checkCallback_PythonModules ),
@@ -1864,23 +1993,24 @@ def main():
     oParser.add_argument('-v', '--verbose', help="Enables verbose output", action='count', default=0, dest='config_verbose');
     oParser.add_argument('-V', '--version', help="Prints the version of this script", action='store_true');
     for oLibCur in g_aoLibs:
-        oParser.add_argument(f'--disable-{oLibCur.sName}', action='store_true', default=None, dest=f'config_libs_disable_{oLibCur.sName}');
+        oParser.add_argument(f'--disable-{oLibCur.sName}', f'--without-{oLibCur.sName}', action='store_true', default=None, dest=f'config_libs_disable_{oLibCur.sName}');
         oParser.add_argument(f'--with-{oLibCur.sName}-path', dest=f'config_libs_path_{oLibCur.sName}');
         # For debugging / development only. We don't expose this in the syntax help.
         oParser.add_argument(f'--only-{oLibCur.sName}', action='store_true', default=None, dest=f'config_libs_only_{oLibCur.sName}');
     for oToolCur in g_aoTools:
-        oParser.add_argument(f'--disable-{oToolCur.sName}', action='store_true', default=None, dest=f'config_tools_disable_{oToolCur.sName}');
+        oParser.add_argument(f'--disable-{oToolCur.sName}', f'--without-{oToolCur.sName}', action='store_true', default=None, dest=f'config_tools_disable_{oToolCur.sName}');
         oParser.add_argument(f'--with-{oToolCur.sName}-path', dest=f'config_tools_path_{oToolCur.sName}');
         # For debugging / development only. We don't expose this in the syntax help.
         oParser.add_argument(f'--only-{oToolCur.sName}', action='store_true', default=None, dest=f'config_tools_only_{oToolCur.sName}');
 
-    oParser.add_argument('--disable-docs', help='Disables building the documentation', action='store_true', default=None, dest='VBOX_WITH_DOCS=');
-    oParser.add_argument('--disable-python', help='Disables building the Python bindings', action='store_true', default=None, dest='VBOX_WITH_PYTHON=');
-    oParser.add_argument('--disable-pylint', help='Disables using pylint', action='store_true', default=None, dest='VBOX_WITH_PYLINT=');
-    oParser.add_argument('--disable-sdl', help='Disables building the SDL frontend', action='store_true', default=None, dest='VBOX_WITH_SDL=');
-    oParser.add_argument('--disable-udptunnel', help='Disables building UDP tunnel support', action='store_true', default=None, dest='VBOX_WITH_UDPTUNNEL=');
-    oParser.add_argument('--with-hardening', help='Enables or disables hardening', action='store_true', default=None, dest='VBOX_WITH_HARDENING=1');
-    oParser.add_argument('--without-hardening', help='Enables or disables hardening', action='store_true', default=None, dest='VBOX_WITH_HARDENing=');
+    oParser.add_argument('--disable-docs', '--without-docs', help='Disables building the documentation', action='store_true', default=None, dest='VBOX_WITH_DOCS=');
+    oParser.add_argument('--disable-python', '--without-python', help='Disables building the Python bindings', action='store_true', default=None, dest='VBOX_WITH_PYTHON=');
+    oParser.add_argument('--disable-pylint', '--without-pylint', help='Disables using pylint', action='store_true', default=None, dest='VBOX_WITH_PYLINT=');
+    oParser.add_argument('--disable-sdl', '--without-sdl', help='Disables building the SDL frontend', action='store_true', default=None, dest='VBOX_WITH_SDL=');
+    oParser.add_argument('--disable-udptunnel', '--without-udptunnel', help='Disables building UDP tunnel support', action='store_true', default=None, dest='VBOX_WITH_UDPTUNNEL=');
+    oParser.add_argument('--disable-additions', '--without-additions', help='Disables building the Guest Additions', action='store_true', default=None, dest='VBOX_WITH_ADDITIONS=');
+    oParser.add_argument('--with-hardening', help='Enables hardening', action='store_true', default=None, dest='VBOX_WITH_HARDENING=1');
+    oParser.add_argument('--disable-hardening', '--without-hardening', help='Disables hardening', action='store_true', default=None, dest='VBOX_WITH_HARDENING=');
     oParser.add_argument('--file-autoconfig', help='Path to output AutoConfig.kmk file', action='store_true', default='AutoConfig.kmk', dest='config_file_autoconfig');
     oParser.add_argument('--file-env', help='Path to output env[.bat|.sh] file', action='store_true', \
                          default='env.bat' if g_enmHostTarget == BuildTarget.WINDOWS else 'env.sh', dest='config_file_env');
@@ -1908,7 +2038,6 @@ def main():
     oParser.add_argument('--disable-com', '--disable-com', help='Disable building components which require COM', action='store_true', dest='config_disable_com');
     oParser.add_argument('--with-win-ddk', '--with-DDK', help='Where the WDK is to be found', action='store_true', dest='config_win_ddk_path');
     oParser.add_argument('--with-win-midl', '--with-midl', help='Where midl.exe is to be found', action='store_true', dest='config_win_midl_path');
-    oParser.add_argument('--with-win-nasm', '--with-nasm', help='Where NASM is to be found (optional)', action='store_true', dest='config_win_nasm_path');
     oParser.add_argument('--with-win-sdk', '--with-SDK', help='Where the Windows SDK is to be found', action='store_true', dest='config_win_sdk_path');
     oParser.add_argument('--with-win-sdk10', '--with-SDK10', help='Where the Windows 10 SDK/WDK is to be found', action='store_true', dest='config_win_sdk10_path');
     oParser.add_argument('--with-win-vc-common', '--with-VC-Common', help='Maybe needed for 2015 and older to locate the Common7 directory', action='store_true', dest='config_win_vc_common_path');
@@ -2007,30 +2136,31 @@ def main():
         # Disable stuff which aren't available in OSE.
         lambda env: { 'VBOX_WITH_VALIDATIONKIT': '' , 'VBOX_WITH_WIN32_ADDITIONS': '' } if g_oEnv['VBOX_OSE'] else {},
         lambda env: { 'VBOX_WITH_EXTPACK_PUEL_BUILD': '' } if g_oEnv['VBOX_ONLY_ADDITIONS'] else {},
-        lambda env: { 'VBOX_WITH_QTGUI': '' } if g_oEnv['CONFIG_LIBS_DISABLE_QT'] else {},
+        lambda env: { 'VBOX_WITH_QTGUI': '' } if g_oEnv['config_libs_disable_qt'] else {},
         # Disable components if we want to build headless.
         lambda env: { 'VBOX_WITH_HEADLESS': '1', \
                       'VBOX_WITH_QTGUI': '', \
                       'VBOX_WITH_SECURELABEL': '', \
                       'VBOX_WITH_VMSVGA3D': '', \
                       'VBOX_WITH_3D_ACCELERATION' : '', \
-                      'VBOX_GUI_USE_QGL' : '' } if g_oEnv['CONFIG_BUILD_HEADLESS'] else {},
+                      'VBOX_GUI_USE_QGL' : '' } if g_oEnv['config_build_headless'] else {},
         # Disable recording if libvpx is disabled.
         lambda env: { 'VBOX_WITH_LIBVPX': '', \
-                      'VBOX_WITH_RECORDING': '' } if g_oEnv['CONFIG_LIBS_DISABLE_LIBVPX'] else {},
+                      'VBOX_WITH_RECORDING': '' } if g_oEnv['config_libs_disable_libvpx'] else {},
         # Disable audio recording if libvpx is disabled.
         lambda env: { 'VBOX_WITH_LIBOGG': '', \
                       'VBOX_WITH_LIBVORBIS': '', \
-                      'VBOX_WITH_AUDIO_RECORDING': '' } if  g_oEnv['CONFIG_LIBS_DISABLE_LIBOGG'] \
-                                                        and g_oEnv['CONFIG_LIBS_DISABLE_LIBVORBIS'] else {},
+                      'VBOX_WITH_AUDIO_RECORDING': '' } if  g_oEnv['config_libs_disable_libogg'] \
+                                                        and g_oEnv['config_libs_disable_libvorbis'] else {},
         # Disable building webservices if GSOAP is disabled.
         lambda env: { 'VBOX_WITH_GSOAP': '', \
-                      'VBOX_WITH_WEBSERVICES': '' } if g_oEnv['CONFIG_TOOLS_DISABLE_GSOAP'] else {},
+                      'VBOX_WITH_WEBSERVICES': '' } if g_oEnv['config_tools_disable_gsoap'] \
+                                                    or g_oEnv['config_libs_disable_libgsoapssl++'] else {},
         # Disable components which require COM.
         lambda env: { 'VBOX_WITH_MAIN': '', \
                       'VBOX_WITH_QTGUI': '', \
                       'VBOX_WITH_VBOXSDL': '', \
-                      'VBOX_WITH_DEBUGGER_GUI': '' } if g_oEnv['CONFIG_DISABLE_COM'] else {},
+                      'VBOX_WITH_DEBUGGER_GUI': '' } if g_oEnv['config_disable_com'] else {},
     ];
     g_oEnv.transform(envTransforms);
 
@@ -2044,7 +2174,7 @@ def main():
     # Sorted by importance.
     #
     aOsTools = {
-        BuildTarget.LINUX:   [ 'pkg-config', 'gcc', 'make',  ],
+        BuildTarget.LINUX:   [ 'pkg-config', 'gcc', 'make', 'xsltproc' ],
         BuildTarget.DARWIN:  [ 'clang', 'make', 'brew' ],
         BuildTarget.WINDOWS: [ ], # Done via own callbacks in the ToolCheck class down below.
         BuildTarget.SOLARIS: [ 'pkg-config', 'cc', 'gmake' ]
