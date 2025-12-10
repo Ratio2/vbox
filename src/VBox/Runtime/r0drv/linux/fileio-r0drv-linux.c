@@ -45,6 +45,7 @@
 #if RTLNX_VER_MIN(4,11,0)
 # include <linux/sched/xacct.h>
 #endif
+#include <linux/file.h>
 
 #include <iprt/file.h>
 #include "internal/iprt.h"
