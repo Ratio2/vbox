@@ -230,7 +230,7 @@ ifdef VBOX_WITH_TESTCASES # The whole file
    	tstLdr-2 \
    	tstLdr-3 \
    	tstLdr-4 \
-  	tstTime-2 \
+   	tstTime-2 \
    	tstTSC
    if defined(VBOX_WITH_HARDENING) && "$(KBUILD_TARGET)" == "win"
     PROGRAMS += \
