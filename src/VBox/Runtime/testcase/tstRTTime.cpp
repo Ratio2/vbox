@@ -135,7 +135,7 @@ int main()
     }
 
     /* Report debug details: */
-#if defined(RT_ARCH_AMD64) || defined(RT_ARCH_X86) /** @todo This isn't really x86 or AMD64 specific... */
+#ifdef MAY_USE_GIP
     RTTestValue(hTest, "RTTimeDbgSteps",        RTTimeDbgSteps(),                           RTTESTUNIT_OCCURRENCES);
     RTTestValue(hTest, "RTTimeDbgSteps pp",     ((uint64_t)RTTimeDbgSteps() * 1000) / i,    RTTESTUNIT_PP1K);
     RTTestValue(hTest, "RTTimeDbgExpired",      RTTimeDbgExpired(),                         RTTESTUNIT_OCCURRENCES);

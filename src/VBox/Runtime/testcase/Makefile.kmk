@@ -955,7 +955,10 @@ ifdef VBOX_WITH_TESTCASES # The whole file
  tstRTThreadExecutionTime_SOURCES = tstRTThreadExecutionTime.cpp
 
  tstRTTime_TEMPLATE = VBoxR3TstExe
- tstRTTime_SOURCES = tstRTTime.cpp
+ tstRTTime_SOURCES := tstRTTime.cpp
+ ifdef VBOX_WITH_R0_MODULES
+  tstRTTime_DEFS   := MAY_USE_GIP
+ endif
 
  tstRTTls-1_TEMPLATE = VBoxR3TstExe
  tstRTTls-1_SOURCES = tstRTTls-1.cpp
