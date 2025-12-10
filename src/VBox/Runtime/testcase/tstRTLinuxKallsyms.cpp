@@ -1,4 +1,4 @@
-/* $Id: tstRTDarwinMachKernel.cpp 170187 2025-08-11 17:18:47Z klaus $ */
+/* $Id$ */
 /** @file
  * IPRT Testcase - /proc/kallsyms parsing for Linux kernel modules.
  */
