@@ -37,20 +37,20 @@
 EXPORTS
     ASMMultU64ByU32DivByU32
 
-    RTTimeNanoTSLegacySyncInvarNoDelta
-    RTTimeNanoTSLFenceSyncInvarNoDelta
-    RTTimeNanoTSLegacyAsyncUseApicId
-    RTTimeNanoTSLegacyAsyncUseRdtscp
-    RTTimeNanoTSLegacyAsyncUseIdtrLim
-    RTTimeNanoTSLegacySyncInvarWithDeltaUseApicId
-    RTTimeNanoTSLegacySyncInvarWithDeltaUseRdtscp
-    RTTimeNanoTSLegacySyncInvarWithDeltaUseIdtrLim
-    RTTimeNanoTSLFenceAsyncUseApicId
-    RTTimeNanoTSLFenceAsyncUseRdtscp
-    RTTimeNanoTSLFenceAsyncUseIdtrLim
-    RTTimeNanoTSLFenceSyncInvarWithDeltaUseApicId
-    RTTimeNanoTSLFenceSyncInvarWithDeltaUseRdtscp
-    RTTimeNanoTSLFenceSyncInvarWithDeltaUseIdtrLim
+    RTTimeNanoTSLegacySyncInvarNoDelta                  ; with-gip
+    RTTimeNanoTSLFenceSyncInvarNoDelta                  ; with-gip
+    RTTimeNanoTSLegacyAsyncUseApicId                    ; with-gip
+    RTTimeNanoTSLegacyAsyncUseRdtscp                    ; with-gip
+    RTTimeNanoTSLegacyAsyncUseIdtrLim                   ; with-gip
+    RTTimeNanoTSLegacySyncInvarWithDeltaUseApicId       ; with-gip
+    RTTimeNanoTSLegacySyncInvarWithDeltaUseRdtscp       ; with-gip
+    RTTimeNanoTSLegacySyncInvarWithDeltaUseIdtrLim      ; with-gip
+    RTTimeNanoTSLFenceAsyncUseApicId                    ; with-gip
+    RTTimeNanoTSLFenceAsyncUseRdtscp                    ; with-gip
+    RTTimeNanoTSLFenceAsyncUseIdtrLim                   ; with-gip
+    RTTimeNanoTSLFenceSyncInvarWithDeltaUseApicId       ; with-gip
+    RTTimeNanoTSLFenceSyncInvarWithDeltaUseRdtscp       ; with-gip
+    RTTimeNanoTSLFenceSyncInvarWithDeltaUseIdtrLim      ; with-gip
 
     RTStrMemFind32
 
