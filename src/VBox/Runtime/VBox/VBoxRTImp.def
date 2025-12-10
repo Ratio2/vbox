@@ -2040,10 +2040,10 @@ EXPORTS
     RTThreadYield
     RTTimeCompare
     RTTimeConvertToZulu
-    RTTimeDbgBad
-    RTTimeDbgExpired
-    RTTimeDbgRaces
-    RTTimeDbgSteps
+    RTTimeDbgBad                                        ; with-gip
+    RTTimeDbgExpired                                    ; with-gip
+    RTTimeDbgRaces                                      ; with-gip
+    RTTimeDbgSteps                                      ; with-gip
     RTTimeExplode
     RTTimeImplode
     RTTimeIsLeapYear
