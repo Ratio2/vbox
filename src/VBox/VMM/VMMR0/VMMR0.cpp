@@ -1228,7 +1228,7 @@ VMMR0_INT_DECL(PRTLOGGER) VMMR0GetReleaseLogger(PVMCPUCC pVCpu)
 }
 
 
-#ifdef VBOX_WITH_STATISTICS
+#if defined(VBOX_WITH_STATISTICS) && !defined(VBOX_WITH_MINIMAL_R0)
 /**
  * Record return code statistics
  * @param   pVM         The cross context VM structure.
@@ -1387,7 +1387,7 @@ static void vmmR0RecordRC(PVMCC pVM, PVMCPUCC pVCpu, int rc)
             break;
     }
 }
-#endif /* VBOX_WITH_STATISTICS */
+#endif /* VBOX_WITH_STATISTICS || !VBOX_WITH_MINIMAL_R0 */
 
 
 /**
@@ -1751,7 +1751,7 @@ DECL_NO_INLINE(static, int) vmmR0EntryExWorker(PGVM pGVM, VMCPUID idCpu, VMMR0OP
      */
     if (pGVM != NULL)
     {
-        if (RT_LIKELY(((uintptr_t)pGVM & HOST_PAGE_OFFSET_MASK) == 0))
+        if (RT_LIKELY(((uintptr_t)pGVM & RT_MIN_PAGE_OFFSET_MASK) == 0))
         { /* likely */ }
         else
         {
@@ -3374,7 +3374,7 @@ static bool vmmR0LoggerFlushCommon(PRTLOGGER pLogger, PRTLOGBUFFERDESC pBufDesc,
         {
             PGVMCPU const pGVCpu = (PGVMCPU)(uintptr_t)pLogger->u64UserValue2;
             if (   RT_VALID_PTR(pGVCpu)
-                && ((uintptr_t)pGVCpu & HOST_PAGE_OFFSET_MASK) == 0)
+                && ((uintptr_t)pGVCpu & RT_MIN_PAGE_OFFSET_MASK) == 0)
             {
                 RTNATIVETHREAD const hNativeSelf = RTThreadNativeSelf();
                 PGVM const           pGVM        = pGVCpu->pGVM;
