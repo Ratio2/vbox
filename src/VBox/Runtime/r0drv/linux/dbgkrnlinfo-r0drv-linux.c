@@ -315,5 +315,36 @@ RTR0DECL(int) RTR0DbgKrnlInfoQuerySymbol(RTDBGKRNLINFO hKrnlInfo, const char *ps
     return VERR_SYMBOL_NOT_FOUND;
 }
 
-#endif /* RTLNX_VER_MIN(6,7,0) || defined(IN_RING3) */
+#else  /* !RTLNX_VER_MIN(6,7,0) && !defined(IN_RING3) */
+
+/*
+ * Stubs to prevent linking issues with RTR0DbgKrnlInfoGetSymbol and such.
+ */
+
+RTR0DECL(int) RTR0DbgKrnlInfoOpen(PRTDBGKRNLINFO phKrnlInfo, uint32_t fFlags)
+{
+    RT_NOREF(phKrnlInfo, fFlags);
+    return VERR_NOT_IMPLEMENTED;
+}
+
+RTR0DECL(uint32_t) RTR0DbgKrnlInfoRetain(RTDBGKRNLINFO hKrnlInfo)
+{
+    RT_NOREF(hKrnlInfo);
+    return UINT32_MAX;
+}
+
+RTR0DECL(uint32_t) RTR0DbgKrnlInfoRelease(RTDBGKRNLINFO hKrnlInfo)
+{
+    RT_NOREF(hKrnlInfo);
+    return UINT32_MAX;
+}
+
+RTR0DECL(int) RTR0DbgKrnlInfoQuerySymbol(RTDBGKRNLINFO hKrnlInfo, const char *pszModule,
+                                         const char *pszSymbol, void **ppvSymbol)
+{
+    RT_NOREF(hKrnlInfo, pszModule, pszSymbol, ppvSymbol);
+    return VERR_NOT_IMPLEMENTED;
+}
+
+#endif /* !RTLNX_VER_MIN(6,7,0) && !defined(IN_RING3) */
 
