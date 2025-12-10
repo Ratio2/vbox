@@ -42,9 +42,9 @@
 
 #include <iprt/errcore.h>
 #include <iprt/path.h>
-#include <iprt/param.h>
 #include <iprt/stream.h>
 #include <iprt/string.h>
+#include <iprt/system.h>
 #include <iprt/test.h>
 #include <iprt/thread.h>
 #ifdef VBOX
@@ -72,7 +72,8 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
         return rc;
     RTTestBanner(hTest);
 
-    uint8_t *pbPage = (uint8_t *)RTTestGuardedAllocTail(hTest, PAGE_SIZE);
+    size_t const cbPage = RTSystemGetPageSize();
+    uint8_t *pbPage = (uint8_t *)RTTestGuardedAllocTail(hTest, cbPage);
     if (!pbPage)
     {
         RTTestFailed(hTest, "RTTestGuardedAllocTail failed with rc=%Rrc\n", rc);
@@ -186,7 +187,7 @@ extern "C" DECLEXPORT(int) TrustedMain(int argc, char **argv, char **envp)
     Req.Hdr.cbReq = sizeof(Req);
     Req.szMsg[0] = '\0';
     RTTESTI_CHECK_RC(rc = SUPR3CallR0Service("tstRTR0MemUserKernel", sizeof("tstRTR0MemUserKernel") - 1,
-                                             TSTRTR0MEMUSERKERNEL_BAD, (uintptr_t)pbPage + PAGE_SIZE, &Req.Hdr), VINF_SUCCESS);
+                                             TSTRTR0MEMUSERKERNEL_BAD, (uintptr_t)pbPage + cbPage, &Req.Hdr), VINF_SUCCESS);
     if (RT_FAILURE(rc))
         return RTTestSummaryAndDestroy(hTest);
     if (Req.szMsg[0] == '!')

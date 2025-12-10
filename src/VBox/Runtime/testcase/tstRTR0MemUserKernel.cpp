@@ -41,8 +41,8 @@
 #include <iprt/mem.h>
 
 #include <iprt/errcore.h>
-#include <iprt/param.h>
 #include <iprt/time.h>
+#include <iprt/system.h>
 #include <iprt/string.h>
 #include <VBox/sup.h>
 #include "tstRTR0MemUserKernel.h"
@@ -80,7 +80,8 @@ DECLEXPORT(int) TSTRTR0MemUserKernelSrvReqHandler(PSUPDRVSESSION pSession, uint3
     /*
      * Allocate a kernel buffer.
      */
-    uint8_t *pbKrnlBuf = (uint8_t *)RTMemAlloc(PAGE_SIZE * 2);
+    size_t const cbPage = RTSystemGetPageSize();
+    uint8_t *pbKrnlBuf = (uint8_t *)RTMemAlloc(cbPage * 2);
     if (!pbKrnlBuf)
     {
         RTStrPrintf(pszErr, cchErr, "!no memory for kernel buffers");
@@ -101,10 +102,10 @@ DECLEXPORT(int) TSTRTR0MemUserKernelSrvReqHandler(PSUPDRVSESSION pSession, uint3
 
         case TSTRTR0MEMUSERKERNEL_BASIC:
         {
-            int rc = RTR0MemUserCopyFrom(pbKrnlBuf, R3Ptr, PAGE_SIZE);
+            int rc = RTR0MemUserCopyFrom(pbKrnlBuf, R3Ptr, cbPage);
             if (rc == VINF_SUCCESS)
             {
-                rc = RTR0MemUserCopyTo(R3Ptr, pbKrnlBuf, PAGE_SIZE);
+                rc = RTR0MemUserCopyTo(R3Ptr, pbKrnlBuf, cbPage);
                 if (rc == VINF_SUCCESS)
                 {
                     if (RTR0MemUserIsValidAddr(R3Ptr))
@@ -165,7 +166,7 @@ DECLEXPORT(int) TSTRTR0MemUserKernelSrvReqHandler(PSUPDRVSESSION pSession, uint3
         case TSTRTR0MEMUSERKERNEL_GOOD:
         {
             for (unsigned off = 0; off < 16 && !*pszErr; off++)
-                for (unsigned cb = 0; cb < PAGE_SIZE - 16; cb++)
+                for (unsigned cb = 0; cb < cbPage - 16; cb++)
                     TEST_OFF_SIZE(off, cb, VINF_SUCCESS);
             break;
         }
@@ -173,7 +174,7 @@ DECLEXPORT(int) TSTRTR0MemUserKernelSrvReqHandler(PSUPDRVSESSION pSession, uint3
         case TSTRTR0MEMUSERKERNEL_BAD:
         {
             for (unsigned off = 0; off < 16 && !*pszErr; off++)
-                for (unsigned cb = 0; cb < PAGE_SIZE - 16; cb++)
+                for (unsigned cb = 0; cb < cbPage - 16; cb++)
                     TEST_OFF_SIZE(off, cb, cb > 0 ? VERR_ACCESS_DENIED : VINF_SUCCESS);
             break;
         }
@@ -184,7 +185,7 @@ DECLEXPORT(int) TSTRTR0MemUserKernelSrvReqHandler(PSUPDRVSESSION pSession, uint3
                 &&  RTR0MemKernelIsValidAddr((void *)R3Ptr))
             {
                 for (unsigned off = 0; off < 16 && !*pszErr; off++)
-                    for (unsigned cb = 0; cb < PAGE_SIZE - 16; cb++)
+                    for (unsigned cb = 0; cb < cbPage - 16; cb++)
                         TEST_OFF_SIZE(off, cb, cb > 0 ? VERR_ACCESS_DENIED : VINF_SUCCESS); /* ... */
             }
             else
