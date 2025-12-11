@@ -3111,7 +3111,7 @@
     </method>
 
     <method name="createMachine">
-      <rest name="create" request="post" path="/vm/"/>
+      <rest name="create" request="post" path="/vm/" stub="hardcoded"/>
       <desc>
         Creates a new virtual machine by creating a machine settings file at
         the given location.
@@ -3379,7 +3379,7 @@
     </method>
 
     <method name="createMedium">
-      <rest name="create" request="post" path="/media/"/>
+      <rest name="create" request="post" path="/media/" stub="hardcoded"/>
       <desc>
         Creates a new base medium object that will use the given storage
         format and location for medium data.
@@ -4007,7 +4007,7 @@
     </method>
 
     <method name="findProgressById">
-      <rest name="find" request="get" path="/progress/{progressid}/"/>
+      <rest name="find" request="get" path="/progress/{progressid}/" stub="hardcoded"/>
       <desc>
         Searches through all progress objects known to VBoxSVC for an
         instance with the given GUID.
@@ -8536,7 +8536,7 @@
     </method>
 
     <method name="launchVMProcess">
-      <rest name="launch" request="post" path="/vm/{vmid}/action/"/>
+      <rest name="launch" request="post" path="/vm/{vmid}/action/" stub="hardcoded"/>
       <desc>
         Spawns a new process that will execute the virtual machine and obtains a shared
         lock on the machine for the calling session.
@@ -8714,7 +8714,7 @@
     </method>
 
     <method name="attachDevice">
-      <rest name="attach" request="post" path="/vm/{vmid}/dev/action/"/>
+      <rest name="attach" request="post" path="/vm/{vmid}/dev/action/" stub="hardcoded"/>
       <desc>
         Attaches a device and optionally mounts a medium to the given storage
         controller (<link to="IStorageController" />, identified by @a name),
@@ -9254,7 +9254,7 @@
     </method>
 
     <method name="mountMedium">
-      <rest name="mount" request="post" path="/vm/{vmid}/media/action/"/>
+      <rest name="mount" request="post" path="/vm/{vmid}/media/action/" stub="hardcoded"/>
       <desc>
         Mounts a medium (<link to="IMedium" />, identified
         by the given UUID @a id) to the given storage controller
@@ -9877,7 +9877,7 @@
     </method>
 
     <method name="deleteConfig">
-      <rest name="remove" request="delete" path="/vm/{vmid}/"/>
+      <rest name="remove" request="delete" path="/vm/{vmid}/" stub="hardcoded"/>
       <desc>
         Deletes the files associated with this machine from disk. If medium objects are passed
         in with the @a aMedia argument, they are closed and, if closing was successful, their
@@ -19986,7 +19986,7 @@ Snapshot 1 (B.vdi)            Snapshot 1 (B.vdi)
     <!-- storage methods -->
 
     <method name="createBaseStorage">
-      <rest request="post" path="/media/{mediumid}/action/"/>
+      <rest request="post" path="/media/{mediumid}/action/" stub="hardcoded"/>
       <desc>
         Starts creating a hard disk storage unit (fixed/dynamic, according
         to the variant flags) in the background. The previous storage unit
@@ -20068,7 +20068,7 @@ Snapshot 1 (B.vdi)            Snapshot 1 (B.vdi)
     <!-- diff methods -->
 
     <method name="createDiffStorage" wrap-hint-server="passcaller">
-      <rest request="post" path="/media/{mediumid}/action/"/>
+      <rest request="post" path="/media/{mediumid}/action/" stub="hardcoded"/>
       <desc>
         Starts creating an empty differencing storage unit based on this
         medium in the format and at the location defined by the @a target
@@ -20189,7 +20189,7 @@ Snapshot 1 (B.vdi)            Snapshot 1 (B.vdi)
     <!-- clone method -->
 
     <method name="cloneTo">
-      <rest name="clone" request="post" path="/media/{mediumid}/action/"/>
+      <rest name="clone" request="post" path="/media/{mediumid}/action/" stub="hardcoded"/>
       <desc>
         Starts creating a clone of this medium in the format and at the
         location defined by the @a target argument.
