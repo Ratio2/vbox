@@ -27,6 +27,7 @@
 
 /* Qt includes: */
 #include <QAccessibleWidget>
+#include <QHeaderView>
 #include <QPainter>
 #include <QResizeEvent>
 
@@ -166,15 +167,30 @@ public:
     /** Returns a text for the passed @a enmTextRole. */
     virtual QString text(QAccessible::Text enmTextRole) const RT_OVERRIDE
     {
-        /* Make sure item still alive: */
-        QITableWidgetItem *pItem = item();
-        AssertPtrReturn(pItem, QString());
-
         /* Return a text for the passed enmTextRole: */
         switch (enmTextRole)
         {
-            case QAccessible::Name: return pItem->defaultText();
-            default: break;
+            case QAccessible::Name:
+            {
+                /* Sanity check: */
+                QITableWidgetItem *pItem = item();
+                AssertPtrReturn(pItem, QString());
+                QITableWidget *pTable = pItem->parentTable();
+                AssertPtrReturn(pTable, QString());
+                QHeaderView *pHeader = pTable->horizontalHeader();
+                AssertPtrReturn(pHeader, QString());
+                QAbstractItemModel *pModel = pHeader->model();
+                AssertPtrReturn(pModel, QString());
+                const QString strHeaderName = pModel->headerData(pItem->column(), Qt::Horizontal).toString();
+                const QString strItemText = pItem->defaultText();
+
+                /* Include header name if available: */
+                return   strHeaderName.isEmpty()
+                       ? strItemText
+                       : QString("%1: %2").arg(strHeaderName, strItemText);
+            }
+            default:
+                break;
         }
 
         /* Null-string by default: */
