@@ -66,6 +66,7 @@ void UITakeSnapshotDialog::setIcon(const QIcon &icon)
 void UITakeSnapshotDialog::setName(const QString &strName)
 {
     m_pEditorName->setText(strName);
+    m_pEditorName->selectAll();
 }
 
 QString UITakeSnapshotDialog::name() const
