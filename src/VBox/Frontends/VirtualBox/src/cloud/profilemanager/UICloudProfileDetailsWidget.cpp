@@ -86,7 +86,8 @@ void UICloudProfileDetailsWidget::sltRetranslateUI()
     /* Translate table-widget: */
     m_pTableWidget->setWhatsThis(UICloudProfileManager::tr("Contains cloud profile settings"));
 
-    /* Translate buttons: */
+    /* Translate stuff: */
+    retranslateTable();
     retranslateButtons();
 
     /* Retranslate validation: */
@@ -102,6 +103,13 @@ void UICloudProfileDetailsWidget::retranslateEditor()
     m_pEditorName->setPlaceholderText(  m_oldData.m_strName.isNull()
                                       ? UICloudProfileManager::tr("Enter a name for the new profile...")
                                       : UICloudProfileManager::tr("Enter a name for this profile..."));
+}
+
+void UICloudProfileDetailsWidget::retranslateTable()
+{
+    m_pTableWidget->setHorizontalHeaderLabels(QStringList()
+                                              << UICloudProfileManager::tr("Name")
+                                              << UICloudProfileManager::tr("Value"));
 }
 
 void UICloudProfileDetailsWidget::retranslateButtons()
@@ -299,6 +307,8 @@ void UICloudProfileDetailsWidget::loadData()
 {
     /* Clear table initially: */
     m_pTableWidget->clear();
+    /* Restore table header after clear() call: */
+    retranslateTable();
 
     /* Fill name editor: */
     m_pEditorName->setText(m_oldData.m_strName);

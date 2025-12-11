@@ -151,6 +151,8 @@ protected:
 
     /** Handles editor translation. */
     void retranslateEditor();
+    /** Handles table translation. */
+    void retranslateTable();
     /** Handles buttons translation. */
     void retranslateButtons();
 
