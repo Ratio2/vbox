@@ -36,8 +36,8 @@
 
 /* Forward declartions: */
 class QLineEdit;
-class QTabWidget;
 class QITableView;
+class QITabWidget;
 class UIShortcutConfigurationModel;
 class UIShortcutConfigurationProxyModel;
 
@@ -258,15 +258,15 @@ private:
     UIShortcutConfigurationProxyModel *m_pProxyModelRuntime;
 
     /** Holds the tab-widget instance. */
-    QTabWidget                   *m_pTabWidget;
+    QITabWidget *m_pTabWidget;
     /** Holds the Manager UI shortcuts filter instance. */
-    QLineEdit                    *m_pEditorFilterManager;
+    QLineEdit   *m_pEditorFilterManager;
     /** Holds the Manager UI shortcuts table instance. */
-    QITableView                  *m_pTableManager;
+    QITableView *m_pTableManager;
     /** Holds the Runtime UI shortcuts filter instance. */
-    QLineEdit                    *m_pEditorFilterRuntime;
+    QLineEdit   *m_pEditorFilterRuntime;
     /** Holds the Runtime UI shortcuts table instance. */
-    QITableView                  *m_pTableRuntime;
+    QITableView *m_pTableRuntime;
 };
 
 #endif /* !FEQT_INCLUDED_SRC_settings_editors_UIShortcutConfigurationEditor_h */
