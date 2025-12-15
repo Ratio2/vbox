@@ -764,13 +764,13 @@ static DECLCALLBACK(int) drvNATAsyncIoThread(PPDMDRVINS pDrvIns, PPDMTHREAD pThr
             int iError = WSAGetLastError();
             if(RT_LIKELY(!(cbRead != SOCKET_ERROR)))
             {
-                LogRel(("Wakeup socket read erorr: %d\n", iError));
+                LogRelFunc(("Wakeup socket read error in poll loop: %d\n", iError));
                 rc = VERR_PIPE_IO_ERROR;
             }
 #else
             rc = RTPipeRead(pThis->hPipeRead, &achBuf[0], RT_MIN(cbWakeupNotifs, sizeof(achBuf)), &cbRead);
             if (RT_FAILURE(rc))
-                LogRel(("Wakup socket read error (%Rrc)\n", rc));
+                LogRelFunc(("Wakup socket read error in poll loop (%Rrc)\n", rc));
 #endif
             if(RT_SUCCESS(rc))
                 ASMAtomicSubU64(&pThis->cbWakeupNotifs, cbRead);
