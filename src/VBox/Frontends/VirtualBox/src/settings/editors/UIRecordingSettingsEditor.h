@@ -38,7 +38,6 @@
 /* Forward declarations: */
 class QCheckBox;
 class QGridLayout;
-class QLabel;
 class QWidget;
 class UIRecordingAudioProfileEditor;
 class UIRecordingFilePathEditor;
@@ -139,9 +138,6 @@ private:
 
     /** Updates widget availability. */
     void updateWidgetAvailability();
-    /** Updates recording file size hint. */
-    void updateRecordingFileSizeHint();
-
     /** Updates minimum layout hint. */
     void updateMinimumLayoutHint();
 
@@ -176,8 +172,6 @@ private:
         UIRecordingVideoBitrateEditor   *m_pEditorBitrate;
         /** Holds the audio profile editor instance. */
         UIRecordingAudioProfileEditor   *m_pEditorAudioProfile;
-        /** Holds the size hint label instance. */
-        QLabel                          *m_pLabelSizeHint;
         /** Holds the screen selector editor instance. */
         UIRecordingScreenSelectorEditor *m_pEditorScreenSelector;
     /** @} */
