@@ -5644,6 +5644,9 @@ ifeq ($(VBOX_LDR_FMT),elf)
  endif
  TEMPLATE_VBoxR0_CFLAGS.amd64       = -m64 -mno-red-zone -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -fasynchronous-unwind-tables -ffreestanding
  TEMPLATE_VBoxR0_CXXFLAGS.amd64     = -m64 -mno-red-zone -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -fasynchronous-unwind-tables
+ TEMPLATE_VBoxR0_CXXFLAGS.arm64     = -mabi=lp64 -mgeneral-regs-only -ffixed-x18 -fconserve-stack \
+ 	-fno-stack-check -fno-stack-clash-protection -fno-allow-store-data-races -fno-delete-null-pointer-checks # (linux 6.11)
+ # arm64: Add -mbranch-protection=pac-ret ?
  TEMPLATE_VBoxR0_CXXFLAGS.freebsd   = -ffreestanding
  if $(VBOX_GCC_VERSION_CC) < 30400
   TEMPLATE_VBoxR0_DEFS             += RT_WITHOUT_PRAGMA_ONCE
