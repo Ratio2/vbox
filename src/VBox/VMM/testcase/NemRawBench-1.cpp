@@ -70,6 +70,9 @@
 #include <iprt/stdarg.h>
 #include <iprt/types.h>
 #include <iprt/string.h>
+#ifdef RT_ARCH_ARM64
+# include <iprt/armv8.h>
+#endif
 
 
 /*********************************************************************************************************************************
@@ -79,17 +82,29 @@
 #define MY_MEM_BASE             0x1000
 /** No-op MMIO access address.   */
 #define MY_NOP_MMIO             0x0808
-/** The RIP which the testcode starts. */
-#define MY_TEST_RIP             0x2000
+/** The PC/RIP which the testcode starts. */
+#define MY_TEST_PC              0x2000
 
+#if defined(RT_ARCH_AMD64)
 /** The test termination port number. */
-#define MY_TERM_PORT            0x01
+# define MY_TERM_PORT           0x01
 /** The no-op test port number. */
-#define MY_NOP_PORT             0x7f
+# define MY_NOP_PORT            0x7f
+#else
+/** No-op MMIO access address.   */
+# define MY_TERM_MMIO           0x0800
+#endif
 
-#define MY_TEST_F_NOP_IO        (1U<<0)
-#define MY_TEST_F_CPUID         (1U<<1)
-#define MY_TEST_F_NOP_MMIO      (1U<<2)
+
+#define MY_TEST_F_NOP_MMIO      (1U<<0)
+#if defined(RT_ARCH_AMD64)
+# define MY_TEST_F_CPUID        (1U<<1)
+# define MY_TEST_F_NOP_IO       (1U<<2)
+#endif
+
+#if defined(RT_OS_LINUX) && defined(RT_ARCH_ARM64)
+# define MY_ARM64_CORE_REG(a_Memb)  (KVM_REG_ARM64 | KVM_REG_ARM_CORE | KVM_REG_SIZE_U64 | KVM_REG_ARM_CORE_REG(a_Memb))
+#endif
 
 
 
@@ -411,7 +426,7 @@ static int runRealModeTest(unsigned cInstructions, const char *pszInstruction, u
     ADD_REG64(WHvX64RegisterRbp, uEbp);
     ADD_REG64(WHvX64RegisterRsi, uEsi);
     ADD_REG64(WHvX64RegisterRdi, uEdi);
-    ADD_REG64(WHvX64RegisterRip, MY_TEST_RIP);
+    ADD_REG64(WHvX64RegisterRip, MY_TEST_PC);
     ADD_REG64(WHvX64RegisterRflags, 2);
     ADD_SEG(WHvX64RegisterEs, 0x00000, 0xffff, 0x0000, 0);
     ADD_SEG(WHvX64RegisterCs, 0x00000, 0xffff, 0x0000, 1);
@@ -530,6 +545,7 @@ static int runRealModeTest(unsigned cInstructions, const char *pszInstruction, u
 
 static int createVM(void)
 {
+    int rc;
     int fd = open("/dev/kvm", O_RDWR);
     if (fd < 0)
         return error("Error opening /dev/kvm: %d\n", errno);
@@ -546,6 +562,14 @@ static int createVM(void)
     g_fdVCpu = ioctl(g_fdVm, KVM_CREATE_VCPU, (uintptr_t)0);
     if (g_fdVCpu < 0)
         return error("KVM_CREATE_VCPU failed: %d\n", errno);
+    RTPrintf("info: g_fdVCpu=%d g_fdVm=%d\n", g_fdVCpu, g_fdVm);
+
+# ifdef RT_ARCH_ARM64
+    struct kvm_vcpu_init VCpuInit = { KVM_ARM_TARGET_GENERIC_V8, {0}};
+    rc = ioctl(g_fdVCpu, KVM_ARM_VCPU_INIT, (uintptr_t)&VCpuInit);
+    if (rc != 0)
+        return error("KVM_ARM_VCPU_INIT failed: %d (rc=%d)\n", errno, rc);
+# endif
 
     g_pVCpuRun = (struct kvm_run *)mmap(NULL, g_cbVCpuRun, PROT_READ | PROT_WRITE, MAP_PRIVATE, g_fdVCpu, 0);
     if ((void *)g_pVCpuRun == MAP_FAILED)
@@ -562,7 +586,7 @@ static int createVM(void)
     MemReg.guest_phys_addr = MY_MEM_BASE;
     MemReg.memory_size     = g_cbMem;
     MemReg.userspace_addr  = (uintptr_t)g_pbMem;
-    int rc = ioctl(g_fdVm, KVM_SET_USER_MEMORY_REGION, &MemReg);
+    rc = ioctl(g_fdVm, KVM_SET_USER_MEMORY_REGION, &MemReg);
     if (rc != 0)
         return error("KVM_SET_USER_MEMORY_REGION failed: %d (%d)\n", errno, rc);
 
@@ -571,12 +595,14 @@ static int createVM(void)
 }
 
 
+# ifdef RT_ARCH_AMD64
 static void printSReg(const char *pszName, struct kvm_segment const *pSReg)
 {
     RTStrmPrintf(g_pStdErr, "     %5s=%04x  base=%016llx  limit=%08x type=%#x p=%d dpl=%d db=%d s=%d l=%d g=%d avl=%d un=%d\n",
                  pszName, pSReg->selector, pSReg->base, pSReg->limit, pSReg->type, pSReg->present, pSReg->dpl,
                  pSReg->db, pSReg->s, pSReg->l, pSReg->g, pSReg->avl, pSReg->unusable);
 }
+# endif
 
 
 static int runtimeError(const char *pszFormat, ...)
@@ -594,12 +620,14 @@ static int runtimeError(const char *pszFormat, ...)
     RTStrmPrintf(g_pStdErr, "               kvm_valid_regs=%#018llx\n", g_pVCpuRun->kvm_valid_regs);
     RTStrmPrintf(g_pStdErr, "               kvm_dirty_regs=%#018llx\n", g_pVCpuRun->kvm_dirty_regs);
 
+# ifdef RT_ARCH_AMD64
     struct kvm_regs Regs;
     memset(&Regs, 0, sizeof(Regs));
     struct kvm_sregs SRegs;
     memset(&SRegs, 0, sizeof(SRegs));
     if (   ioctl(g_fdVCpu, KVM_GET_REGS, &Regs) != -1
-        && ioctl(g_fdVCpu, KVM_GET_SREGS, &SRegs) != -1)
+        && ioctl(g_fdVCpu, KVM_GET_SREGS, &SRegs) != -1
+       )
     {
         RTStrmPrintf(g_pStdErr, "       rip=%016llx\n", Regs.rip);
         printSReg("cs", &SRegs.cs);
@@ -626,10 +654,70 @@ static int runtimeError(const char *pszFormat, ...)
                          g_pbMem[offMem    ], g_pbMem[offMem + 1], g_pbMem[offMem + 2], g_pbMem[offMem + 3],
                          g_pbMem[offMem + 4], g_pbMem[offMem + 5], g_pbMem[offMem + 6], g_pbMem[offMem + 7]);
     }
+# elif defined(RT_ARCH_ARM64)
+    static struct { const char *psz; uint64_t id; } const s_aRegs[] =
+    {
+        { "pc",         MY_ARM64_CORE_REG(regs.pc) },
+        { "sp",         MY_ARM64_CORE_REG(regs.sp) },
+        { "pstate",     MY_ARM64_CORE_REG(regs.pstate) },
+        { "x0",         MY_ARM64_CORE_REG(regs.regs[0]) },
+        { "x1",         MY_ARM64_CORE_REG(regs.regs[1]) },
+        { "x2",         MY_ARM64_CORE_REG(regs.regs[2]) },
+        { "x3",         MY_ARM64_CORE_REG(regs.regs[3]) },
+        { "x4",         MY_ARM64_CORE_REG(regs.regs[4]) },
+        { "x5",         MY_ARM64_CORE_REG(regs.regs[5]) },
+        { "x6",         MY_ARM64_CORE_REG(regs.regs[6]) },
+        { "x7",         MY_ARM64_CORE_REG(regs.regs[7]) },
+        { "x8",         MY_ARM64_CORE_REG(regs.regs[8]) },
+        { "x9",         MY_ARM64_CORE_REG(regs.regs[9]) },
+        { "x10",        MY_ARM64_CORE_REG(regs.regs[10]) },
+        { "x11",        MY_ARM64_CORE_REG(regs.regs[11]) },
+        { "x12",        MY_ARM64_CORE_REG(regs.regs[12]) },
+        { "x13",        MY_ARM64_CORE_REG(regs.regs[13]) },
+        { "x14",        MY_ARM64_CORE_REG(regs.regs[14]) },
+        { "x15",        MY_ARM64_CORE_REG(regs.regs[15]) },
+        { "x16",        MY_ARM64_CORE_REG(regs.regs[16]) },
+        { "x17",        MY_ARM64_CORE_REG(regs.regs[17]) },
+        { "x18",        MY_ARM64_CORE_REG(regs.regs[18]) },
+        { "x19",        MY_ARM64_CORE_REG(regs.regs[19]) },
+        { "x20",        MY_ARM64_CORE_REG(regs.regs[20]) },
+        { "x21",        MY_ARM64_CORE_REG(regs.regs[21]) },
+        { "x22",        MY_ARM64_CORE_REG(regs.regs[22]) },
+        { "x23",        MY_ARM64_CORE_REG(regs.regs[23]) },
+        { "x24",        MY_ARM64_CORE_REG(regs.regs[24]) },
+        { "x25",        MY_ARM64_CORE_REG(regs.regs[25]) },
+        { "x26",        MY_ARM64_CORE_REG(regs.regs[26]) },
+        { "x27",        MY_ARM64_CORE_REG(regs.regs[27]) },
+        { "x28",        MY_ARM64_CORE_REG(regs.regs[28]) },
+        { "x29",        MY_ARM64_CORE_REG(regs.regs[29]) },
+        { "x30",        MY_ARM64_CORE_REG(regs.regs[30]) },
+        { "spsr0",      MY_ARM64_CORE_REG(spsr[0]) },
+        { "spsr1",      MY_ARM64_CORE_REG(spsr[1]) },
+        { "spsr2",      MY_ARM64_CORE_REG(spsr[2]) },
+        { "spsr3",      MY_ARM64_CORE_REG(spsr[3]) },
+        { "spsr4",      MY_ARM64_CORE_REG(spsr[4]) },
+        { "sp_el1",     MY_ARM64_CORE_REG(sp_el1) },
+        { "elr_el1",    MY_ARM64_CORE_REG(elr_el1) },
+    };
+
+    for (unsigned i = 0; i < RT_ELEMENTS(s_aRegs); i++)
+    {
+        RTUINT256U          Value = {{0,0,0,0}};
+        struct kvm_one_reg  Reg   = { s_aRegs[i].id, (uintptr_t)&Value };
+        int rc = ioctl(g_fdVCpu,  KVM_GET_ONE_REG, &Reg);
+        if (!rc)
+            RTStrmPrintf(g_pStdErr, "%8s=%016llx\n", s_aRegs[i].psz, Value.QWords.qw0);
+    }
+
+# else
+#  error "port me"
+# endif
 
     return 1;
 }
 
+
+# ifdef RT_ARCH_AMD64
 static int runRealModeTest(unsigned cInstructions, const char *pszInstruction, unsigned fTest,
                            unsigned uEax, unsigned uEcx, unsigned uEdx, unsigned uEbx,
                            unsigned uEsp, unsigned uEbp, unsigned uEsi, unsigned uEdi)
@@ -639,7 +727,7 @@ static int runRealModeTest(unsigned cInstructions, const char *pszInstruction, u
     /*
      * Setup real mode context.
      */
-#define SET_SEG(a_SReg, a_Base, a_Limit, a_Sel, a_fCode) \
+#  define SET_SEG(a_SReg, a_Base, a_Limit, a_Sel, a_fCode) \
         do { \
             a_SReg.base     = (a_Base); \
             a_SReg.limit    = (a_Limit); \
@@ -665,7 +753,7 @@ static int runRealModeTest(unsigned cInstructions, const char *pszInstruction, u
     Regs.rbp = uEbp;
     Regs.rsi = uEsi;
     Regs.rdi = uEdi;
-    Regs.rip = MY_TEST_RIP;
+    Regs.rip = MY_TEST_PC;
     Regs.rflags = 2;
     int rc = ioctl(g_fdVCpu, KVM_SET_REGS, &Regs);
     if (rc != 0)
@@ -726,6 +814,83 @@ static int runRealModeTest(unsigned cInstructions, const char *pszInstruction, u
     uint64_t const nsElapsed = getNanoTS() - nsStart;
     return reportResult(pszInstruction, cInstructions, nsElapsed, cExits);
 }
+
+# elif defined(RT_ARCH_ARM64)
+static int runUnpagedEl1Test(unsigned cInstructions, const char *pszInstruction, unsigned fTest,
+                             uint64_t uX0 = 0, uint64_t uX1 = 0, uint64_t uX2 = 0, uint64_t uX3 = 0,
+                             uint64_t uX4 = 0, uint64_t uX5 = 0, uint64_t uX6 = 0, uint64_t uX7 = 0)
+{
+    (void)fTest;
+
+    /*
+     * Setup the context.
+     */
+    struct { const char *psz; uint64_t id; uint64_t uValue; } aRegs[] =
+    {
+        { "x0",         MY_ARM64_CORE_REG(regs.regs[0]),     uX0 },
+        { "x1",         MY_ARM64_CORE_REG(regs.regs[1]),     uX1 },
+        { "x2",         MY_ARM64_CORE_REG(regs.regs[2]),     uX2 },
+        { "x3",         MY_ARM64_CORE_REG(regs.regs[3]),     uX3 },
+        { "x4",         MY_ARM64_CORE_REG(regs.regs[4]),     uX4 },
+        { "x5",         MY_ARM64_CORE_REG(regs.regs[5]),     uX5 },
+        { "x6",         MY_ARM64_CORE_REG(regs.regs[6]),     uX6 },
+        { "x7",         MY_ARM64_CORE_REG(regs.regs[7]),     uX7 },
+
+        { "pc",         MY_ARM64_CORE_REG(regs.pc),          MY_TEST_PC },
+        { "sp",         MY_ARM64_CORE_REG(regs.sp),          0x10000 },
+        { "pstate",     MY_ARM64_CORE_REG(regs.pstate),        ARMV8_SPSR_EL2_AARCH64_SET_EL(1)
+                                                                | ARMV8_SPSR_EL2_AARCH64_SP
+                                                                | ARMV8_SPSR_EL2_AARCH64_D
+                                                                | ARMV8_SPSR_EL2_AARCH64_A
+                                                                | ARMV8_SPSR_EL2_AARCH64_I
+                                                                | ARMV8_SPSR_EL2_AARCH64_F },
+    };
+    for (unsigned i = 0; i < RT_ELEMENTS(aRegs); i++)
+    {
+        struct kvm_one_reg Reg; // = { aRegs[i].id, (uintptr_t)&aRegs[i].uValue };
+        Reg.id   = aRegs[i].id;
+        Reg.addr = (uintptr_t)&aRegs[i].uValue;
+        errno = 0;
+        int rc = ioctl(g_fdVCpu, KVM_SET_ONE_REG, &Reg);
+        if (rc != 0)
+            return error("KVM_SET_ONE_REG(%#llx/%s) failed: %d - %s (rc=%d)\n",
+                         aRegs[i].id, aRegs[i].psz, errno, strerror(errno), rc);
+    }
+
+    /*
+     * Run the test.
+     */
+    uint32_t cExits = 0;
+    uint64_t const nsStart = getNanoTS();
+    for (;;)
+    {
+        int rc = ioctl(g_fdVCpu, KVM_RUN, (uintptr_t)0);
+        if (rc == 0)
+        {
+            cExits++;
+            if (g_pVCpuRun->exit_reason == KVM_EXIT_MMIO)
+            {
+                if (g_pVCpuRun->mmio.phys_addr == MY_NOP_MMIO)
+                { /* likely: nop address */ }
+                else if (g_pVCpuRun->mmio.phys_addr == MY_TERM_MMIO)
+                    break;
+                else
+                    return runtimeError("Unexpected memory access (for %s): %#llx\n", pszInstruction, g_pVCpuRun->mmio.phys_addr);
+            }
+            else
+                return runtimeError("Unexpected exit (for %s): %d\n", pszInstruction, g_pVCpuRun->exit_reason);
+        }
+        else
+            return runtimeError("KVM_RUN failed (for %s): %#x (ret %d)\n", pszInstruction, errno, rc);
+    }
+    uint64_t const nsElapsed = getNanoTS() - nsStart;
+    return reportResult(pszInstruction, cInstructions, nsElapsed, cExits);
+
+}
+
+# else
+#  error "port me"
+# endif
 
 
 #elif defined(RT_OS_DARWIN)
@@ -952,7 +1117,7 @@ static int runRealModeTest(unsigned cInstructions, const char *pszInstruction, u
     WRITE_REG_RET(HV_X86_RBP, uEbp);
     WRITE_REG_RET(HV_X86_RSI, uEsi);
     WRITE_REG_RET(HV_X86_RDI, uEdi);
-    WRITE_REG_RET(HV_X86_RIP, MY_TEST_RIP);
+    WRITE_REG_RET(HV_X86_RIP, MY_TEST_PC);
     WRITE_REG_RET(HV_X86_RFLAGS, 2);
     WRITE_REG_RET(HV_X86_ES, 0x0000);
     WRITE_VMCS_RET(VMCS_GUEST_ES_BASE, 0x0000000);
@@ -1055,7 +1220,7 @@ static int runRealModeTest(unsigned cInstructions, const char *pszInstruction, u
                     READ_VMCS_RET(VMCS_GUEST_PHYSICAL_ADDRESS, &GCPhys);
                     if (GCPhys == MY_NOP_MMIO && (fTest & MY_TEST_F_NOP_MMIO))
                     { /* likely */ }
-                    else if (GCPhys == MY_TEST_RIP)
+                    else if (GCPhys == MY_TEST_PC)
                         continue; /* dunno why we get this, but restarting it works */
                     else
                         return runtimeError("Unexpected EPT viotaion at %#llx\n", GCPhys);
@@ -1090,6 +1255,13 @@ static int runRealModeTest(unsigned cInstructions, const char *pszInstruction, u
 # error "port me"
 #endif
 
+#ifdef RT_ARCH_AMD64
+
+
+/*********************************************************************************************************************************
+*   AMD64 tests                                                                                                                  *
+*********************************************************************************************************************************/
+
 void dumpCode(uint8_t const *pb, uint8_t *pbEnd)
 {
     RTPrintf("testing:");
@@ -1098,13 +1270,12 @@ void dumpCode(uint8_t const *pb, uint8_t *pbEnd)
     RTPrintf("\n");
 }
 
-
 int ioportTest(unsigned cFactor)
 {
     /*
      * Produce realmode code
      */
-    unsigned char *pb = &g_pbMem[MY_TEST_RIP - MY_MEM_BASE];
+    unsigned char *pb = &g_pbMem[MY_TEST_PC - MY_MEM_BASE];
     unsigned char * const pbStart = pb;
     /* OUT DX, AL - 10 times */
     for (unsigned i = 0; i < 10; i++)
@@ -1112,7 +1283,7 @@ int ioportTest(unsigned cFactor)
     /* DEC ECX */
     *pb++ = 0x66;
     *pb++ = 0x48 + 1;
-    /* JNZ MY_TEST_RIP */
+    /* JNZ MY_TEST_PC */
     *pb++ = 0x75;
     *pb   = (signed char)(pbStart - pb - 1);
     pb++;
@@ -1135,7 +1306,7 @@ int cpuidTest(unsigned cFactor)
     /*
      * Produce realmode code
      */
-    unsigned char *pb = &g_pbMem[MY_TEST_RIP - MY_MEM_BASE];
+    unsigned char *pb = &g_pbMem[MY_TEST_PC - MY_MEM_BASE];
     unsigned char * const pbStart = pb;
     for (unsigned i = 0; i < 10; i++)
     {
@@ -1151,7 +1322,7 @@ int cpuidTest(unsigned cFactor)
     /* DEC ESI */
     *pb++ = 0x66;
     *pb++ = 0x48 + 6;
-    /* JNZ MY_TEST_RIP */
+    /* JNZ MY_TEST_PC */
     *pb++ = 0x75;
     *pb   = (signed char)(pbStart - pb - 1);
     pb++;
@@ -1174,7 +1345,7 @@ int mmioTest(unsigned cFactor)
     /*
      * Produce realmode code accessing MY_MMIO_NOP address assuming it's low.
      */
-    unsigned char *pb = &g_pbMem[MY_TEST_RIP - MY_MEM_BASE];
+    unsigned char *pb = &g_pbMem[MY_TEST_PC - MY_MEM_BASE];
     unsigned char * const pbStart = pb;
     for (unsigned i = 0; i < 10; i++)
     {
@@ -1185,7 +1356,7 @@ int mmioTest(unsigned cFactor)
     /* DEC ESI */
     *pb++ = 0x66;
     *pb++ = 0x48 + 6;
-    /* JNZ MY_TEST_RIP */
+    /* JNZ MY_TEST_PC */
     *pb++ = 0x75;
     *pb   = (signed char)(pbStart - pb - 1);
     pb++;
@@ -1201,6 +1372,56 @@ int mmioTest(unsigned cFactor)
                            0 /*eax*/, 0 /*ecx*/, 0 /*edx*/, MY_NOP_MMIO /*ebx*/,
                            0 /*esp*/, 0 /*ebp*/, 10000 * cFactor /*esi*/, 0 /*uEdi*/);
 }
+
+
+#elif defined(RT_ARCH_ARM64)
+
+
+/*********************************************************************************************************************************
+*   ARMD64 tests                                                                                                                 *
+*********************************************************************************************************************************/
+
+void dumpCode(uint32_t const *pu32, uint32_t *pu32End)
+{
+    RTPrintf("testing:");
+    for (; pu32 != pu32End; pu32++)
+        RTPrintf(" %08x", *pu32);
+    RTPrintf("\n");
+}
+
+
+int mmioTest(unsigned cFactor)
+{
+    /*
+     * Produce code accessing MY_MMIO_NOP address (X0)
+     */
+    uint32_t        *pu32      = (uint32_t *)&g_pbMem[MY_TEST_PC - MY_MEM_BASE];
+    uint32_t * const pu32Start = pu32;
+    for (unsigned i = 0; i < 10; i++)
+    {
+        /* LDURB W8,[X0] */
+        *pu32++ = Armv8A64MkInstrSturLdur(kArmv8A64InstrLdStType_Ld_Byte, 8 /*iReg*/, 0 /*iBaseReg*/);
+    }
+    /* SUB X1 */
+    *pu32++ = Armv8A64MkInstrSubUImm12(1 /*iRegResult*/, 1 /*iRegSrc*/, 1);
+    /* CNBZ X1, MY_TEST_PC */
+    intptr_t offDisp = pu32Start - pu32;
+    *pu32++ = Armv8A64MkInstrCbnz((int32_t)offDisp, 1);
+
+    /* STURB [X2], XZR -  Temination port call. */
+    *pu32++ = Armv8A64MkInstrSturLdur(kArmv8A64InstrLdStType_St_Byte, 31 /*iReg*/, 2 /*iBaseReg*/);
+    /* JMP to previous instruction */
+    *pu32++ = Armv8A64MkInstrB(-1);
+    dumpCode(pu32Start, pu32);
+
+    return runUnpagedEl1Test(100000 * cFactor, "MMIO/r1", MY_TEST_F_NOP_MMIO,
+                             MY_NOP_MMIO /*x0*/, 10000 * cFactor /*x1*/, MY_TERM_MMIO /*x2*/);
+}
+
+
+#else
+# error "port me!"
+#endif
 
 
 
@@ -1267,8 +1488,10 @@ int main(int argc, char **argv)
         /*
          * Do the benchmarking.
          */
+#ifdef RT_ARCH_AMD64
         ioportTest(cFactor);
         cpuidTest(cFactor);
+#endif
         mmioTest(cFactor);
 
         RTPrintf("tstNemBench-1: done\n");
