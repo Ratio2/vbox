@@ -1116,6 +1116,178 @@ static DECLCALLBACK(void) apicR3HvInfoTimer(PVM pVM, PCDBGFINFOHLP pHlp, const c
 
 
 /**
+ * Worker for saving per-VM APIC data.
+ *
+ * @returns VBox status code.
+ * @param   pDevIns     The device instance.
+ * @param   pVM         The cross context VM structure.
+ * @param   pSSM        The SSM handle.
+ */
+static int apicR3HvSaveVMData(PPDMDEVINS pDevIns, PVM pVM, PSSMHANDLE pSSM)
+{
+    PCPDMDEVHLPR3 pHlp    = pDevIns->pHlpR3;
+    PHVAPIC       pHvApic = VM_TO_HVAPIC(pVM);
+    pHlp->pfnSSMPutU32(pSSM,  pVM->cCpus);
+    pHlp->pfnSSMPutBool(pSSM, true /* fIoApicPresent  - unused but stay compatible with emulated APIC. */);
+    return pHlp->pfnSSMPutU32(pSSM, pHvApic->enmMaxMode);
+}
+
+
+/**
+ * Worker for loading per-VM APIC data.
+ *
+ * @returns VBox status code.
+ * @param   pDevIns     The device instance.
+ * @param   pVM         The cross context VM structure.
+ * @param   pSSM        The SSM handle.
+ */
+static int apicR3HvLoadVMData(PPDMDEVINS pDevIns, PVM pVM, PSSMHANDLE pSSM)
+{
+    PHVAPIC       pHvApic = VM_TO_HVAPIC(pVM);
+    PCPDMDEVHLPR3 pHlp    = pDevIns->pHlpR3;
+
+    /* Load and verify number of CPUs. */
+    uint32_t cCpus;
+    int rc = pHlp->pfnSSMGetU32(pSSM, &cCpus);
+    AssertRCReturn(rc, rc);
+    if (cCpus != pVM->cCpus)
+        return pHlp->pfnSSMSetCfgError(pSSM, RT_SRC_POS, N_("Config mismatch - cCpus: saved=%u config=%u"), cCpus, pVM->cCpus);
+
+    /* Ignore I/O APIC present used by emulated APIC, unused here. */
+    bool fIoApicPresent;
+    rc = pHlp->pfnSSMGetBool(pSSM, &fIoApicPresent);
+    AssertRCReturn(rc, rc);
+    NOREF(fIoApicPresent);
+
+    /* Load and verify configured max APIC mode. */
+    uint32_t uSavedMaxApicMode;
+    rc = pHlp->pfnSSMGetU32(pSSM, &uSavedMaxApicMode);
+    AssertRCReturn(rc, rc);
+    if (uSavedMaxApicMode != (uint32_t)pHvApic->enmMaxMode)
+        return pHlp->pfnSSMSetCfgError(pSSM, RT_SRC_POS, N_("Config mismatch - uApicMode: saved=%u config=%u"),
+                                       uSavedMaxApicMode, pHvApic->enmMaxMode);
+    return VINF_SUCCESS;
+}
+
+
+/**
+ * @copydoc FNSSMDEVSAVEEXEC
+ */
+static DECLCALLBACK(int) apicR3HvSaveExec(PPDMDEVINS pDevIns, PSSMHANDLE pSSM)
+{
+    PVM           pVM  = PDMDevHlpGetVM(pDevIns);
+    PCPDMDEVHLPR3 pHlp = pDevIns->pHlpR3;
+
+    AssertReturn(pVM, VERR_INVALID_VM_HANDLE);
+
+    LogFlow(("APIC/WHv: apicR3HvSaveExec\n"));
+
+    /* Save per-VM data. */
+    int rc = apicR3HvSaveVMData(pDevIns, pVM, pSSM);
+    AssertRCReturn(rc, rc);
+
+    /* Save per-VCPU data.*/
+    VMCC_FOR_EACH_VMCPU(pVM)
+    {
+        PCHVAPICCPU pHvApicCpu = VMCPU_TO_HVAPICCPU(pVCpu);
+
+        /* Save the auxiliary data. */
+        pHlp->pfnSSMPutU64(pSSM, pHvApicCpu->uApicBaseMsr);
+        pHlp->pfnSSMPutU32(pSSM, pHvApicCpu->uEsrInternal);
+
+        /* Save the APIC page. */
+        if (XAPIC_IN_X2APIC_MODE(pHvApicCpu->uApicBaseMsr))
+            pHlp->pfnSSMPutStruct(pSSM, (const void *)pHvApicCpu->pvApicPageR3, &g_aX2ApicPageFields[0]);
+        else
+            pHlp->pfnSSMPutStruct(pSSM, (const void *)pHvApicCpu->pvApicPageR3, &g_aXApicPageFields[0]);
+
+        /* Save the timer. */
+        pHlp->pfnSSMPutU64(pSSM, pHvApicCpu->u64TimerInitial);
+        PDMDevHlpTimerSave(pDevIns, pHvApicCpu->hTimer, pSSM);
+
+        /* Save the LINT0, LINT1 interrupt line states (Hyper-V doesn't give us this data explicitly). */
+        pHlp->pfnSSMPutBool(pSSM, false /* ActiveLint0 */);
+        pHlp->pfnSSMPutBool(pSSM, false /* ActiveLint1 */);
+    }
+    VMCC_FOR_EACH_VMCPU_END(pVM);
+
+    /** @todo APIC_FUZZY_SSM_COMPAT_TEST? */
+    return rc;
+}
+
+
+/**
+ * @copydoc FNSSMDEVLOADEXEC
+ */
+static DECLCALLBACK(int) apicR3HvLoadExec(PPDMDEVINS pDevIns, PSSMHANDLE pSSM, uint32_t uVersion, uint32_t uPass)
+{
+    PVM           pVM  = PDMDevHlpGetVM(pDevIns);
+    PCPDMDEVHLPR3 pHlp = pDevIns->pHlpR3;
+
+    AssertReturn(pVM, VERR_INVALID_VM_HANDLE);
+    AssertReturn(uPass == SSM_PASS_FINAL, VERR_WRONG_ORDER);
+
+    LogFlow(("APIC/WHv: apicR3HvLoadExec: uVersion=%u uPass=%#x\n", uVersion, uPass));
+
+    /* Weed out invalid versions. */
+    if (uVersion != APIC_SAVED_STATE_VERSION)
+    {
+        LogRel(("APIC/WHv: apicR3HvLoadExec: Invalid/unrecognized saved-state version %u (%#x)\n", uVersion, uVersion));
+        return VERR_SSM_UNSUPPORTED_DATA_UNIT_VERSION;
+    }
+
+    int rc = apicR3HvLoadVMData(pDevIns, pVM, pSSM);
+    AssertRCReturn(rc, rc);
+
+    /*
+     * Restore per CPU state.
+     */
+    VMCC_FOR_EACH_VMCPU(pVM)
+    {
+        PHVAPICCPU pHvApicCpu = VMCPU_TO_HVAPICCPU(pVCpu);
+
+        /* Load the auxiliary data. */
+        pHlp->pfnSSMGetU64V(pSSM, &pHvApicCpu->uApicBaseMsr);
+        pHlp->pfnSSMGetU32(pSSM,  &pHvApicCpu->uEsrInternal);
+
+        /* Load the APIC page. */
+        if (XAPIC_IN_X2APIC_MODE(pHvApicCpu->uApicBaseMsr))
+            pHlp->pfnSSMGetStruct(pSSM, pHvApicCpu->pvApicPageR3, &g_aX2ApicPageFields[0]);
+        else
+            pHlp->pfnSSMGetStruct(pSSM, pHvApicCpu->pvApicPageR3, &g_aXApicPageFields[0]);
+
+        /* Load the timer. */
+        rc = pHlp->pfnSSMGetU64(pSSM, &pHvApicCpu->u64TimerInitial);     AssertRCReturn(rc, rc);
+        rc = PDMDevHlpTimerLoad(pDevIns, pHvApicCpu->hTimer, pSSM);      AssertRCReturn(rc, rc);
+        Assert(pHvApicCpu->uHintedTimerShift == 0);
+        Assert(pHvApicCpu->uHintedTimerInitialCount == 0);
+        if (PDMDevHlpTimerIsActive(pDevIns, pHvApicCpu->hTimer))
+        {
+            PCXAPICPAGE    pXApicPage    = VMCPU_TO_CXAPICPAGE(pVCpu);
+            uint32_t const uInitialCount = pXApicPage->timer_icr.u32InitialCount;
+            uint8_t const  uTimerShift   = apicCommonGetTimerShift(pXApicPage);
+            apicR3HvHintTimerFreq(pDevIns, pHvApicCpu, uInitialCount, uTimerShift);
+        }
+
+        /* Load the LINT0, LINT1 interrupt line states - unused with Hyper-V. */
+        bool volatile fDummy;
+        pHlp->pfnSSMGetBoolV(pSSM, &fDummy /*fActiveLint0*/);
+        pHlp->pfnSSMGetBoolV(pSSM, &fDummy /*fActiveLint1*/);
+
+        /*
+         * Check that we're still good wrt restored data, then tell CPUM about the current CPUID[1].EDX[9] visibility.
+         */
+        rc = pHlp->pfnSSMHandleGetStatus(pSSM);
+        AssertRCReturn(rc, rc);
+        CPUMSetGuestCpuIdPerCpuApicFeature(pVCpu, RT_BOOL(pHvApicCpu->uApicBaseMsr & MSR_IA32_APICBASE_EN));
+    }
+    VMCC_FOR_EACH_VMCPU_END(pVM);
+
+    return rc;
+}
+
+
+/**
  * Initializes per-VCPU APIC to the state following a power-up or hardware
  * reset.
  *
@@ -1477,8 +1649,8 @@ DECLCALLBACK(int) apicR3HvConstruct(PPDMDEVINS pDevIns, int iInstance, PCFGMNODE
     /*
      * Register saved state callbacks.
      */
-    //rc = PDMDevHlpSSMRegister(pDevIns, GIC_NEM_SAVED_STATE_VERSION, 0 /*cbGuess*/, gicR3HvSaveExec, gicR3HvLoadExec);
-    //AssertRCReturn(rc, rc);
+    rc = PDMDevHlpSSMRegister(pDevIns, APIC_SAVED_STATE_VERSION, 0 /*cbGuess*/, apicR3HvSaveExec, apicR3HvLoadExec);
+    AssertRCReturn(rc, rc);
 
     /*
      * Statistics.

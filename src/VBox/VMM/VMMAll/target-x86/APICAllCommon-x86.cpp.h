@@ -866,6 +866,128 @@ static void apicR3CommonDbgInfo(PVMCPUCC pVCpu, PCDBGFINFOHLP pHlp, uint64_t uBa
     pHlp->pfnPrintf(pHlp, "    Destination field/mask        = %#x\n",      fX2ApicMode ? pX2ApicPage->icr_hi.u32IcrHi
                                                                          : pXApicPage->icr_hi.u.u8Dest);
 }
+
+
+/*
+ * Saved-state related defines (ring-3 only).
+ *
+ * WARNING!!! The saved-state format since version 5 is identical for the
+ * emulated APIC and the NEM Hyper-V APIC on Windows x86 hosts.
+ */
+/** The current APIC saved state version. */
+# define APIC_SAVED_STATE_VERSION                  5
+/** VirtualBox 5.1 beta2 - pre fActiveLintX. */
+# define APIC_SAVED_STATE_VERSION_VBOX_51_BETA2    4
+/** The saved state version used by VirtualBox 5.0 and
+ *  earlier.  */
+# define APIC_SAVED_STATE_VERSION_VBOX_50          3
+/** The saved state version used by VirtualBox v3 and earlier.
+ * This does not include the config.  */
+# define APIC_SAVED_STATE_VERSION_VBOX_30          2
+/** Some ancient version... */
+# define APIC_SAVED_STATE_VERSION_ANCIENT          1
+
+/** Saved state field descriptors for XAPICPAGE.
+ *  WARNING!!! This is shared between the emulated APIC and the
+ *  NEM Hyper-V APIC. */
+static const SSMFIELD g_aXApicPageFields[] =
+{
+    SSMFIELD_ENTRY( XAPICPAGE, id.u8ApicId),
+    SSMFIELD_ENTRY( XAPICPAGE, version.all.u32Version),
+    SSMFIELD_ENTRY( XAPICPAGE, tpr.u8Tpr),
+    SSMFIELD_ENTRY( XAPICPAGE, apr.u8Apr),
+    SSMFIELD_ENTRY( XAPICPAGE, ppr.u8Ppr),
+    SSMFIELD_ENTRY( XAPICPAGE, ldr.all.u32Ldr),
+    SSMFIELD_ENTRY( XAPICPAGE, dfr.all.u32Dfr),
+    SSMFIELD_ENTRY( XAPICPAGE, svr.all.u32Svr),
+    SSMFIELD_ENTRY( XAPICPAGE, isr.u[0].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, isr.u[1].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, isr.u[2].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, isr.u[3].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, isr.u[4].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, isr.u[5].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, isr.u[6].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, isr.u[7].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, tmr.u[0].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, tmr.u[1].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, tmr.u[2].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, tmr.u[3].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, tmr.u[4].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, tmr.u[5].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, tmr.u[6].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, tmr.u[7].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, irr.u[0].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, irr.u[1].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, irr.u[2].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, irr.u[3].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, irr.u[4].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, irr.u[5].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, irr.u[6].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, irr.u[7].u32Reg),
+    SSMFIELD_ENTRY( XAPICPAGE, esr.all.u32Errors),
+    SSMFIELD_ENTRY( XAPICPAGE, icr_lo.all.u32IcrLo),
+    SSMFIELD_ENTRY( XAPICPAGE, icr_hi.all.u32IcrHi),
+    SSMFIELD_ENTRY( XAPICPAGE, lvt_timer.all.u32LvtTimer),
+    SSMFIELD_ENTRY( XAPICPAGE, lvt_thermal.all.u32LvtThermal),
+    SSMFIELD_ENTRY( XAPICPAGE, lvt_perf.all.u32LvtPerf),
+    SSMFIELD_ENTRY( XAPICPAGE, lvt_lint0.all.u32LvtLint0),
+    SSMFIELD_ENTRY( XAPICPAGE, lvt_lint1.all.u32LvtLint1),
+    SSMFIELD_ENTRY( XAPICPAGE, lvt_error.all.u32LvtError),
+    SSMFIELD_ENTRY( XAPICPAGE, timer_icr.u32InitialCount),
+    SSMFIELD_ENTRY( XAPICPAGE, timer_ccr.u32CurrentCount),
+    SSMFIELD_ENTRY( XAPICPAGE, timer_dcr.all.u32DivideValue),
+    SSMFIELD_ENTRY_TERM()
+};
+
+/** Saved state field descriptors for X2APICPAGE.
+ *  WARNING!!! This is shared between the emulated APIC and the
+ *  NEM Hyper-V APIC. */
+static const SSMFIELD g_aX2ApicPageFields[] =
+{
+    SSMFIELD_ENTRY(X2APICPAGE, id.u32ApicId),
+    SSMFIELD_ENTRY(X2APICPAGE, version.all.u32Version),
+    SSMFIELD_ENTRY(X2APICPAGE, tpr.u8Tpr),
+    SSMFIELD_ENTRY(X2APICPAGE, ppr.u8Ppr),
+    SSMFIELD_ENTRY(X2APICPAGE, ldr.u32LogicalApicId),
+    SSMFIELD_ENTRY(X2APICPAGE, svr.all.u32Svr),
+    SSMFIELD_ENTRY(X2APICPAGE, isr.u[0].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, isr.u[1].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, isr.u[2].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, isr.u[3].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, isr.u[4].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, isr.u[5].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, isr.u[6].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, isr.u[7].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, tmr.u[0].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, tmr.u[1].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, tmr.u[2].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, tmr.u[3].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, tmr.u[4].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, tmr.u[5].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, tmr.u[6].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, tmr.u[7].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, irr.u[0].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, irr.u[1].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, irr.u[2].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, irr.u[3].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, irr.u[4].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, irr.u[5].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, irr.u[6].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, irr.u[7].u32Reg),
+    SSMFIELD_ENTRY(X2APICPAGE, esr.all.u32Errors),
+    SSMFIELD_ENTRY(X2APICPAGE, icr_lo.all.u32IcrLo),
+    SSMFIELD_ENTRY(X2APICPAGE, icr_hi.u32IcrHi),
+    SSMFIELD_ENTRY(X2APICPAGE, lvt_timer.all.u32LvtTimer),
+    SSMFIELD_ENTRY(X2APICPAGE, lvt_thermal.all.u32LvtThermal),
+    SSMFIELD_ENTRY(X2APICPAGE, lvt_perf.all.u32LvtPerf),
+    SSMFIELD_ENTRY(X2APICPAGE, lvt_lint0.all.u32LvtLint0),
+    SSMFIELD_ENTRY(X2APICPAGE, lvt_lint1.all.u32LvtLint1),
+    SSMFIELD_ENTRY(X2APICPAGE, lvt_error.all.u32LvtError),
+    SSMFIELD_ENTRY(X2APICPAGE, timer_icr.u32InitialCount),
+    SSMFIELD_ENTRY(X2APICPAGE, timer_ccr.u32CurrentCount),
+    SSMFIELD_ENTRY(X2APICPAGE, timer_dcr.all.u32DivideValue),
+    SSMFIELD_ENTRY_TERM()
+};
 #endif /* IN_RING3 && VMM_APIC_TEMPLATE_R3_COMMON */
 
 
