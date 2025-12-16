@@ -1471,8 +1471,8 @@ static DECLCALLBACK(int) dbgcHlpRegPrintf(PDBGCCMDHLP pCmdHlp, VMCPUID idCpu, in
                                  "x20=%016VR{x20} x21=%016VR{x21} x22=%016VR{x22} x23=%016VR{x23}\n"
                                  "x24=%016VR{x24} x25=%016VR{x25} x26=%016VR{x26} x27=%016VR{x27}\n"
                                  "x28=%016VR{x28} x29=%016VR{x29} x30=%016VR{x30}\n"
-                                 "pc=%016VR{pc} psr=%010VR{pstate} %VRF{pstate}\n"
-                                 "sp_el0=%016VR{sp_el0} sp_el1=%016VR{sp_el1} elr_el1=%016VR{elr_el1}\n"
+                                 " pc=%016VR{pc} psr=%010VR{pstate} %VRF{pstate}\n"
+                                 "   sp_el0=%016VR{sp_el0}    sp_el1=%016VR{sp_el1} elr_el1=%016VR{elr_el1}\n"
                                  "sctlr_el1=%016VR{sctlr_el1}   tcr_el1=%016VR{tcr_el1}\n"
                                  "ttbr0_el1=%016VR{ttbr0_el1} ttbr1_el1=%016VR{ttbr1_el1}\n"
                                  " vbar_el1=%016VR{vbar_el1}\n");
