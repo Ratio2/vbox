@@ -473,8 +473,10 @@ static DECLCALLBACK(int) nemR3LnxArmCpuIdRegQuery(PVM pVM, PVMCPU pVCpu, uint32_
                           ("rc=%Rrc idReg=%#x\n", rc, idReg),
                           VERR_INTERNAL_ERROR_5);
 
-    /* Unsupported registers fail with ENOENT, which gets translated to VERR_FILE_NOT_FOUND: */
-    return rc == VERR_FILE_NOT_FOUND ? VERR_CPUM_UNSUPPORTED_ID_REGISTER : rc;
+    /* Unsupported registers fail with ENOENT, which gets translated to VERR_FILE_NOT_FOUND.
+       ERRIDR_EL1 yields VBOX_ACCESS_DENIED on a DGX system running 6.11, treat it the same
+       way for now. */
+    return rc == VERR_FILE_NOT_FOUND || rc == VERR_ACCESS_DENIED ? VERR_CPUM_UNSUPPORTED_ID_REGISTER : rc;
 }
 
 
