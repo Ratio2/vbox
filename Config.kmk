@@ -495,12 +495,12 @@ if "$(KBUILD_TARGET_ARCH)" == "amd64" && !defined(VBOX_WITHOUT_HWVIRT)
  VBOX_WITH_HWVIRT := 1
 endif
 # Enables .r0 modules.
-if "$(KBUILD_TARGET_ARCH)" == "amd64" || "$(KBUILD_TARGET).$(KBUILD_TARGET_ARCH)" == "win.arm64"
+if "$(KBUILD_TARGET_ARCH)" == "amd64" || "$(intersects $(KBUILD_TARGET).$(KBUILD_TARGET_ARCH), linux.arm64 win.arm64)"
  VBOX_WITH_R0_MODULES := 1
 endif
 # Configures VBox with minimal ring-0 footprint - default on non-amd64 hosts.
 ifdef VBOX_WITH_R0_MODULES
- if1of ($(KBUILD_TARGET).$(KBUILD_TARGET_ARCH), win.arm64)
+ if1of ($(KBUILD_TARGET).$(KBUILD_TARGET_ARCH), linux.arm64 win.arm64)
   VBOX_WITH_MINIMAL_R0 := 1
  endif
 else
