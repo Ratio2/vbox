@@ -27,14 +27,9 @@
 
 /* Qt includes: */
 #include <QCheckBox>
-#include <QComboBox>
 #include <QGridLayout>
-#include <QVBoxLayout>
 
 /* GUI includes: */
-#include "UIConverter.h"
-#include "UIFilmContainer.h"
-#include "UIGlobalSession.h"
 #include "UIRecordingAudioProfileEditor.h"
 #include "UIRecordingScreenSelectorEditor.h"
 #include "UIRecordingSettingsEditor.h"
@@ -43,9 +38,6 @@
 #include "UIRecordingVideoBitrateEditor.h"
 #include "UIRecordingVideoFrameRateEditor.h"
 #include "UIRecordingVideoFrameSizeEditor.h"
-
-/* COM includes: */
-#include "KRecordingFeature.h"
 
 
 UIRecordingSettingsEditor::UIRecordingSettingsEditor(QWidget *pParent /* = 0 */)
@@ -291,49 +283,49 @@ void UIRecordingSettingsEditor::prepareWidgets()
                 if (m_pEditorMode)
                 {
                     addEditor(m_pEditorMode);
-                    m_pLayoutSettings->addWidget(m_pEditorMode, ++iLayoutSettingsRow, 0, 1, 2);
+                    m_pLayoutSettings->addWidget(m_pEditorMode, ++iLayoutSettingsRow, 0);
                 }
                 /* Prepare recording file path editor: */
                 m_pEditorFilePath = new UIRecordingFilePathEditor(pWidgetSettings);
                 if (m_pEditorFilePath)
                 {
                     addEditor(m_pEditorFilePath);
-                    m_pLayoutSettings->addWidget(m_pEditorFilePath, ++iLayoutSettingsRow, 0, 1, 2);
+                    m_pLayoutSettings->addWidget(m_pEditorFilePath, ++iLayoutSettingsRow, 0);
                 }
                 /* Prepare recording frame size editor: */
                 m_pEditorFrameSize = new UIRecordingVideoFrameSizeEditor(pWidgetSettings);
                 if (m_pEditorFrameSize)
                 {
                     addEditor(m_pEditorFrameSize);
-                    m_pLayoutSettings->addWidget(m_pEditorFrameSize, ++iLayoutSettingsRow, 0, 1, 2);
+                    m_pLayoutSettings->addWidget(m_pEditorFrameSize, ++iLayoutSettingsRow, 0);
                 }
                 /* Prepare recording frame rate editor: */
                 m_pEditorFrameRate = new UIRecordingVideoFrameRateEditor(pWidgetSettings);
                 if (m_pEditorFrameRate)
                 {
                     addEditor(m_pEditorFrameRate);
-                    m_pLayoutSettings->addWidget(m_pEditorFrameRate, ++iLayoutSettingsRow, 0, 1, 2);
+                    m_pLayoutSettings->addWidget(m_pEditorFrameRate, ++iLayoutSettingsRow, 0);
                 }
                 /* Prepare recording bitrate editor: */
                 m_pEditorBitrate = new UIRecordingVideoBitrateEditor(pWidgetSettings);
                 if (m_pEditorBitrate)
                 {
                     addEditor(m_pEditorBitrate);
-                    m_pLayoutSettings->addWidget(m_pEditorBitrate, ++iLayoutSettingsRow, 0, 1, 2);
+                    m_pLayoutSettings->addWidget(m_pEditorBitrate, ++iLayoutSettingsRow, 0);
                 }
                 /* Prepare recording audio profile editor: */
                 m_pEditorAudioProfile = new UIRecordingAudioProfileEditor(pWidgetSettings);
                 if (m_pEditorAudioProfile)
                 {
                     addEditor(m_pEditorAudioProfile);
-                    m_pLayoutSettings->addWidget(m_pEditorAudioProfile, ++iLayoutSettingsRow, 0, 1, 2);
+                    m_pLayoutSettings->addWidget(m_pEditorAudioProfile, ++iLayoutSettingsRow, 0);
                 }
                 /* Prepare screen selector editor: */
                 m_pEditorScreenSelector = new UIRecordingScreenSelectorEditor(this);
                 if (m_pEditorScreenSelector)
                 {
                     addEditor(m_pEditorScreenSelector);
-                    m_pLayoutSettings->addWidget(m_pEditorScreenSelector, ++iLayoutSettingsRow, 0, 1, 2);
+                    m_pLayoutSettings->addWidget(m_pEditorScreenSelector, ++iLayoutSettingsRow, 0);
                 }
             }
             pLayout->addWidget(pWidgetSettings, 1, 1, 1, 2);
@@ -380,7 +372,7 @@ void UIRecordingSettingsEditor::updateWidgetAvailability()
 
 void UIRecordingSettingsEditor::updateMinimumLayoutHint()
 {
-    /* Layout all the editors (local and external), this will work fine after all of them became UIEditors: */
+    /* Layout all the editors: */
     int iMinimumLayoutHint = 0;
     /* The following editors have own labels, but we want them to be properly layouted according to rest of stuff: */
     if (m_pEditorMode && !m_pEditorMode->isHidden())
