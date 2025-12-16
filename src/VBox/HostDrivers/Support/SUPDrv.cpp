@@ -6597,7 +6597,7 @@ static void supdrvLdrFree(PSUPDRVDEVEXT pDevExt, PSUPDRVLDRIMAGE pImage)
         if (    pImage->pfnModuleTerm
             &&  pImage->uState == SUP_IOCTL_LDR_LOAD)
         {
-            LogFlow(("supdrvIOCtl_LdrLoad: calling pfnModuleTerm=%p\n", pImage->pfnModuleTerm));
+            LogFlow(("supdrvLdrFree: calling pfnModuleTerm=%p\n", pImage->pfnModuleTerm));
             pDevExt->hLdrTermThread = RTThreadNativeSelf();
             pImage->pfnModuleTerm(pImage);
             pDevExt->hLdrTermThread = NIL_RTNATIVETHREAD;
