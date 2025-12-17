@@ -87,26 +87,26 @@
 
 #if !defined(VBOX_WITH_XPCOM)
 
-#ifdef RT_OS_WINDOWS
+# ifdef RT_OS_WINDOWS
 
 // Windows COM
 /////////////////////////////////////////////////////////////////////////////
 
-# include <iprt/win/objbase.h>
-# ifndef VBOX_COM_NO_ATL
+#  include <iprt/win/objbase.h>
+#  ifndef VBOX_COM_NO_ATL
 
 /* Do not use actual ATL, just provide a superficial lookalike ourselves. */
-#  include <VBox/com/microatl.h>
-# endif /* VBOX_COM_NO_ATL */
+#   include <VBox/com/microatl.h>
+#  endif /* VBOX_COM_NO_ATL */
 
-# define NS_DECL_ISUPPORTS
-# define NS_IMPL_ISUPPORTS1_CI(a, b)
+#  define NS_DECL_ISUPPORTS
+#  define NS_IMPL_ISUPPORTS1_CI(a, b)
 
 /* these are XPCOM only, one for every interface implemented */
-# define NS_DECL_ISUPPORTS
+#  define NS_DECL_ISUPPORTS
 
 /** Returns @c true if @a rc represents a warning result code */
-# define SUCCEEDED_WARNING(rc)   (SUCCEEDED(rc) && (rc) != S_OK)
+#  define SUCCEEDED_WARNING(rc) (SUCCEEDED(rc) && (rc) != S_OK)
 
 /** Tests is a COM result code indicates that the process implementing the
  * interface is dead.
@@ -121,7 +121,7 @@
  *      0x800706b5 - RPC_S_UNKNOWN_IF.          Observed deregistering python
  *                                              event listener
  */
-#define FAILED_DEAD_INTERFACE(rc) \
+#  define FAILED_DEAD_INTERFACE(rc) \
     (   (rc) == HRESULT_FROM_WIN32(RPC_S_SERVER_UNAVAILABLE) \
      || (rc) == HRESULT_FROM_WIN32(RPC_S_CALL_FAILED) \
      || (rc) == HRESULT_FROM_WIN32(RPC_S_CALL_FAILED_DNE) \
@@ -132,17 +132,17 @@
 typedef const OLECHAR *CBSTR;
 
 /** Input BSTR argument of interface method declaration. */
-#define IN_BSTR BSTR
+#  define IN_BSTR BSTR
 
 /** Input GUID argument of interface method declaration. */
-#define IN_GUID GUID
+#  define IN_GUID GUID
 /** Output GUID argument of interface method declaration. */
-#define OUT_GUID GUID *
+#  define OUT_GUID GUID *
 
 /** Makes the name of the getter interface function (n must be capitalized). */
-#define COMGETTER(n)    get_##n
+#  define COMGETTER(n)      get_##n
 /** Makes the name of the setter interface function (n must be capitalized). */
-#define COMSETTER(n)    put_##n
+#  define COMSETTER(n)      put_##n
 
 /**
  * Declares an input safearray parameter in the COM method implementation. Also
@@ -160,13 +160,13 @@ typedef const OLECHAR *CBSTR;
  * @param aType Array element type.
  * @param aArg  Parameter/attribute name.
  */
-#define ComSafeArrayIn(aType, aArg)     SAFEARRAY *aArg
+#  define ComSafeArrayIn(aType, aArg)   SAFEARRAY *aArg
 
 /**
  * Expands to @c true if the given input safearray parameter is a "null pointer"
  * which makes it impossible to use it for reading safearray data.
  */
-#define ComSafeArrayInIsNull(aArg)      ((aArg) == NULL)
+#  define ComSafeArrayInIsNull(aArg)    ((aArg) == NULL)
 
 /**
  * Wraps the given parameter name to generate an expression that is suitable for
@@ -176,7 +176,7 @@ typedef const OLECHAR *CBSTR;
  * @param aArg  Parameter name to wrap. The given parameter must be declared
  *              within the calling function using the ComSafeArrayIn macro.
  */
-#define ComSafeArrayInArg(aArg)         aArg
+#  define ComSafeArrayInArg(aArg)       aArg
 
 /**
  * Declares an output safearray parameter in the COM method implementation. Also
@@ -195,13 +195,13 @@ typedef const OLECHAR *CBSTR;
  * @param aType Array element type.
  * @param aArg  Parameter/attribute name.
  */
-#define ComSafeArrayOut(aType, aArg)    SAFEARRAY **aArg
+#  define ComSafeArrayOut(aType, aArg)  SAFEARRAY **aArg
 
 /**
  * Expands to @c true if the given output safearray parameter is a "null
  * pointer" which makes it impossible to use it for returning a safearray.
  */
-#define ComSafeArrayOutIsNull(aArg)     ((aArg) == NULL)
+#  define ComSafeArrayOutIsNull(aArg)   ((aArg) == NULL)
 
 /**
  * Wraps the given parameter name to generate an expression that is suitable for
@@ -211,55 +211,55 @@ typedef const OLECHAR *CBSTR;
  * @param aArg  Parameter name to wrap. The given parameter must be declared
  *              within the calling function using the ComSafeArrayOut macro.
  */
-#define ComSafeArrayOutArg(aArg)        aArg
+#  define ComSafeArrayOutArg(aArg)      aArg
 
 /**
  * Version of ComSafeArrayIn for GUID.
  * @param aArg Parameter name to wrap.
  */
-#define ComSafeGUIDArrayIn(aArg)        SAFEARRAY *aArg
+#  define ComSafeGUIDArrayIn(aArg)      SAFEARRAY *aArg
 
 /**
  * Version of ComSafeArrayInIsNull for GUID.
  * @param aArg Parameter name to wrap.
  */
-#define ComSafeGUIDArrayInIsNull(aArg)  ComSafeArrayInIsNull(aArg)
+#  define ComSafeGUIDArrayInIsNull(aArg) ComSafeArrayInIsNull(aArg)
 
 /**
  * Version of ComSafeArrayInArg for GUID.
  * @param aArg Parameter name to wrap.
  */
-#define ComSafeGUIDArrayInArg(aArg)     ComSafeArrayInArg(aArg)
+#  define ComSafeGUIDArrayInArg(aArg)   ComSafeArrayInArg(aArg)
 
 /**
  * Version of ComSafeArrayOut for GUID.
  * @param aArg Parameter name to wrap.
  */
-#define ComSafeGUIDArrayOut(aArg)       SAFEARRAY **aArg
+#  define ComSafeGUIDArrayOut(aArg)     SAFEARRAY **aArg
 
 /**
  * Version of ComSafeArrayOutIsNull for GUID.
  * @param aArg Parameter name to wrap.
  */
-#define ComSafeGUIDArrayOutIsNull(aArg) ComSafeArrayOutIsNull(aArg)
+#  define ComSafeGUIDArrayOutIsNull(aArg) ComSafeArrayOutIsNull(aArg)
 
 /**
  * Version of ComSafeArrayOutArg for GUID.
  * @param aArg Parameter name to wrap.
  */
-#define ComSafeGUIDArrayOutArg(aArg)    ComSafeArrayOutArg(aArg)
+#  define ComSafeGUIDArrayOutArg(aArg)  ComSafeArrayOutArg(aArg)
 
 /**
  * Gets size of safearray parameter.
  * @param aArg Parameter name.
  */
-#define ComSafeArraySize(aArg)          ((aArg) == NULL ? 0 : (aArg)->rgsabound[0].cElements)
+#  define ComSafeArraySize(aArg)        ((aArg) == NULL ? 0 : (aArg)->rgsabound[0].cElements)
 
 /**
  * Apply RT_NOREF_PV to a safearray parameter.
  * @param aArg Parameter name.
  */
-#define ComSafeArrayNoRef(aArg)         RT_NOREF_PV(aArg)
+#  define ComSafeArrayNoRef(aArg)       RT_NOREF_PV(aArg)
 
 /**
  *  Returns the const reference to the IID (i.e., |const GUID &|) of the given
@@ -267,7 +267,7 @@ typedef const OLECHAR *CBSTR;
  *
  *  @param I    interface class
  */
-#define COM_IIDOF(I) __uuidof(I)
+#  define COM_IIDOF(I)                  __uuidof(I)
 
 /**
  * For using interfaces before including the interface definitions. This will
@@ -276,132 +276,130 @@ typedef const OLECHAR *CBSTR;
  *
  * @param   I   interface name.
  */
-#define COM_STRUCT_OR_CLASS(I)  struct I
+#  define COM_STRUCT_OR_CLASS(I)        struct I
 
-#else /* defined(RT_OS_WINDOWS) */
+# else /* defined(RT_OS_WINDOWS) */
 
-#error "VBOX_WITH_XPCOM must be defined on a platform other than Windows!"
+#  error "VBOX_WITH_XPCOM must be defined on a platform other than Windows!"
 
-#endif /* defined(RT_OS_WINDOWS) */
+# endif /* defined(RT_OS_WINDOWS) */
 
 #else /* !defined(VBOX_WITH_XPCOM) */
 
 // XPCOM
 /////////////////////////////////////////////////////////////////////////////
 
-#if defined(RT_OS_DARWIN) || (defined(QT_VERSION) && (QT_VERSION >= 0x040000))
-  /* CFBase.h defines these &
-   * qglobal.h from Qt4 defines these */
-# undef FALSE
-# undef TRUE
-#endif  /* RT_OS_DARWIN || QT_VERSION */
+# if defined(RT_OS_DARWIN) || (defined(QT_VERSION) && (QT_VERSION >= 0x040000))
+ /* CFBase.h defines these & qglobal.h from Qt4 defines these */
+#  undef FALSE
+#  undef TRUE
+# endif  /* RT_OS_DARWIN || QT_VERSION */
 
-#include <nsID.h>
+# include <nsID.h>
 
-#define HRESULT     nsresult
-#define SUCCEEDED   NS_SUCCEEDED
-#define FAILED      NS_FAILED
+# define HRESULT    nsresult
+# define SUCCEEDED  NS_SUCCEEDED
+# define FAILED     NS_FAILED
 
-#define SUCCEEDED_WARNING(rc)   (NS_SUCCEEDED(rc) && (rc) != NS_OK)
+# define SUCCEEDED_WARNING(rc)  (NS_SUCCEEDED(rc) && (rc) != NS_OK)
 
-#define FAILED_DEAD_INTERFACE(rc)  (   (rc) == NS_ERROR_ABORT \
-                                    || (rc) == NS_ERROR_CALL_FAILED \
-                                   )
+# define FAILED_DEAD_INTERFACE(rc) (   (rc) == NS_ERROR_ABORT \
+                                    || (rc) == NS_ERROR_CALL_FAILED)
 
-#define IUnknown nsISupports
+# define IUnknown   nsISupports
 
-#define BOOL    PRBool
-#define BYTE    PRUint8
-#define SHORT   PRInt16
-#define USHORT  PRUint16
-#define LONG    PRInt32
-#define ULONG   PRUint32
-#define LONG64  PRInt64
-#define ULONG64 PRUint64
+# define BOOL       PRBool
+# define BYTE       PRUint8
+# define SHORT      PRInt16
+# define USHORT     PRUint16
+# define LONG       PRInt32
+# define ULONG      PRUint32
+# define LONG64     PRInt64
+# define ULONG64    PRUint64
 /* XPCOM has only 64bit floats */
-#define FLOAT   PRFloat64
-#define DOUBLE  PRFloat64
+# define FLOAT      PRFloat64
+# define DOUBLE     PRFloat64
 
-#define FALSE   PR_FALSE
-#define TRUE    PR_TRUE
+# define FALSE      PR_FALSE
+# define TRUE       PR_TRUE
 
-#define OLECHAR wchar_t
+# define OLECHAR    wchar_t
 
 /* note: typedef to semantically match BSTR on Win32 */
-typedef PRUnichar *BSTR;
+typedef PRUnichar  *BSTR;
 typedef const PRUnichar *CBSTR;
-typedef BSTR *LPBSTR;
+typedef BSTR       *LPBSTR;
 
 /** Input BSTR argument the interface method declaration. */
-#define IN_BSTR CBSTR
+# define IN_BSTR    CBSTR
 
 /**
  * Type to define a raw GUID variable (for members use the com::Guid class
  * instead).
  */
-#define GUID        nsID
+# define GUID       nsID
 /** Input GUID argument the interface method declaration. */
-#define IN_GUID     const nsID &
+# define IN_GUID    const nsID &
 /** Output GUID argument the interface method declaration. */
-#define OUT_GUID    nsID **
+# define OUT_GUID   nsID **
 
 /** Makes the name of the getter interface function (n must be capitalized). */
-#define COMGETTER(n)    Get##n
+# define COMGETTER(n)                       Get##n
 /** Makes the name of the setter interface function (n must be capitalized). */
-#define COMSETTER(n)    Set##n
+# define COMSETTER(n)                       Set##n
 
 /* safearray input parameter macros */
-#define ComSafeArrayIn(aType, aArg)         PRUint32 aArg##Size, aType *aArg
-#define ComSafeArrayInIsNull(aArg)          ((aArg) == NULL)
-#define ComSafeArrayInArg(aArg)             aArg##Size, aArg
+# define ComSafeArrayIn(aType, aArg)        PRUint32 aArg##Size, aType *aArg
+# define ComSafeArrayInIsNull(aArg)         ((aArg) == NULL)
+# define ComSafeArrayInArg(aArg)            aArg##Size, aArg
 
 /* safearray output parameter macros */
-#define ComSafeArrayOut(aType, aArg)        PRUint32 *aArg##Size, aType **aArg
-#define ComSafeArrayOutIsNull(aArg)         ((aArg) == NULL)
-#define ComSafeArrayOutArg(aArg)            aArg##Size, aArg
+# define ComSafeArrayOut(aType, aArg)       PRUint32 *aArg##Size, aType **aArg
+# define ComSafeArrayOutIsNull(aArg)        ((aArg) == NULL)
+# define ComSafeArrayOutArg(aArg)           aArg##Size, aArg
 
 /* safearray input parameter macros for GUID */
-#define ComSafeGUIDArrayIn(aArg)            PRUint32 aArg##Size, const nsID **aArg
-#define ComSafeGUIDArrayInIsNull(aArg)      ComSafeArrayInIsNull(aArg)
-#define ComSafeGUIDArrayInArg(aArg)         ComSafeArrayInArg(aArg)
+# define ComSafeGUIDArrayIn(aArg)           PRUint32 aArg##Size, const nsID **aArg
+# define ComSafeGUIDArrayInIsNull(aArg)     ComSafeArrayInIsNull(aArg)
+# define ComSafeGUIDArrayInArg(aArg)        ComSafeArrayInArg(aArg)
 
 /* safearray output parameter macros for GUID */
-#define ComSafeGUIDArrayOut(aArg)           PRUint32 *aArg##Size, nsID ***aArg
-#define ComSafeGUIDArrayOutIsNull(aArg)     ComSafeArrayOutIsNull(aArg)
-#define ComSafeGUIDArrayOutArg(aArg)        ComSafeArrayOutArg(aArg)
+# define ComSafeGUIDArrayOut(aArg)          PRUint32 *aArg##Size, nsID ***aArg
+# define ComSafeGUIDArrayOutIsNull(aArg)    ComSafeArrayOutIsNull(aArg)
+# define ComSafeGUIDArrayOutArg(aArg)       ComSafeArrayOutArg(aArg)
 
 /** safearray size */
-#define ComSafeArraySize(aArg)              ((aArg) == NULL ? 0 : (aArg##Size))
+# define ComSafeArraySize(aArg)             ((aArg) == NULL ? 0 : (aArg##Size))
 
 /** NOREF a COM safe array argument. */
-#define ComSafeArrayNoRef(aArg)             RT_NOREF2(aArg, aArg##Size)
+# define ComSafeArrayNoRef(aArg)            RT_NOREF2(aArg, aArg##Size)
 
 /* CLSID and IID for compatibility with Win32 */
-typedef nsCID   CLSID;
-typedef nsIID   IID;
+typedef nsCID       CLSID;
+typedef nsIID       IID;
 
 /* OLE error codes */
-#define S_OK                ((nsresult)NS_OK)
-#define S_FALSE             ((nsresult)1)
-#define E_UNEXPECTED        NS_ERROR_UNEXPECTED
-#define E_NOTIMPL           NS_ERROR_NOT_IMPLEMENTED
-#define E_OUTOFMEMORY       NS_ERROR_OUT_OF_MEMORY
-#define E_INVALIDARG        NS_ERROR_INVALID_ARG
-#define E_NOINTERFACE       NS_ERROR_NO_INTERFACE
-#define E_POINTER           NS_ERROR_NULL_POINTER
-#define E_ABORT             NS_ERROR_ABORT
-#define E_FAIL              NS_ERROR_FAILURE
+# define S_OK                               ((nsresult)NS_OK)
+# define S_FALSE                            ((nsresult)1)
+# define E_UNEXPECTED                       NS_ERROR_UNEXPECTED
+# define E_NOTIMPL                          NS_ERROR_NOT_IMPLEMENTED
+# define E_OUTOFMEMORY                      NS_ERROR_OUT_OF_MEMORY
+# define E_INVALIDARG                       NS_ERROR_INVALID_ARG
+# define E_NOINTERFACE                      NS_ERROR_NO_INTERFACE
+# define E_POINTER                          NS_ERROR_NULL_POINTER
+# define E_ABORT                            NS_ERROR_ABORT
+# define E_FAIL                             NS_ERROR_FAILURE
 /* Note: a better analog for E_ACCESSDENIED would probably be
  * NS_ERROR_NOT_AVAILABLE, but we want binary compatibility for now. */
-#define E_ACCESSDENIED      ((nsresult)0x80070005L)
+# define E_ACCESSDENIED                     ((nsresult)0x80070005L)
 
-#define STDMETHOD(a) NS_IMETHOD a
-#define STDMETHODIMP NS_IMETHODIMP
-#define STDMETHOD_(ret, meth) NS_IMETHOD_(ret) meth
+# define STDMETHOD(a)                       NS_IMETHOD a
+# define STDMETHODIMP                       NS_IMETHODIMP
+# define STDMETHOD_(ret, meth)              NS_IMETHOD_(ret) meth
 
-#define COM_IIDOF(I) NS_GET_IID(I)
+# define COM_IIDOF(I)                       NS_GET_IID(I)
 
-#define COM_STRUCT_OR_CLASS(I) class I
+# define COM_STRUCT_OR_CLASS(I)             class I
 
 /* helper functions */
 extern "C"
@@ -416,22 +414,22 @@ unsigned int SysStringByteLen(BSTR bstr);
 unsigned int SysStringLen(BSTR bstr);
 }
 
-#ifndef VBOX_COM_NO_ATL
+# ifndef VBOX_COM_NO_ATL
 
 namespace ATL
 {
 
-#define ATL_NO_VTABLE
-#define DECLARE_CLASSFACTORY(a)
-#define DECLARE_CLASSFACTORY_SINGLETON(a)
-#define DECLARE_REGISTRY_RESOURCEID(a)
-#define DECLARE_NOT_AGGREGATABLE(a)
-#define DECLARE_PROTECT_FINAL_CONSTRUCT()
-#define BEGIN_COM_MAP(a)
-#define COM_INTERFACE_ENTRY(a)
-#define COM_INTERFACE_ENTRY2(a,b)
-#define END_COM_MAP() NS_DECL_ISUPPORTS
-#define COM_INTERFACE_ENTRY_AGGREGATE(a,b)
+#  define ATL_NO_VTABLE
+#  define DECLARE_CLASSFACTORY(a)
+#  define DECLARE_CLASSFACTORY_SINGLETON(a)
+#  define DECLARE_REGISTRY_RESOURCEID(a)
+#  define DECLARE_NOT_AGGREGATABLE(a)
+#  define DECLARE_PROTECT_FINAL_CONSTRUCT()
+#  define BEGIN_COM_MAP(a)
+#  define COM_INTERFACE_ENTRY(a)
+#  define COM_INTERFACE_ENTRY2(a,b)
+#  define END_COM_MAP()                     NS_DECL_ISUPPORTS
+#  define COM_INTERFACE_ENTRY_AGGREGATE(a,b)
 
 /* A few very simple ATL emulator classes to provide
  * FinalConstruct()/FinalRelease() functionality with XPCOM. */
@@ -469,7 +467,7 @@ public:
  *  and ensures that FinalRelease() will be called right before destruction.
  *  The result from FinalConstruct() is returned to the caller.
  */
-#define NS_GENERIC_FACTORY_CONSTRUCTOR_WITH_RC(_InstanceClass)                \
+#  define NS_GENERIC_FACTORY_CONSTRUCTOR_WITH_RC(_InstanceClass)              \
 static NS_IMETHODIMP                                                          \
 _InstanceClass##Constructor(nsISupports *aOuter, REFNSIID aIID,               \
                             void **aResult)                                   \
@@ -506,7 +504,7 @@ _InstanceClass##Constructor(nsISupports *aOuter, REFNSIID aIID,               \
  *  caller that tries to instantiate the object.
  *  NOTE: assumes that getter does an AddRef - so additional AddRef is not done.
  */
-#define NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR_WITH_RC(_InstanceClass, _GetterProc) \
+#  define NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR_WITH_RC(_InstanceClass, _GetterProc) \
 static NS_IMETHODIMP                                                          \
 _InstanceClass##Constructor(nsISupports *aOuter, REFNSIID aIID,               \
                             void **aResult)                                   \
@@ -538,7 +536,7 @@ _InstanceClass##Constructor(nsISupports *aOuter, REFNSIID aIID,               \
     return rv;                                                                \
 }
 
-#endif /* !VBOX_COM_NO_ATL */
+# endif /* !VBOX_COM_NO_ATL */
 
 #endif /* !defined(VBOX_WITH_XPCOM) */
 
@@ -548,11 +546,11 @@ _InstanceClass##Constructor(nsISupports *aOuter, REFNSIID aIID,               \
  *  @param s    expression to stringify
  */
 #if defined(_MSC_VER)
-#   define WSTR_LITERAL(s)  L#s
+# define WSTR_LITERAL(s)    L#s
 #elif defined(__GNUC__)
-#   define WSTR_LITERAL(s)  L""#s
+# define WSTR_LITERAL(s)    L""#s
 #else
-#   error "Unsupported compiler!"
+# error "Unsupported compiler!"
 #endif
 
 namespace com
@@ -561,7 +559,7 @@ namespace com
 #ifndef VBOX_COM_NO_ATL
 
 // use this macro to implement scriptable interfaces
-#ifdef RT_OS_WINDOWS
+# ifdef RT_OS_WINDOWS
 /* 2024-10-31 bird: Avoid using IID_xxxx here, because our IID_IEventSource is
    non-unique and defined differently by the the Windows SDK's Uuid.lib.  This
    manifested as 0x8002802b/TYPE_E_ELEMENTNOTFOUND trouble in vbox.py when
@@ -575,11 +573,11 @@ namespace com
    itself, on the format _GUID_xxxxxxxx_xxxx_xxxx_xxxx_xxxxxxxxxxxx.  This will
    effectively eliminate any duplicate interface-name clashes with the system,
    provided nobody uses the IID_xxxx constants. */
-# define VBOX_SCRIPTABLE_IMPL(iface) \
+#  define VBOX_SCRIPTABLE_IMPL(iface) \
     public ATL::IDispatchImpl<iface, /*&IID_##iface*/ &__uuidof(iface), &LIBID_VirtualBox, \
                               kTypeLibraryMajorVersion, kTypeLibraryMinorVersion>
 
-# define VBOX_SCRIPTABLE_DISPATCH_IMPL(iface)                                \
+#  define VBOX_SCRIPTABLE_DISPATCH_IMPL(iface)                               \
     STDMETHOD(QueryInterface)(REFIID riid, void **ppObj)                     \
     {                                                                        \
         if (riid == /*IID_##iface*/ __uuidof(iface))                         \
@@ -603,11 +601,11 @@ namespace com
         *ppObj = NULL;                                                       \
         return E_NOINTERFACE;                                                \
     }
-#else
-# define VBOX_SCRIPTABLE_IMPL(iface) \
+# else  /* !RT_OS_WINDOWS */
+#  define VBOX_SCRIPTABLE_IMPL(iface) \
     public iface
-# define VBOX_SCRIPTABLE_DISPATCH_IMPL(iface)
-#endif
+#  define VBOX_SCRIPTABLE_DISPATCH_IMPL(iface)
+# endif /* !RT_OS_WINDOWS */
 
 #endif /* !VBOX_COM_NO_ATL */
 
