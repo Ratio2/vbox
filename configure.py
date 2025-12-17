@@ -2087,7 +2087,7 @@ class EnvManager:
             return True;
         if sVal:
             sVal = ''.join(c if c != '\\' else '/' for c in sVal); # Translate to UNIX paths (for kBuild).
-        fh.write(f'{sWhat if sWhat else ''}{sKey}={sVal if sVal else self.env[sKey]}\n');
+        fh.write(f"{sWhat if sWhat else ''}{sKey}={sVal if sVal else self.env[sKey]}\n");
 
     def write_all(self, fh, sWhat = None, asPrefixInclude = None, asPrefixExclude = None):
         """
