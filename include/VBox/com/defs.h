@@ -85,9 +85,9 @@
  * @{
  */
 
-#if !defined(VBOX_WITH_XPCOM)
+#if !defined(VBOX_WITH_XPCOM) || defined(DOXYGEN_RUNNING)
 
-# ifdef RT_OS_WINDOWS
+# if defined(RT_OS_WINDOWS) || defined(DOXYGEN_RUNNING)
 
 // Windows COM
 /////////////////////////////////////////////////////////////////////////////
@@ -277,6 +277,9 @@ typedef const OLECHAR *CBSTR;
  * @param   I   interface name.
  */
 #  define COM_STRUCT_OR_CLASS(I)        struct I
+
+/**
+ *  */
 
 # else /* defined(RT_OS_WINDOWS) */
 
