@@ -50,6 +50,7 @@
 #include "CFirmwareSettings.h"
 #include "CPlatform.h"
 #include "CPlatformX86.h"
+#include "CPlatformProperties.h"
 #include "CNvramStore.h"
 #include "CTrustedPlatformModule.h"
 #include "CUefiVariableStore.h"
@@ -502,6 +503,19 @@ bool UIMachineSettingsSystem::validate(QList<UIValidationMessage> &messages)
                 "There might not be enough memory left for the host operating system. Please consider selecting a smaller amount.")
                 .arg((unsigned)qRound((double)m_pEditorBaseMemory->maxRAMOpt() / uFullSize * 100.0))
                 .arg(UITranslator::formatSize((uint64_t)uFullSize * _1M));
+        }
+        else
+        {
+            CPlatformProperties comPlatformProperties = gpGlobalSession->virtualBox().GetPlatformProperties(enmArch);
+            const KFirmwareType enmFirmwareType = !m_pEditorMotherboardFeatures->isEnabledEfi()
+                                                ? KFirmwareType_BIOS :  KFirmwareType_EFI /** @todo 32 vs 64 from OS type */;
+            const ulong uMinSize = comPlatformProperties.GetMinGuestRAM(enmFirmwareType);
+            if (m_pEditorBaseMemory->value() < (int)uMinSize)
+                message.second << tr(
+                    "Only <b>%1</b> of memory (RAM) configured for the virtual machine. The recommended minimum is <b>%2</b>. "
+                    "Please consider increasing the RAM size.")
+                    .arg(UITranslator::formatSize((uint64_t)m_pEditorBaseMemory->value() * _1M, 0))
+                    .arg(UITranslator::formatSize((uint64_t)uMinSize * _1M, 0));
         }
 
         /* Chipset type vs IO-APIC test: */
