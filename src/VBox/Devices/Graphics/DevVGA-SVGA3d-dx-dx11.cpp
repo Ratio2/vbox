@@ -7818,6 +7818,7 @@ static void dxSetupPipeline(PVGASTATECC pThisCC, PVMSVGA3DDXCONTEXT pDXContext)
         }
 
         pInputLayout = pDXElementLayout->pElementLayout;
+        AssertPtr(pInputLayout);
 
         LogFunc(("Input layout id %u\n", elementLayoutId));
     }
@@ -8584,6 +8585,8 @@ static int dxBeginQuery(PVGASTATECC pThisCC, DXQUERY *pDXQuery)
     if (pDXQuery->svgaQueryType == SVGA3D_QUERYTYPE_TIMESTAMP)
         return VINF_SUCCESS;
 
+    AssertPtrReturn(pDXQuery->pQuery, VERR_INVALID_STATE);
+
     pDXDevice->pImmediateContext->Begin(pDXQuery->pQuery);
     return VINF_SUCCESS;
 }
@@ -8618,6 +8621,8 @@ static int dxGetQueryResult(PVGASTATECC pThisCC, DXQUERY *pDXQuery,
     VGPU10QUERYINFO const *pQueryInfo = dxQueryInfo(pDXQuery->svgaQueryType);
     if (!pQueryInfo)
         return VERR_INVALID_PARAMETER;
+
+    AssertPtrReturn(pDXQuery->pQuery, VERR_INVALID_STATE);
 
     DXQUERYRESULT dxQueryResult;
     HRESULT hr = pDXDevice->pImmediateContext->GetData(pDXQuery->pQuery, &dxQueryResult, pQueryInfo->cbDataD3D11, 0);
@@ -8705,6 +8710,7 @@ static DECLCALLBACK(int) vmsvga3dBackDXEndQuery(PVGASTATECC pThisCC, PVMSVGA3DDX
     ASSERT_GUEST_RETURN(queryId < pDXContext->pBackendDXContext->cQuery, VERR_INVALID_PARAMETER);
 
     DXQUERY *pDXQuery = &pDXContext->pBackendDXContext->paQuery[queryId];
+    AssertPtrReturn(pDXQuery->pQuery, VERR_INVALID_STATE);
     pDXDevice->pImmediateContext->End(pDXQuery->pQuery);
 
     if (RT_BOOL(pDXQuery->u32QueryFlags & DX_QUERY_F_PREDICATEHINT))
@@ -8736,6 +8742,7 @@ static DECLCALLBACK(int) vmsvga3dBackDXEndQuerySync(PVGASTATECC pThisCC, PVMSVGA
     ASSERT_GUEST_RETURN(queryId < pDXContext->pBackendDXContext->cQuery, VERR_INVALID_PARAMETER);
 
     DXQUERY *pDXQuery = &pDXContext->pBackendDXContext->paQuery[queryId];
+    AssertPtrReturn(pDXQuery->pQuery, VERR_INVALID_STATE);
     pDXDevice->pImmediateContext->End(pDXQuery->pQuery);
 
     if (RT_BOOL(pDXQuery->u32QueryFlags & DX_QUERY_F_PREDICATEHINT))
@@ -10982,6 +10989,8 @@ static D3D11_VIDEO_DECODER_BUFFER_TYPE dxVideoDecoderBufferType(VBSVGA3dVideoDec
 
 static void dxVideoProcessorSetOutputTargetRect(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor, uint8 enable, SVGASignedRect const &outputRect)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     RECT OutputRect;
     OutputRect.left   = outputRect.left;
     OutputRect.top    = outputRect.top;
@@ -10994,6 +11003,8 @@ static void dxVideoProcessorSetOutputTargetRect(DXDEVICE *pDXDevice, DXVIDEOPROC
 
 static void dxVideoProcessorSetOutputBackgroundColor(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor, uint32 YCbCr, VBSVGA3dVideoColor const &color)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     D3D11_VIDEO_COLOR Color;
     Color.RGBA.R = color.r;
     Color.RGBA.G = color.g;
@@ -11006,6 +11017,8 @@ static void dxVideoProcessorSetOutputBackgroundColor(DXDEVICE *pDXDevice, DXVIDE
 
 static void dxVideoProcessorSetOutputColorSpace(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor, VBSVGA3dVideoProcessorColorSpace const &colorSpace)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     D3D11_VIDEO_PROCESSOR_COLOR_SPACE ColorSpace;
     ColorSpace.Usage         = colorSpace.Usage;
     ColorSpace.RGB_Range     = colorSpace.RGB_Range;
@@ -11020,6 +11033,8 @@ static void dxVideoProcessorSetOutputColorSpace(DXDEVICE *pDXDevice, DXVIDEOPROC
 
 static void dxVideoProcessorSetOutputAlphaFillMode(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor, VBSVGA3dVideoProcessorAlphaFillMode fillMode, uint32 streamIndex)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     D3D11_VIDEO_PROCESSOR_ALPHA_FILL_MODE AlphaFillMode = (D3D11_VIDEO_PROCESSOR_ALPHA_FILL_MODE)fillMode;
 
     pDXDevice->pVideoContext->VideoProcessorSetOutputAlphaFillMode(pDXVideoProcessor->pVideoProcessor, AlphaFillMode, streamIndex);
@@ -11028,6 +11043,8 @@ static void dxVideoProcessorSetOutputAlphaFillMode(DXDEVICE *pDXDevice, DXVIDEOP
 
 static void dxVideoProcessorSetOutputConstriction(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor, uint32 enable, uint32 width, uint32 height)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     SIZE Size;
     Size.cx = width;
     Size.cy = height;
@@ -11038,12 +11055,16 @@ static void dxVideoProcessorSetOutputConstriction(DXDEVICE *pDXDevice, DXVIDEOPR
 
 static void dxVideoProcessorSetOutputStereoMode(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor, uint32 enable)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     pDXDevice->pVideoContext->VideoProcessorSetOutputStereoMode(pDXVideoProcessor->pVideoProcessor, RT_BOOL(enable));
 }
 
 
 static void dxVideoProcessorSetStreamFrameFormat(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor, uint32 streamIndex, VBSVGA3dVideoFrameFormat format)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     D3D11_VIDEO_FRAME_FORMAT FrameFormat = (D3D11_VIDEO_FRAME_FORMAT)format;
 
     pDXDevice->pVideoContext->VideoProcessorSetStreamFrameFormat(pDXVideoProcessor->pVideoProcessor, streamIndex, FrameFormat);
@@ -11052,6 +11073,8 @@ static void dxVideoProcessorSetStreamFrameFormat(DXDEVICE *pDXDevice, DXVIDEOPRO
 
 static void dxVideoProcessorSetStreamColorSpace(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor, uint32 streamIndex, VBSVGA3dVideoProcessorColorSpace colorSpace)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     D3D11_VIDEO_PROCESSOR_COLOR_SPACE ColorSpace;
     ColorSpace.Usage         = colorSpace.Usage;
     ColorSpace.RGB_Range     = colorSpace.RGB_Range;
@@ -11067,6 +11090,8 @@ static void dxVideoProcessorSetStreamColorSpace(DXDEVICE *pDXDevice, DXVIDEOPROC
 static void dxVideoProcessorSetStreamOutputRate(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor,
                                                 uint32 streamIndex, VBSVGA3dVideoProcessorOutputRate outputRate, uint32 repeatFrame, SVGA3dFraction64 const &customRate)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     D3D11_VIDEO_PROCESSOR_OUTPUT_RATE OutputRate = (D3D11_VIDEO_PROCESSOR_OUTPUT_RATE)outputRate;
     DXGI_RATIONAL CustomRate;
     CustomRate.Numerator   = customRate.numerator;
@@ -11079,6 +11104,8 @@ static void dxVideoProcessorSetStreamOutputRate(DXDEVICE *pDXDevice, DXVIDEOPROC
 static void dxVideoProcessorSetStreamSourceRect(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor,
                                                 uint32 streamIndex, uint32 enable, SVGASignedRect const &sourceRect)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     RECT Rect;
     Rect.left   = sourceRect.left;
     Rect.top    = sourceRect.top;
@@ -11092,6 +11119,8 @@ static void dxVideoProcessorSetStreamSourceRect(DXDEVICE *pDXDevice, DXVIDEOPROC
 static void dxVideoProcessorSetStreamDestRect(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor,
                                               uint32 streamIndex, uint32 enable, SVGASignedRect const &destRect)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     RECT Rect;
     Rect.left   = destRect.left;
     Rect.top    = destRect.top;
@@ -11105,6 +11134,8 @@ static void dxVideoProcessorSetStreamDestRect(DXDEVICE *pDXDevice, DXVIDEOPROCES
 static void dxVideoProcessorSetStreamAlpha(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor,
                                            uint32 streamIndex, uint32 enable, float alpha)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     pDXDevice->pVideoContext->VideoProcessorSetStreamAlpha(pDXVideoProcessor->pVideoProcessor, streamIndex, RT_BOOL(enable), alpha);
 }
 
@@ -11112,6 +11143,8 @@ static void dxVideoProcessorSetStreamAlpha(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR
 static void dxVideoProcessorSetStreamPalette(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor,
                                              uint32 streamIndex, uint32_t cEntries, uint32_t const *paEntries)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     pDXDevice->pVideoContext->VideoProcessorSetStreamPalette(pDXVideoProcessor->pVideoProcessor, streamIndex, cEntries, paEntries);
 }
 
@@ -11119,6 +11152,8 @@ static void dxVideoProcessorSetStreamPalette(DXDEVICE *pDXDevice, DXVIDEOPROCESS
 static void dxVideoProcessorSetStreamPixelAspectRatio(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor,
                                                       uint32 streamIndex, uint32 enable, SVGA3dFraction64 const &sourceRatio, SVGA3dFraction64 const &destRatio)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     DXGI_RATIONAL SourceAspectRatio;
     SourceAspectRatio.Numerator   = sourceRatio.numerator;
     SourceAspectRatio.Denominator = sourceRatio.denominator;
@@ -11134,6 +11169,8 @@ static void dxVideoProcessorSetStreamPixelAspectRatio(DXDEVICE *pDXDevice, DXVID
 static void dxVideoProcessorSetStreamLumaKey(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor,
                                              uint32 streamIndex, uint32 enable, float lower, float upper)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     pDXDevice->pVideoContext->VideoProcessorSetStreamLumaKey(pDXVideoProcessor->pVideoProcessor, streamIndex, RT_BOOL(enable), lower, upper);
 }
 
@@ -11142,6 +11179,8 @@ static void dxVideoProcessorSetStreamStereoFormat(DXDEVICE *pDXDevice, DXVIDEOPR
                                                   uint32 streamIndex, uint32 enable, VBSVGA3dVideoProcessorStereoFormat stereoFormat,
                                                   uint8 leftViewFrame0, uint8 baseViewFrame0, VBSVGA3dVideoProcessorStereoFlipMode flipMode, int32 monoOffset)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     D3D11_VIDEO_PROCESSOR_STEREO_FORMAT Format = (D3D11_VIDEO_PROCESSOR_STEREO_FORMAT)stereoFormat;
     D3D11_VIDEO_PROCESSOR_STEREO_FLIP_MODE FlipMode = (D3D11_VIDEO_PROCESSOR_STEREO_FLIP_MODE)flipMode;
 
@@ -11152,6 +11191,8 @@ static void dxVideoProcessorSetStreamStereoFormat(DXDEVICE *pDXDevice, DXVIDEOPR
 static void dxVideoProcessorSetStreamAutoProcessingMode(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor,
                                                         uint32 streamIndex, uint32 enable)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     pDXDevice->pVideoContext->VideoProcessorSetStreamAutoProcessingMode(pDXVideoProcessor->pVideoProcessor, streamIndex, RT_BOOL(enable));
 }
 
@@ -11159,6 +11200,8 @@ static void dxVideoProcessorSetStreamAutoProcessingMode(DXDEVICE *pDXDevice, DXV
 static void dxVideoProcessorSetStreamFilter(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor,
                                             uint32 streamIndex, uint32 enable, VBSVGA3dVideoProcessorFilter filter, int32 level)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     D3D11_VIDEO_PROCESSOR_FILTER Filter = (D3D11_VIDEO_PROCESSOR_FILTER)filter;
 
     pDXDevice->pVideoContext->VideoProcessorSetStreamFilter(pDXVideoProcessor->pVideoProcessor, streamIndex, Filter, RT_BOOL(enable), level);
@@ -11168,6 +11211,8 @@ static void dxVideoProcessorSetStreamFilter(DXDEVICE *pDXDevice, DXVIDEOPROCESSO
 static void dxVideoProcessorSetStreamRotation(DXDEVICE *pDXDevice, DXVIDEOPROCESSOR *pDXVideoProcessor,
                                               uint32 streamIndex, uint32 enable, VBSVGA3dVideoProcessorRotation rotation)
 {
+    AssertPtrReturnVoid(pDXVideoProcessor->pVideoProcessor);
+
     D3D11_VIDEO_PROCESSOR_ROTATION Rotation = (D3D11_VIDEO_PROCESSOR_ROTATION)rotation;
 
     pDXDevice->pVideoContext->VideoProcessorSetStreamRotation(pDXVideoProcessor->pVideoProcessor, streamIndex, RT_BOOL(enable), Rotation);
@@ -11356,6 +11401,7 @@ static int dxVideoDecoderBeginFrame(PVGASTATECC pThisCC, PVMSVGA3DDXCONTEXT pDXC
     AssertReturn(pDXDevice->pVideoContext, VERR_INVALID_STATE);
 
     DXVIDEODECODER *pDXVideoDecoder = &pDXContext->pBackendDXContext->paVideoDecoder[videoDecoderId];
+    AssertPtrReturn(pDXVideoDecoder->pVideoDecoder, VERR_INVALID_STATE);
 
     DXVIEW *pDXView;
     int rc = dxEnsureVideoDecoderOutputView(pThisCC, pDXContext, videoDecoderOutputViewId, &pDXView);
@@ -11467,7 +11513,7 @@ static int dxCreateVideoProcessor(PVGASTATECC pThisCC, PVMSVGA3DDXCONTEXT pDXCon
     AssertReturn(SUCCEEDED(hr), VERR_NOT_SUPPORTED);
 
     hr = pDXDevice->pVideoDevice->CreateVideoProcessor(pDXVideoProcessor->pEnum, 0, &pDXVideoProcessor->pVideoProcessor);
-    AssertReturn(SUCCEEDED(hr), VERR_NOT_SUPPORTED);
+    AssertReturnStmt(SUCCEEDED(hr), D3D_RELEASE(pDXVideoProcessor->pEnum), VERR_NOT_SUPPORTED);
 
     dxSetupVideoProcessor(pDXDevice, pDXVideoProcessor, pEntry);
     return VINF_SUCCESS;
@@ -11577,6 +11623,7 @@ static DECLCALLBACK(int) vmsvga3dBackVBDXVideoDecoderSubmitBuffers(PVGASTATECC p
     AssertReturn(pDXDevice->pVideoContext, VERR_INVALID_STATE);
 
     DXVIDEODECODER *pDXVideoDecoder = &pDXContext->pBackendDXContext->paVideoDecoder[videoDecoderId];
+    AssertPtrReturn(pDXVideoDecoder->pVideoDecoder, VERR_INVALID_STATE);
 
     D3D11_VIDEO_DECODER_BUFFER_DESC *paDesc = (D3D11_VIDEO_DECODER_BUFFER_DESC *)RTMemTmpAllocZ(cBuffer * sizeof(D3D11_VIDEO_DECODER_BUFFER_DESC));
     AssertReturn(paDesc, VERR_NO_MEMORY);
@@ -11642,6 +11689,7 @@ static DECLCALLBACK(int) vmsvga3dBackVBDXVideoDecoderEndFrame(PVGASTATECC pThisC
     AssertReturn(pDXDevice->pVideoContext, VERR_INVALID_STATE);
 
     DXVIDEODECODER *pDXVideoDecoder = &pDXContext->pBackendDXContext->paVideoDecoder[videoDecoderId];
+    AssertPtrReturn(pDXVideoDecoder->pVideoDecoder, VERR_INVALID_STATE);
 
     HRESULT hr = pDXDevice->pVideoContext->DecoderEndFrame(pDXVideoDecoder->pVideoDecoder);
     AssertReturn(SUCCEEDED(hr), VERR_NOT_SUPPORTED);
@@ -11673,6 +11721,7 @@ static DECLCALLBACK(int) vmsvga3dBackVBDXVideoProcessorBlt(PVGASTATECC pThisCC, 
     AssertReturn(pDXDevice->pVideoContext, VERR_INVALID_STATE);
 
     DXVIDEOPROCESSOR *pDXVideoProcessor = &pDXContext->pBackendDXContext->paVideoProcessor[videoProcessorId];
+    AssertPtrReturn(pDXVideoProcessor->pVideoProcessor, VERR_INVALID_STATE);
 
     DXVIEW *pVPOView;
     int rc = dxEnsureVideoProcessorOutputView(pThisCC, pDXContext, videoProcessorOutputViewId, &pVPOView);
