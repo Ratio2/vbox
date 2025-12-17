@@ -1995,6 +1995,102 @@ int main()
 
         return True if self.sCmdPath else False;
 
+    def checkCallback_WinNSIS(self):
+        """
+        Checks for NSIS (Nullsoft Scriptable Install System).
+        """
+        sPath = self.sCustomPath;
+        if not sPath:
+            asRegKey = [ r'SOFTWARE\WOW6432Node\NSIS',
+                         r'SOFTWARE\NSIS', # x86 only, so unlikely. 
+                       ];
+
+            import winreg;
+            for hive in (winreg.HKEY_LOCAL_MACHINE,):
+                for key_path in asRegKey:
+                    try:
+                        key = winreg.OpenKey(hive, key_path);
+                        sPath, _ = winreg.QueryValueEx(key, ''); # Query (Default) key.
+                        winreg.CloseKey(key);
+                        break;
+                    except FileNotFoundError:
+                        continue;
+
+        if not sPath:
+            return False;
+
+        asFile = [ 'makensis.exe' ];
+        asDir  = [ 'Include',
+                   'Plugins',
+                   'Stubs' ];
+
+        for sFile in asFile:
+            if not isFile(os.path.join(sPath, sFile)):
+                return False;
+        for sDir in asDir:
+            if not isDir(os.path.join(sPath, sDir)):
+                return False;
+
+        sIncludePath = os.path.join(sPath, 'Include')
+        if not any(f.endswith('.nsh') for f in os.listdir(sIncludePath)):
+            return False;
+
+        self.sCmdPath, self.sVer = checkWhich('makensis.exe', 'NSIS', sPath);
+
+        return True if self.sCmdPath else False;
+
+    def checkCallback_WinMSI(self):
+        """
+        Checks for Microsoft MSI tools.
+        """
+        sPath = self.sCustomPath;
+        if sPath:
+            asFile = [ 'MsiDb.exe',
+                       'MsiInfo.exe',
+                       'Msimerg.exe',
+                       'MsiTran.exe' ];
+            for sFile in asFile:
+                if not isFile(os.path.join(sPath, sFile)):
+                    break;
+
+            if sPath:        
+                self.sCmdPath, self.sVer = checkWhich('');
+
+        if g_fCompatMode:
+            return True;
+
+        return True if self.sCmdPath else False;
+
+    def checkCallback_WinWIX(self):
+        """
+        Checks for WiX (Windows Installer XML, >= 5.0).
+        """
+        sPath = self.sCustomPath;
+        if not sPath:
+            # Search default installation paths.
+            for sProgramPath in self.getWinProgramFiles():
+                asCandidates = glob.glob(os.path.join(sProgramPath, 'WiX Toolset *'));
+                for sPathCandidate in asCandidates:
+                    if pathExists(sPathCandidate):
+                        sPath = sPathCandidate;
+                        break;
+                if sPath:
+                    break;
+
+        if not sPath:
+            return False;
+
+        asDir  = [ 'bin' ];
+        asFile = [ 'bin/wix.exe' ]; # Since WIX >= 5.0.
+        for sDir in asDir:
+            if not isDir(os.path.join(sPath, sDir)):
+                return False;
+        for sFile in asFile:
+            if not isFile(os.path.join(sPath, sFile)):
+                return False;
+        
+        return True if sPath else False;
+
 class EnvManager:
     """
     A simple manager for environment variables.
@@ -2322,6 +2418,10 @@ g_aoTools = [
     ToolCheck("python_modules", asCmd = [ ], fnCallback = ToolCheck.checkCallback_PythonModules ),
     ToolCheck("xcode", asCmd = [], fnCallback = ToolCheck.checkCallback_XCode, aeTargets = [ BuildTarget.DARWIN ]),
     ToolCheck("yasm", asCmd = [ 'yasm' ], fnCallback = ToolCheck.checkCallback_YASM, aeTargets = [ BuildTarget.ANY ]),
+    # Windows exclusive tools below (so that it can be invoked with --with-win-nsis-path, for instance).
+    ToolCheck("win-nsis", asCmd = [ ], fnCallback = ToolCheck.checkCallback_WinNSIS),
+    ToolCheck("win-msi", asCmd = [ ], fnCallback = ToolCheck.checkCallback_WinMSI),
+    ToolCheck("win-wix", asCmd = [ ], fnCallback = ToolCheck.checkCallback_WinWIX)
 ];
 
 def write_autoconfig_kmk(sFilePath, enmBuildTarget, oEnv, aoLibs, aoTools):
