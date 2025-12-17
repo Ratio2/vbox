@@ -733,8 +733,8 @@ class LibraryCheck(CheckBase):
         """
         Applies argparse options for disabling and custom paths.
         """
-        self.fDisabled = getattr(args, f"config_libs_disable_{self.sName}", False);
-        self.sCustomPath = getattr(args, f"config_libs_path_{self.sName}", None);
+        self.fDisabled = getattr(args, f"config_libs_disable_{self.sName.replace('-', '_')}", False);
+        self.sCustomPath = getattr(args, f"config_libs_path_{self.sName.replace('-', '_')}", None);
 
     def getIncSearchPaths(self):
         """
@@ -1061,8 +1061,9 @@ class ToolCheck(CheckBase):
         """
         Apply argparse options for disabling the tool.
         """
-        self.fDisabled = getattr(oArgs, f"config_tools_disable_{self.sName}", False);
-        self.sCustomPath = getattr(oArgs, f"config_tools_path_{self.sName}", None);
+        sToolName = self.sName.replace("-", "_"); # So that we can use variables directly w/o getattr.
+        self.fDisabled = getattr(oArgs, f"config_tools_disable_{sToolName}", False);
+        self.sCustomPath = getattr(oArgs, f"config_tools_path_{sToolName}", None);
 
     def performCheck(self):
         """
@@ -1316,7 +1317,7 @@ class ToolCheck(CheckBase):
         self.printError('MacOS SDK not found or invalid directory specified');
         return False;
 
-    def checkCallback_VisualCPP(self):
+    def checkCallback_WinVisualCPP(self):
         """
         Checks for Visual C++ Build Tools 16 (2019), 15 (2017), 14 (2015), 12 (2013), 11 (2012) or 10 (2010).
         """
@@ -1634,7 +1635,7 @@ class ToolCheck(CheckBase):
                     ];
                     for sFile in asFiles:
                         if not pathExists(os.path.join(sCurPath, sFile)):
-                            self.printError("File '{sFile} not found in '{sCurPath}'");
+                            self.printError(f"File '{sFile} not found in '{sCurPath}'");
                             return False;
                     sDDKPath = sCurPath;
 
@@ -1986,7 +1987,8 @@ int main()
         """
         Checks for YASM.
         """
-        self.sCmdPath, self.sVer = checkWhich('yasm');
+
+        self.sCmdPath, self.sVer = checkWhich('yasm', sCustomPath = self.sCustomPath);
         if self.sCmdPath:
             g_oEnv.set('PATH_TOOL_YASM', os.path.basename(self.sCmdPath));
 
@@ -2002,7 +2004,7 @@ int main()
         sPath = self.sCustomPath;
         if not sPath:
             asRegKey = [ r'SOFTWARE\WOW6432Node\NSIS',
-                         r'SOFTWARE\NSIS', # x86 only, so unlikely. 
+                         r'SOFTWARE\NSIS', # x86 only, so unlikely.
                        ];
 
             import winreg;
@@ -2053,7 +2055,7 @@ int main()
                 if not isFile(os.path.join(sPath, sFile)):
                     break;
 
-            if sPath:        
+            if sPath:
                 self.sCmdPath, self.sVer = checkWhich('');
 
         if g_fCompatMode:
@@ -2088,7 +2090,7 @@ int main()
         for sFile in asFile:
             if not isFile(os.path.join(sPath, sFile)):
                 return False;
-        
+
         return True if sPath else False;
 
 class EnvManager:
@@ -2401,11 +2403,9 @@ g_aoLibs = sorted([
 g_aoTools = [
     ToolCheck("clang", asCmd = [ ], fnCallback = ToolCheck.checkCallback_clang, aeTargets = [ BuildTarget.LINUX, BuildTarget.SOLARIS, BuildTarget.DARWIN ] ),
     ToolCheck("gcc", asCmd = [ "gcc" ], fnCallback = ToolCheck.checkCallback_gcc, aeTargets = [ BuildTarget.LINUX, BuildTarget.SOLARIS ] ),
+    ToolCheck("win-visualcpp", asCmd = [ ], fnCallback = ToolCheck.checkCallback_WinVisualCPP, aeTargets = [ BuildTarget.WINDOWS ] ),
     ToolCheck("glslang-tools", asCmd = [ "glslangValidator" ], aeTargets = [ BuildTarget.LINUX, BuildTarget.SOLARIS ] ),
     ToolCheck("macossdk", asCmd = [ ], fnCallback = ToolCheck.checkCallback_MacOSSDK, aeTargets = [ BuildTarget.DARWIN ] ),
-    ToolCheck("visualcpp", asCmd = [ ], fnCallback = ToolCheck.checkCallback_VisualCPP, aeTargets = [ BuildTarget.WINDOWS ] ),
-    ToolCheck("win10sdk", asCmd = [ ], fnCallback = ToolCheck.checkCallback_Win10SDK, aeTargets = [ BuildTarget.WINDOWS ] ),
-    ToolCheck("winddk", asCmd = [ ], fnCallback = ToolCheck.checkCallback_WinDDK, aeTargets = [ BuildTarget.WINDOWS ] ),
     ToolCheck("devtools", asCmd = [ ], fnCallback = ToolCheck.checkCallback_devtools ),
     ToolCheck("gsoap", asCmd = [ ], fnCallback = ToolCheck.checkCallback_GSOAP ),
     ToolCheck("gsoapsources", asCmd = [ ], fnCallback = ToolCheck.checkCallback_GSOAPSources ),
@@ -2419,6 +2419,8 @@ g_aoTools = [
     ToolCheck("xcode", asCmd = [], fnCallback = ToolCheck.checkCallback_XCode, aeTargets = [ BuildTarget.DARWIN ]),
     ToolCheck("yasm", asCmd = [ 'yasm' ], fnCallback = ToolCheck.checkCallback_YASM, aeTargets = [ BuildTarget.ANY ]),
     # Windows exclusive tools below (so that it can be invoked with --with-win-nsis-path, for instance).
+    ToolCheck("win-sdk10", asCmd = [ ], fnCallback = ToolCheck.checkCallback_Win10SDK, aeTargets = [ BuildTarget.WINDOWS ] ),
+    ToolCheck("win-ddk", asCmd = [ ], fnCallback = ToolCheck.checkCallback_WinDDK, aeTargets = [ BuildTarget.WINDOWS ] ),
     ToolCheck("win-nsis", asCmd = [ ], fnCallback = ToolCheck.checkCallback_WinNSIS),
     ToolCheck("win-msi", asCmd = [ ], fnCallback = ToolCheck.checkCallback_WinMSI),
     ToolCheck("win-wix", asCmd = [ ], fnCallback = ToolCheck.checkCallback_WinWIX)
@@ -2552,10 +2554,11 @@ def main():
         # For debugging / development only. We don't expose this in the syntax help.
         oParser.add_argument(f'--only-{oLibCur.sName}', action='store_true', default=None, dest=f'config_libs_only_{oLibCur.sName}');
     for oToolCur in g_aoTools:
-        oParser.add_argument(f'--disable-{oToolCur.sName}', f'--without-{oToolCur.sName}', action='store_true', default=None, dest=f'config_tools_disable_{oToolCur.sName}');
-        oParser.add_argument(f'--with-{oToolCur.sName}-path', dest=f'config_tools_path_{oToolCur.sName}');
+        sToolName = oToolCur.sName.replace("-", "_"); # So that we can use variables directly w/o getattr.
+        oParser.add_argument(f'--disable-{oToolCur.sName}', f'--without-{oToolCur.sName}', action='store_true', default=None, dest=f'config_tools_disable_{sToolName}');
+        oParser.add_argument(f'--with-{oToolCur.sName}-path', dest=f'config_tools_path_{sToolName}');
         # For debugging / development only. We don't expose this in the syntax help.
-        oParser.add_argument(f'--only-{oToolCur.sName}', action='store_true', default=None, dest=f'config_tools_only_{oToolCur.sName}');
+        oParser.add_argument(f'--only-{oToolCur.sName}', action='store_true', default=None, dest=f'config_tools_only_{sToolName}');
 
     oParser.add_argument('--disable-docs', '--without-docs', help='Disables building the documentation', action='store_true', default=None, dest='VBOX_WITH_DOCS=');
     oParser.add_argument('--disable-java', '--without-java', help='Disables building components which require Java', action='store_true', default=None, dest='config_disable_java');
@@ -2594,16 +2597,16 @@ def main():
     oParser.add_argument('--with-python', '--with-python-path', help='Where the Python installation is to be found', dest='config_python_path');
     # Windows-specific arguments (the second arguments points to legacy versions kept for backwards compatibility).
     oParser.add_argument('--disable-com', '--disable-com', help='Disable building components which require COM', action='store_true', dest='config_disable_com');
-    oParser.add_argument('--with-win-ddk-path', '--with-ddk', help='Where the WDK is to be found', dest='config_win_ddk_path');
     oParser.add_argument('--with-win-midl-path', '--with-midl', help='Where midl.exe is to be found', dest='config_win_midl_path');
-    oParser.add_argument('--with-win-sdk-path', '--with-SDK', help='Where the Windows SDK is to be found', dest='config_win_sdk_path');
-    oParser.add_argument('--with-win-sdk10-path', '--with-sdk10', help='Where the Windows 10 SDK/WDK is to be found', dest='config_win_sdk10_path');
-    oParser.add_argument('--with-win-vc-common', '--with-vc-common', help='Maybe needed for 2015 and older to locate the Common7 directory', dest='config_win_vc_common_path');
-    oParser.add_argument('--with-win-vc-path', '--with-vc', help='Where the Visual C++ compiler is to be found. Expecting bin, include and lib subdirs', dest='config_tools_path_visualcpp');
     oParser.add_argument('--with-win-vcpkg-root', help='Where the VCPKG root directory to be found', dest='config_win_vcpkg_root');
-    oParser.add_argument('--with-win-yasm-path', '--with-yasm', help='Where YASM is to be found', dest='config_libs_path_yasm'); ## Note: Same as above in libs block.
-    # Windows: The following arguments are deprecated -- kept for backwards compatibility.
-    oParser.add_argument('--with-libsdl', help='Where the Python installation is to be found', dest='config_deprecated_libsdl_path');
+    # Windows: The following arguments are deprecated and undocumented -- kept for backwards compatibility.
+    oParser.add_argument('--with-ddk', help=argparse.SUPPRESS, dest='config_tools_path_win_ddk');
+    oParser.add_argument('--with-qt', help=argparse.SUPPRESS, dest='config_tools_path_qt6');
+    oParser.add_argument('--with-sdk10', help=argparse.SUPPRESS, dest='config_tools_path_win_sdk10');
+    oParser.add_argument('--with-libsdl', help=argparse.SUPPRESS, dest='config_libs_path_sdl');
+    oParser.add_argument('--with-vc', help=argparse.SUPPRESS, dest='config_tools_path_win_visualcpp');
+    oParser.add_argument('--with-vc-common', help=argparse.SUPPRESS, dest='config_tools_path_win_visualcpp_common');
+    oParser.add_argument('--with-yasm', help=argparse.SUPPRESS, dest='config_tools_path_yasm');
     # MacOS-specific arguments.
     oParser.add_argument('--with-macos-sdk-path', help='Where the macOS SDK is to be found', dest='config_macos_sdk_path');
 
@@ -2659,12 +2662,6 @@ def main():
         if sPath:
             g_asPathsPrepend[ sArgCur ].extend( [ sPath ] );
 
-    # Handle deprecated Windows arguments.
-    if g_enmHostTarget == BuildTarget.WINDOWS:
-        if getattr(oArgs, 'config_deprecated_libsdl_path'):
-            printWarn('The --with-libsdl argument is deprecated -- use --with-libsdl-path instead!');
-            oArgs.config_libs_path_sdl2 = getattr(oArgs, 'config_deprecated_libsdl_path');
-
     if getattr(oArgs, 'config_python_path'):
         oArgs.config_libs_path_python_c_api = getattr(oArgs, 'config_python_path');
 
@@ -2672,8 +2669,9 @@ def main():
     g_oEnv.updateFromArgs(oArgs);
 
     # Filter libs and tools based on --only-XXX flags.
-    aoOnlyLibs = [lib for lib in g_aoLibs if getattr(oArgs, f'config_libs_only_{lib.sName}', False)];
-    aoOnlyTools = [tool for tool in g_aoTools if getattr(oArgs, f'config_tools_only_{tool.sName}', False)];
+    # Replace '-' with '_' so that we can use variables directly w/o getattr lateron.
+    aoOnlyLibs = [lib for lib in g_aoLibs if getattr(oArgs, f'config_libs_only_{lib.sName.replace('-', '_')}', False)];
+    aoOnlyTools = [tool for tool in g_aoTools if getattr(oArgs, f'config_tools_only_{tool.sName.replace('-', '_')}', False)];
     aoLibsToCheck = aoOnlyLibs if aoOnlyLibs else g_aoLibs;
     aoToolsToCheck = aoOnlyTools if aoOnlyTools else g_aoTools;
     # Filter libs and tools based on build target.
