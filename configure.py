@@ -125,7 +125,7 @@ class BuildTarget:
     HAIKU = "haiku";
     UNKNOWN = "unknown";
 
-g_fDebug = False;             # Enables debug mode. Only for development.
+g_fDebug = True;              # Enables debug mode. Only for development.
 g_fContOnErr = False;         # Continue on fatal errors.
 g_fCompatMode = True;         # Enables compatibility mode to mimic the old build scripts. Enabled by default (for now).
 g_sEnvVarPrefix = 'VBOX_';
