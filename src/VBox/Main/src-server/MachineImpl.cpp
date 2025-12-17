@@ -241,7 +241,7 @@ Machine::HWData::HWData()
 {
     /* default values for a newly created machine for x86. */
     mHWVersion.printf("%d", SchemaDefs::DefaultHardwareVersion);
-    mMemorySize = 128;
+    mMemorySize = 1024;
     mCPUCount = 1;
     mCPUHotPlugEnabled = false;
     mMemoryBalloonSize = 0;
