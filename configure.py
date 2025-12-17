@@ -300,6 +300,8 @@ def checkWhich(sCmdName, sToolDesc = None, sCustomPath = None, asVersionSwitches
     if not sCmdName.endswith(sExeSuff):
         sCmdName += sExeSuff;
 
+    printVerbose(1, f"Checking which '{sCmdName}' ...");
+
     sCmdPath = None;
     if sCustomPath:
         sCmdPath = os.path.join(sCustomPath, sCmdName);
@@ -564,7 +566,6 @@ def getPackageLibs(sPackageName):
         elif g_enmHostTarget == BuildTarget.WINDOWS:
             sVcPkgRoot = g_oEnv['VCPKG_ROOT'];
             if sVcPkgRoot:
-                sPackageName = 'gsoap';
                 triplet = 'arm64-windows';
                 lib_dirs = [
                     os.path.join(sVcPkgRoot, 'installed', triplet, 'lib'),
@@ -606,10 +607,11 @@ def getPackagePath(sPackageName):
         else:
             raise RuntimeError('Unsupported OS');
 
-        oProc = subprocess.run(sCmd, shell = True, check = False, stdout = subprocess.PIPE, stderr = subprocess.PIPE, text =True);
-        if oProc.returncode == 0 and oProc.stdout.strip():
-            sPath = oProc.stdout.strip();
-            return True, sPath;
+        if sCmd:
+            oProc = subprocess.run(sCmd, shell = True, check = False, stdout = subprocess.PIPE, stderr = subprocess.PIPE, text =True);
+            if oProc.returncode == 0 and oProc.stdout.strip():
+                sPath = oProc.stdout.strip();
+                return True, sPath;
 
         # If pkg-config fails on Darwin, try asking brew instead.
         if BuildTarget.DARWIN:
@@ -1132,8 +1134,9 @@ class ToolCheck(CheckBase):
 
         asLibs = None;
         sPath = self.sCustomPath; # Acts as the 'found' beacon.
-        sPathImport = None;
-        sPathSource = None;
+
+        if not sPath:
+            sPath = os.environ.get('VBOX_PATH_GSOAP');
 
         if not sPath:
             _, sPath = getPackagePath('gsoapssl++');
@@ -1145,11 +1148,18 @@ class ToolCheck(CheckBase):
                 if pathExists(sDevPath):
                     sPath = sDevPath;
 
+        # Detect binaries.
+        sPathBin = None;
         if sPath:
-            self.sCmdPath, self.sVer = checkWhich('soapcpp2', sCustomPath = os.path.join(sPath, 'bin'));
-            if not self.sCmdPath:
-                self.sCmdPath, self.sVer = checkWhich('wsdl2h', sCustomPath = os.path.join(sPath, 'bin'));
+            sPathBin = os.path.join(sPath, 'bin', g_oEnv['KBUILD_TARGET'] + '.' + g_oEnv['KBUILD_TARGET_ARCH']);
+            asFile = ['soapcpp2', 'wsdl2h' ];
+            if pathExists(sPathBin):
+                for sFile in asFile:
+                    self.sCmdPath, self.sVer = checkWhich(sFile, sCustomPath = sPathBin);
 
+        # Detect imports and sources.
+        sPathImport = None;
+        sPathSource = None;
         if sPath:
             self.printVerbose(1, f"GSOAP base path is '{sPath}'");
             sPathImport = os.path.join(sPath, 'share', 'gsoap', 'import');
@@ -1164,7 +1174,7 @@ class ToolCheck(CheckBase):
         g_oEnv.set('VBOX_WITH_GSOAP', '1' if sPath else '');
         g_oEnv.set('VBOX_GSOAP_INSTALLED', '1' if sPath else '');
         g_oEnv.set('VBOX_PATH_GSOAP_IMPORT', sPathImport if sPathImport else None);
-        g_oEnv.set('VBOX_PATH_GSOAP_BIN', os.path.join(sPath, 'bin') if sPath else None);
+        g_oEnv.set('VBOX_PATH_GSOAP_BIN', sPathBin);
         g_oEnv.set('VBOX_GSOAP_CXX_LIBS', libraryFileGetLinkerArg(asLibs[0]) if asLibs else None);
         g_oEnv.set('VBOX_GSOAP_INCS', os.path.join(sPath, 'include') if sPath else None);
         # Note: VBOX_GSOAP_CXX_SOURCES gets resolved in checkCallback_GSOAPSources().
