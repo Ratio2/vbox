@@ -125,6 +125,7 @@ private:
     HRESULT getMaxInstancesOfUSBControllerType(ChipsetType_T aChipset,
                                                USBControllerType_T aType,
                                                ULONG *aMaxInstances) RT_OVERRIDE;
+    HRESULT getMinGuestRAM(FirmwareType_T aFirmware, ULONG *aMinMegabytes) RT_OVERRIDE;
 
     VirtualBox * const     mParent;
     /** Platform architecture the properties are for. */
