@@ -2491,6 +2491,7 @@ def main():
     oParser.add_argument('--prepend-programfiles-path', '--prepend-programfiles-dir', help='Adds an alternative Program Files directory to search.', dest='config_path_prepend_programfiles');
     oParser.add_argument('--append-tools-path', '--append-tools-dir', help='Adds an alternative tools directory to search.', dest='config_path_append_tools');
     oParser.add_argument('--prepend-tools-path', '--prepend-tools-dir', help='Adds an alternative tools directory to search.', dest='config_path_prepend_tools');
+    oParser.add_argument('--with-python', '--with-python-path', help='Where the Python installation is to be found', dest='config_python_path');
     # Windows-specific arguments (the second arguments points to legacy versions kept for backwards compatibility).
     oParser.add_argument('--disable-com', '--disable-com', help='Disable building components which require COM', action='store_true', dest='config_disable_com');
     oParser.add_argument('--with-win-ddk-path', '--with-ddk', help='Where the WDK is to be found', dest='config_win_ddk_path');
@@ -2502,7 +2503,6 @@ def main():
     oParser.add_argument('--with-win-vcpkg-root', help='Where the VCPKG root directory to be found', dest='config_win_vcpkg_root');
     oParser.add_argument('--with-win-yasm-path', '--with-yasm', help='Where YASM is to be found', dest='config_libs_path_yasm'); ## Note: Same as above in libs block.
     # Windows: The following arguments are deprecated -- kept for backwards compatibility.
-    oParser.add_argument('--with-python', help='Where the Python installation is to be found', dest='config_deprecated_python_path');
     oParser.add_argument('--with-libsdl', help='Where the Python installation is to be found', dest='config_deprecated_libsdl_path');
     # MacOS-specific arguments.
     oParser.add_argument('--with-macos-sdk-path', help='Where the macOS SDK is to be found', dest='config_macos_sdk_path');
@@ -2564,9 +2564,9 @@ def main():
         if getattr(oArgs, 'config_deprecated_libsdl_path'):
             printWarn('The --with-libsdl argument is deprecated -- use --with-libsdl-path instead!');
             oArgs.config_libs_path_sdl2 = getattr(oArgs, 'config_deprecated_libsdl_path');
-        if getattr(oArgs, 'config_deprecated_python_path'):
-            printWarn('The --with-python argument is deprecated -- use --with-python-path instead!');
-            oArgs.config_libs_path_python_c_api = getattr(oArgs, 'config_deprecated_python_path');
+
+    if getattr(oArgs, 'config_python_path'):
+        oArgs.config_libs_path_python_c_api = getattr(oArgs, 'config_python_path');
 
     # Apply updates from command line arguments.
     g_oEnv.updateFromArgs(oArgs);
