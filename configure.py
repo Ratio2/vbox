@@ -108,8 +108,8 @@ g_mapPythonArch2BuildArch = {
 g_sHostArch = platform.machine().lower();
 # Maps host arch to build arch.
 g_enmHostArch = g_mapPythonArch2BuildArch.get(g_sHostArch, BuildArch.UNKNOWN);
-# Maps Python (interpreter) arch to build arch.
-g_enmPythonArch = g_mapPythonArch2BuildArch.get(sysconfig.get_platform().split('-')[-1]);
+# Maps Python (interpreter) arch to build arch. Matches g_enmHostArch.
+g_enmPythonArch = g_enmHostArch;
 
 class BuildTarget:
     """
@@ -2701,7 +2701,7 @@ def main():
     print(f'VirtualBox configuration script - r{__revision__ }');
     print();
     print(f'Running on {platform.system()} {platform.release()} ({platform.machine()})');
-    print(f'Using Python {sys.version} ({sysconfig.get_platform()})');
+    print(f'Using Python {sys.version} (platform: {sysconfig.get_platform()})');
     print();
     print(f'Host OS / arch     : { g_sHostTarget}.{g_sHostArch}');
     print(f'Building for target: { g_oEnv["KBUILD_TARGET"] }.{ g_oEnv["KBUILD_TARGET_ARCH"] }');
