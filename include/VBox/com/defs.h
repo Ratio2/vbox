@@ -279,7 +279,15 @@ typedef const OLECHAR *CBSTR;
 #  define COM_STRUCT_OR_CLASS(I)        struct I
 
 /**
- *  */
+ * This is for dealing with the _32BitHack enum value in XPCOM.
+ */
+#  define COM_ENUM_DUMMY_CASES(a_Type)
+
+/**
+ * This is for dealing with the _32BitHack enum value in XPCOM, it shall not be
+ * followed by a semicolon.
+ */
+#  define COM_ENUM_DUMMY_CASES_BREAK(a_Type)
 
 # else /* defined(RT_OS_WINDOWS) */
 
@@ -403,6 +411,9 @@ typedef nsIID       IID;
 # define COM_IIDOF(I)                       NS_GET_IID(I)
 
 # define COM_STRUCT_OR_CLASS(I)             class I
+
+# define COM_ENUM_DUMMY_CASES(a_Type)       case a_Type##_32BitHack:
+# define COM_ENUM_DUMMY_CASES_BREAK(a_Type) COM_ENUM_DUMMY_CASES(a_Type) break;
 
 /* helper functions */
 extern "C"
