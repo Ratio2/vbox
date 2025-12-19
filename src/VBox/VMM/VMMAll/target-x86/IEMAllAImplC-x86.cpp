@@ -15584,34 +15584,77 @@ DECLINLINE(uint32_t) iemSseSoftStateAndR32ToMxcsrAndIprtResult(softfloat_state_t
 {
     iemFpSoftF32ToIprt(pr32Result, r32Result);
     uint8_t fXcpt = pSoftState->exceptionFlags;
-    /* If DAZ is set \#DE is never set. */
-    if (   fMxcsr & X86_MXCSR_DAZ
-        || (   (fXcpt & X86_MXCSR_DE) /* Softfloat sets DE for sub-normal values. */
-            && (RTFLOAT32U_IS_SUBNORMAL(pr32Result))))
-        fXcpt &= ~X86_MXCSR_DE;
 
-    /*
-     * Skip computing the post-computational exception flags if any of the pre-computational exception flags
-     * are set and are unmasked in MXCSR.
+    /**
+     * Important working variables here:
+     *
+     *    fMxcsr           MXCSR computed so far by emulated instruction, e.g. regarding
+     *                     illegal input values; NOT seeded with exceptions which were
+     *                     already on in the MXCSR before this instruction started.
+     *    fMxcsrExcpMask   exceptions masked by incoming MXCSR, shifted to represent
+     *                     exceptions rather than the corresponding masking bits
+     *    fXcpt            exceptions from softfloat regarding the current computation
+     */
+
+    /** If an unmasked pre-computational exception is being raised by the current
+     *  operation, don't raise any post-computational exceptions.
      */
     uint32_t const fMxcsrExcpMask = ~((fMxcsr & X86_MXCSR_XCPT_MASK) >> X86_MXCSR_XCPT_MASK_SHIFT);
     if (  ((fMxcsr | fXcpt) & (X86_MXCSR_IE | X86_MXCSR_DE | X86_MXCSR_ZE))
         & fMxcsrExcpMask)
         return fMxcsr | (fXcpt & (X86_MXCSR_IE | X86_MXCSR_DE | X86_MXCSR_ZE));
 
-    if (   (fMxcsr & X86_MXCSR_FZ)
-        && RTFLOAT32U_IS_SUBNORMAL(pr32Result))
+    /* Overflow handling */
+    if (fXcpt & X86_MXCSR_OE)
     {
-        /* Underflow masked and flush to zero is set. */
-        pr32Result->s.uFraction = 0;
-        pr32Result->s.uExponent = 0;
-        fXcpt |= X86_MXCSR_UE | X86_MXCSR_PE;
+        /**
+         * Intel SDM table D-16 '#O - Numeric Overflow' says PE should be raised
+         * always if OM (overflow exception masked), and this seems to agree with
+         * hardware (i7-10700).  But if !OM, it says raise PE 'if the result is
+         * inexact'.  This would be the PE bit on fMxcsr; but following that
+         * produces results which disagree with hardware.  It seems that softfloat
+         * and HW do not agree on what is imprecise.  We do not promote the
+         * softfloat PE, as it disagrees in more cases than it agrees.
+         */
+        fMxcsr |= X86_MXCSR_OE;
+        if (fMxcsr & X86_MXCSR_OM)
+            fMxcsr |= X86_MXCSR_PE;
+#ifdef TODO_BETTER_PE_WHEN_OM
+        else if (fXcpt & X86_MXCSR_PE)
+             /** @todo figure out why this leads to worse results */
+             fMxcsr |= X86_MXCSR_PE;
+#endif /* TODO_BETTER_PE_WHEN_OM */
+        return fMxcsr;
     }
 
-    /* If OE/UE get raised PE won't be set because of the lower priority. */
-    if (  (fXcpt & (X86_MXCSR_UE | X86_MXCSR_OE))
-        & fMxcsrExcpMask)
-        fXcpt &= ~X86_MXCSR_PE;
+    /* Underflow handling */
+    if (RTFLOAT32U_IS_SUBNORMAL(pr32Result))
+    {
+        /**
+         * Underflow handling:
+         *
+         * An underflow exception is raised for a subnormal result if either:
+         *
+         * (1) underflow exception is unmasked; OR
+         * (2) underflow exception is masked AND result is inexact
+         */
+        if (!(fMxcsr & X86_MXCSR_UM) || (fXcpt & X86_MXCSR_PE))
+            fXcpt |= X86_MXCSR_UE;
+
+        /**
+         * Flush-to-zero handling:
+         *
+         * By spec, FZ applies only when underflow exception is masked.
+         * If we have a subnormal result and underflow is masked, we zero
+         * the result and raise precision & underflow exceptions.
+         */
+        if ((fMxcsr & X86_MXCSR_UM) && (fMxcsr & X86_MXCSR_FZ))
+        {
+            pr32Result->s.uFraction = 0;
+            pr32Result->s.uExponent = 0;
+            fXcpt |= X86_MXCSR_UE | X86_MXCSR_PE;
+        }
+    }
 
     return fMxcsr | (fXcpt & X86_MXCSR_XCPT_FLAGS);
 }
@@ -15648,49 +15691,91 @@ DECLINLINE(uint32_t) iemSseSoftStateAndR32ToMxcsrAndIprtResultNoFz(softfloat_sta
  * accordingly.
  *
  * @returns Updated MXCSR.
- * @param   pSoftState           The SoftFloat state following the operation.
- * @param   r64Result            The result of the SoftFloat operation.
- * @param   pr64Result           Where to store the result for IEM.
- * @param   fMxcsr               The original MXCSR value.
+ * @param   pSoftState      The SoftFloat state following the operation.
+ * @param   r64Result       The result of the SoftFloat operation.
+ * @param   pr64Result      Where to store the result for IEM.
+ * @param   fMxcsr          The original MXCSR value.
  */
 DECLINLINE(uint32_t) iemSseSoftStateAndR64ToMxcsrAndIprtResult(softfloat_state_t const *pSoftState, float64_t r64Result,
                                                                PRTFLOAT64U pr64Result, uint32_t fMxcsr)
 {
     iemFpSoftF64ToIprt(pr64Result, r64Result);
     uint8_t fXcpt = pSoftState->exceptionFlags;
-    /* If DAZ is set \#DE is never set. */
-    if (   fMxcsr & X86_MXCSR_DAZ
-        || (   (fXcpt & X86_MXCSR_DE) /* Softfloat sets DE for sub-normal values. */
-            && (RTFLOAT64U_IS_SUBNORMAL(pr64Result))))
-        fXcpt &= ~X86_MXCSR_DE;
 
-    /*
-     * Skip computing the post-computational exception flags if any of the pre-computational exception flags
-     * are set and are unmasked in MXCSR.
+    /**
+     * Important working variables here:
+     *
+     *    fMxcsr           MXCSR computed so far by emulated instruction, e.g. regarding
+     *                     illegal input values; NOT seeded with exceptions which were
+     *                     already on in the MXCSR before this instruction started.
+     *    fMxcsrExcpMask   exceptions masked by incoming MXCSR, shifted to represent
+     *                     exceptions rather than the corresponding masking bits
+     *    fXcpt            exceptions from softfloat regarding the current computation
+     */
+
+    /** If an unmasked pre-computational exception is being raised by the current
+     *  operation, don't raise any post-computational exceptions.
      */
     uint32_t const fMxcsrExcpMask = ~((fMxcsr & X86_MXCSR_XCPT_MASK) >> X86_MXCSR_XCPT_MASK_SHIFT);
     if (  ((fMxcsr | fXcpt) & (X86_MXCSR_IE | X86_MXCSR_DE | X86_MXCSR_ZE))
         & fMxcsrExcpMask)
         return fMxcsr | (fXcpt & (X86_MXCSR_IE | X86_MXCSR_DE | X86_MXCSR_ZE));
 
-    if (   (fMxcsr & X86_MXCSR_FZ)
-        && RTFLOAT64U_IS_SUBNORMAL(pr64Result))
+    /* Overflow handling */
+    if (fXcpt & X86_MXCSR_OE)
     {
-        /* Underflow masked and flush to zero is set. */
-        pr64Result->s.uFractionHigh = 0;
-        pr64Result->s.uFractionLow  = 0;
-        pr64Result->s.uExponent     = 0;
-        fXcpt |= X86_MXCSR_UE | X86_MXCSR_PE;
+        /**
+         * Intel SDM table D-16 '#O - Numeric Overflow' says PE should be raised
+         * always if OM (overflow exception masked), and this seems to agree with
+         * hardware (i7-10700).  But if !OM, it says raise PE 'if the result is
+         * inexact'.  This would be the PE bit on fMxcsr; but following that
+         * produces results which disagree with hardware.  It seems that softfloat
+         * and HW do not agree on what is imprecise.  We do not promote the
+         * softfloat PE, as it disagrees in more cases than it agrees.
+         */
+        fMxcsr |= X86_MXCSR_OE;
+        if (fMxcsr & X86_MXCSR_OM)
+            fMxcsr |= X86_MXCSR_PE;
+#ifdef TODO_BETTER_PE_WHEN_OM
+        else if (fXcpt & X86_MXCSR_PE)
+             /** @todo figure out why this leads to worse results */
+             fMxcsr |= X86_MXCSR_PE;
+#endif /* TODO_BETTER_PE_WHEN_OM */
+        return fMxcsr;
     }
 
-    /* If OE/UE get raised PE won't be set because of the lower priority. */
-    if (  (fXcpt & (X86_MXCSR_UE | X86_MXCSR_OE))
-        & fMxcsrExcpMask)
-        fXcpt &= ~X86_MXCSR_PE;
+    /* Underflow handling */
+    if (RTFLOAT64U_IS_SUBNORMAL(pr64Result))
+    {
+        /**
+         * Underflow handling:
+         *
+         * An underflow exception is raised for a subnormal result if either:
+         *
+         * (1) underflow exception is unmasked; OR
+         * (2) underflow exception is masked AND result is inexact
+         */
+        if (!(fMxcsr & X86_MXCSR_UM) || (fXcpt & X86_MXCSR_PE))
+            fXcpt |= X86_MXCSR_UE;
+
+        /**
+         * Flush-to-zero handling:
+         *
+         * By spec, FZ applies only when underflow exception is masked.
+         * If we have a subnormal result and underflow is masked, we zero
+         * the result and raise precision & underflow exceptions.
+         */
+        if ((fMxcsr & X86_MXCSR_UM) && (fMxcsr & X86_MXCSR_FZ))
+        {
+            pr64Result->s.uFractionHigh = 0;
+            pr64Result->s.uFractionLow  = 0;
+            pr64Result->s.uExponent     = 0;
+            fXcpt |= X86_MXCSR_UE | X86_MXCSR_PE;
+        }
+    }
 
     return fMxcsr | (fXcpt & X86_MXCSR_XCPT_FLAGS);
 }
-
 
 /**
  * Helper for transfering exception to MXCSR and setting the result value
