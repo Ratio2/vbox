@@ -15608,7 +15608,7 @@ DECLINLINE(uint32_t) iemSseSoftStateAndR32ToMxcsrAndIprtResult(softfloat_state_t
     if (fXcpt & X86_MXCSR_OE)
     {
         /**
-         * Intel SDM table D-16 '#O - Numeric Overflow' says PE should be raised
+         * Intel SDM table D-16 '\#O - Numeric Overflow' says PE should be raised
          * always if OM (overflow exception masked), and this seems to agree with
          * hardware (i7-10700).  But if !OM, it says raise PE 'if the result is
          * inexact'.  This would be the PE bit on fMxcsr; but following that
@@ -15725,7 +15725,7 @@ DECLINLINE(uint32_t) iemSseSoftStateAndR64ToMxcsrAndIprtResult(softfloat_state_t
     if (fXcpt & X86_MXCSR_OE)
     {
         /**
-         * Intel SDM table D-16 '#O - Numeric Overflow' says PE should be raised
+         * Intel SDM table D-16 '\#O - Numeric Overflow' says PE should be raised
          * always if OM (overflow exception masked), and this seems to agree with
          * hardware (i7-10700).  But if !OM, it says raise PE 'if the result is
          * inexact'.  This would be the PE bit on fMxcsr; but following that
