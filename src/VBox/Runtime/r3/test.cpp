@@ -1324,7 +1324,7 @@ RTR3DECL(int) RTTestSub(RTTEST hTest, const char *pszSubTest)
 
     int cch = 0;
     if (pTest->enmMaxLevel >= RTTESTLVL_DEBUG)
-        cch = RTTestPrintfNl(hTest, RTTESTLVL_DEBUG, "debug: Starting sub-test '%s'\n", pszSubTest);
+        cch = RTTestPrintfNl(hTest, RTTESTLVL_DEBUG, "debug: Starting sub-test %d '%s'\n", pTest->Sub.cTests, pszSubTest);
 
     if (!pTest->fXmlTopTestDone)
     {
